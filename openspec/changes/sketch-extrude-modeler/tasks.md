@@ -1,33 +1,33 @@
 ## 1. Project setup
 
-- [ ] 1.1 Scaffold Vite + React 19 + TypeScript with strict mode using pnpm, add three, @react-three/fiber, @react-three/drei, zustand, and Vitest, and verify `pnpm dev`, `pnpm build`, and `pnpm test` run
-- [ ] 1.2 Create the `src/core`, `src/ui`, `tests` layout from design.md and add a test that fails if anything under `src/core` imports `react`, `three`, `zustand`, or references `document`/`window`; verify it runs under `pnpm test`
+- [x] 1.1 Scaffold Vite + React 19 + TypeScript with strict mode using pnpm, add three, @react-three/fiber, @react-three/drei, zustand, and Vitest, and verify `pnpm dev`, `pnpm build`, and `pnpm test` run
+- [x] 1.2 Create the `src/core`, `src/ui`, `tests` layout from design.md and add a test that fails if anything under `src/core` imports `react`, `three`, `zustand`, or references `document`/`window`; verify it runs under `pnpm test`
 
 ## 2. Units
 
-- [ ] 2.1 Implement `parseLength` covering every accepted and rejected form in `dimension-units`; verify with a table-driven test including `35 1/4`, `35-1/4`, `3/4`, `35.3`, `24"`, `24 in`, `abc`, `-12`, `1/0`, empty
-- [ ] 2.2 Implement `formatLength` with reduced fractions; verify tests for `35 1/2"`, `24"`, `3/4"`, `0"`, `35 5/16"`
+- [x] 2.1 Implement `parseLength` covering every accepted and rejected form in `dimension-units`; verify with a table-driven test including `35 1/4`, `35-1/4`, `3/4`, `35.3`, `24"`, `24 in`, `abc`, `-12`, `1/0`, empty
+- [x] 2.2 Implement `formatLength` with reduced fractions; verify tests for `35 1/2"`, `24"`, `3/4"`, `0"`, `35 5/16"`
 
 ## 3. Box geometry and bodies
 
-- [ ] 3.1 Implement `Box` (sixteenths bounds), `volume`, `intersects`, `contains`, and `subtract(a, b): Box[]`; verify property tests that pieces are disjoint, inside `a`, and sum to volume(a) minus volume(a intersect b) across a grid of cases
-- [ ] 3.2 Implement `Body` with `join`, `cut`, `compact`, `volume`, `bounds`; verify tests for every `solid-model` join and cut scenario using volume and bounds
-- [ ] 3.3 Implement 2D rectangle subtraction and rectangle union to rectilinear polygon in `rect2d.ts`; verify tests for L-shape, ring (hole), and disjoint results
-- [ ] 3.4 Implement `faces(body)` returning per plane and direction the exposed rectangles and merged outlines; verify tests for six faces of one box, merged top after join, and pocket faces
+- [x] 3.1 Implement `Box` (sixteenths bounds), `volume`, `intersects`, `contains`, and `subtract(a, b): Box[]`; verify property tests that pieces are disjoint, inside `a`, and sum to volume(a) minus volume(a intersect b) across a grid of cases
+- [x] 3.2 Implement `Body` with `join`, `cut`, `compact`, `volume`, `bounds`; verify tests for every `solid-model` join and cut scenario using volume and bounds
+- [x] 3.3 Implement 2D rectangle subtraction and rectangle union to rectilinear polygon in `rect2d.ts`; verify tests for L-shape, ring (hole), and disjoint results
+- [x] 3.4 Implement `faces(body)` returning per plane and direction the exposed rectangles and merged outlines; verify tests for six faces of one box, merged top after join, and pocket faces
 
 ## 4. Planes, sketches, extrudes
 
-- [ ] 4.1 Implement principal plane definitions and `toModel`/`toPlane` mappings; verify tests for the XY offset and YZ mapping scenarios and round trips on all six normals
-- [ ] 4.2 Implement sketch and rectangle types, normalisation of corners, width and height setters, and validation; verify tests for corner order, zero size, and set-width-keeps-origin
-- [ ] 4.3 Implement `boxFromRect(plane, rect, distance)`; verify tests for the front-plane positive and negative distance scenarios and one case per plane
-- [ ] 4.4 Implement extrude application (new, join, cut, target checks) and default operation from the sketch plane kind; verify tests for the new-body union, dado cut, shelf join, and default-target scenarios
-- [ ] 4.5 Implement face references and resolution against evaluated results including the "face removed" check; verify tests for cap resolution, follows-edit, and deleted-feature error
+- [x] 4.1 Implement principal plane definitions and `toModel`/`toPlane` mappings; verify tests for the XY offset and YZ mapping scenarios and round trips on all six normals
+- [x] 4.2 Implement sketch and rectangle types, normalisation of corners, width and height setters, and validation; verify tests for corner order, zero size, and set-width-keeps-origin
+- [x] 4.3 Implement `boxFromRect(plane, rect, distance)`; verify tests for the front-plane positive and negative distance scenarios and one case per plane
+- [x] 4.4 Implement extrude application (new, join, cut, target checks) and default operation from the sketch plane kind; verify tests for the new-body union, dado cut, shelf join, and default-target scenarios
+- [x] 4.5 Implement face references and resolution against evaluated results including the "face removed" check; verify tests for cap resolution, follows-edit, and deleted-feature error
 
 ## 5. Evaluation and timeline
 
-- [ ] 5.1 Implement `evaluate(doc)` walking features, producing bodies, per-feature results, reference geometry for sketches, and isolated errors; verify tests for sequential dependency, upstream edit propagation, and missing target error with unrelated features intact
-- [ ] 5.2 Implement feature naming, the dependency graph, and `dependentsOf(featureId)`; verify tests for auto naming and the delete-cascade scenario
-- [ ] 5.3 Implement document validation and JSON serialise/parse with `version: 1`; verify a round-trip test and a rejection test for a dangling sketch reference
+- [x] 5.1 Implement `evaluate(doc)` walking features, producing bodies, per-feature results, reference geometry for sketches, and isolated errors; verify tests for sequential dependency, upstream edit propagation, and missing target error with unrelated features intact
+- [x] 5.2 Implement feature naming, the dependency graph, and `dependentsOf(featureId)`; verify tests for auto naming and the delete-cascade scenario
+- [x] 5.3 Implement document validation and JSON serialise/parse with `version: 1`; verify a round-trip test and a rejection test for a dangling sketch reference
 
 ## 6. Store and app shell
 
