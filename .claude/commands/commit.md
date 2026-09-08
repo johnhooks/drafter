@@ -1,21 +1,40 @@
 ---
-description: Commit staged and unstaged changes with a very concise conventional commit message
+name: commit
+description: Create a very concise conventional commit focused on the functional change
 allowed-tools: Bash(git *)
 ---
 
-Commit the current changes.
+# Commit
 
-Rules:
-- Very concise conventional commit: `type(scope): summary`, summary under 50 characters, imperative, lowercase, no period.
-- Types: feat, fix, refactor, test, docs, chore, build, spec (OpenSpec artifacts).
-- Scope is optional. Use it only when it adds information (a module or change name).
-- No body unless the why is not obvious from the diff. If a body is needed, one or two short lines.
+Running this command is an explicit request to commit. Use $ARGUMENTS and the
+visible conversation as optional guidance. When guidance is absent, inspect the
+repo to find what changed and what the message should say.
+
+## Message
+
+- Conventional commit: `type(scope): summary`. Title 50 characters or less,
+  imperative, lowercase, no period.
+- Smallest accurate type: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`,
+  `build`, or `spec` for OpenSpec artifacts. Scope only when it adds context.
+- Describe the user-visible, maintainer-visible, or workflow-visible behavior
+  that changed. Say what was added or changed, not what was removed to make
+  room for it, and not implementation trivia.
+- Body only when the why is not obvious from the diff. Wrap at 80 characters.
+  No bullet list for a single-purpose change.
+- Do not state that the change was tested.
 - No co-author trailer, no session link, no emoji.
-- Never push.
 
-Steps:
-1. Run `git status` and `git diff` to see what changed.
-2. Stage everything relevant with `git add -A` unless the user said otherwise.
-3. Commit with the message. Show the resulting `git log --oneline -1`.
+## Staging
 
-Arguments, if given, are a hint for the message: $ARGUMENTS
+- Stage with explicit file paths. Never `git add -A` or `git add .`.
+- Do not stage unrelated files. If the tree holds unrelated changes, ask
+  whether the developer wants one combined commit or separate commits.
+- Ask a targeted question only when the commit boundary or intent is
+  ambiguous; otherwise proceed.
+
+## Process
+
+1. `git status` and `git diff` (staged and unstaged) to see what changed.
+2. Stage the related files by path.
+3. Commit. Show `git log --oneline -1`.
+4. Never push.
