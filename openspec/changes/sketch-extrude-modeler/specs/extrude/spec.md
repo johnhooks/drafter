@@ -45,8 +45,12 @@ With operation join, each box SHALL be joined to the target body per `solid-mode
 - **THEN** the body's bounding box grows by 12 in that direction
 
 ### Requirement: Extrude default target
-When a sketch is attached to a face of a body, new extrudes from that sketch SHALL default to operation join with that body as target. When a sketch is on a principal plane, new extrudes SHALL default to operation new.
+When a sketch is attached to a face of a body, new extrudes from that sketch SHALL default to operation join with that body as target. When a sketch is on a principal plane, new extrudes SHALL default to operation new. When the user changes an extrude's operation to join or cut and it has no target, the target SHALL default to the most recently created body before that extrude, and remain editable.
 
 #### Scenario: Default from face sketch
 - **WHEN** an extrude is created from a sketch attached to body B's face
 - **THEN** its operation is join and its target is B
+
+#### Scenario: Switching to cut picks a target
+- **WHEN** an extrude from a principal-plane sketch with operation new is switched to cut and bodies A then B were created before it
+- **THEN** its target is B and the extrude evaluates without error

@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { type Page, expect, test } from '@playwright/test'
 
-import { choose, confirmDialog, dbg, dragSvg, field, isoPoint, menu, newSketch, rowAction, tool } from './helpers'
+import { choose, confirmDialog, dbg, dragSvg, field, isoPoint, makeCube, menu, newSketch, rowAction, tool } from './helpers'
 
 /** Draw a rect in the current sketch by plane inches, given the view centre and scale the editor is using. */
 async function drawInches(page: Page, view: { cu: number; cv: number; scale: number; su: 1 | -1 }, a: [number, number], b: [number, number]) {
@@ -305,4 +305,15 @@ test('sketch view zooms with the wheel and pans with the middle button', async (
   await page.mouse.move(cx + 50, cy + 50)
   const panned = await page.locator('.axis-indicator').textContent()
   expect(panned).not.toBe(zoomed)
+})
+
+test('switching an extrude to cut picks the newest body as its target', async ({ page }) => {
+  await makeCube(page)
+  await newSketch(page)
+  await drawInches(page, { cu: 12, cv: 12, scale: 12, su: 1 }, [4, 4], [8, 8])
+  await page.getByRole('button', { name: /^Extrude/ }).click()
+  await choose(page, 'Operation', 'Cut')
+  const d = await dbg(page)
+  expect(d.features[3]).toMatchObject({ op: 'cut', targetBodyId: d.features[1]!.id })
+  expect(d.errors).toEqual([])
 })

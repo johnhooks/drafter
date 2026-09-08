@@ -260,7 +260,16 @@ function ExtrudeProperties({ extrude }: { extrude: ExtrudeFeature }) {
           <SelectItem id="along">Along the plane normal (out of the face)</SelectItem>
           <SelectItem id="against">Against the normal (into the face)</SelectItem>
         </Select>
-        <Select label="Operation" selectedKey={extrude.op} onSelectionChange={(k) => dispatch('updateExtrude', extrude.id, { op: k as ExtrudeFeature['op'] })}>
+        <Select
+          label="Operation"
+          selectedKey={extrude.op}
+          onSelectionChange={(k) => {
+            const op = k as ExtrudeFeature['op']
+            // switching to join or cut without a target would only show an error; start with the newest body
+            const targetBodyId = op !== 'new' && !extrude.targetBodyId ? bodies.at(-1)?.id : extrude.targetBodyId
+            dispatch('updateExtrude', extrude.id, { op, targetBodyId })
+          }}
+        >
           <SelectItem id="new">New body</SelectItem>
           <SelectItem id="join">Join</SelectItem>
           <SelectItem id="cut">Cut</SelectItem>
