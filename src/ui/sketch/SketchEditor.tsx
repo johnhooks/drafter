@@ -156,7 +156,19 @@ export function SketchEditor({ sketch }: Props) {
     if (e.button !== 0) return
     tool.up(pointerInfo(e))
   }
-  const onWheel = (e: React.WheelEvent) => {
+  // React's onWheel is passive, so it cannot stop the page from scrolling; attach natively
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      onWheel(e)
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  })
+
+  const onWheel = (e: WheelEvent) => {
     const rect = svgRef.current!.getBoundingClientRect()
     const px = e.clientX - rect.left - rect.width / 2
     const py = e.clientY - rect.top - rect.height / 2
@@ -275,7 +287,6 @@ export function SketchEditor({ sketch }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onWheel={onWheel}
         onContextMenu={(e) => e.preventDefault()}
         style={{ cursor: toolName === 'rect' ? 'crosshair' : 'default' }}
       >
