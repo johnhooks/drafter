@@ -11,7 +11,7 @@ export interface ToastMessage {
 /** One queue for the application; call toast() from anywhere and render ToastRegion once. */
 export const queue = new ToastQueue<ToastMessage>({ maxVisibleToasts: 4 })
 
-export function toast(message: ToastMessage | string, options?: { timeout?: number }): string {
+export function toast(message: ToastMessage | string, options?: { timeout?: number; onClose?: () => void }): string {
   const m = typeof message === 'string' ? { title: message } : message
   return queue.add(m, options)
 }

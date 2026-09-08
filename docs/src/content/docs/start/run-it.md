@@ -24,8 +24,12 @@ The `dist/` folder is a static site. Serve it from any web server or open it fro
 
 ## Screen layout
 
-- **Toolbar** across the top. Its buttons change with the mode: model view or sketch editing.
+- **Toolbar** across the top: undo and redo, then the buttons for the current mode. In the model view, New sketch and Pick face; while sketching, the tool switcher, Dims, Extrude, and Finish. The menu at the far right holds export, download, open, new document, and the theme.
 - **Timeline** on the left: every sketch and extrude in order, with an error mark on any that failed.
 - **View** in the centre: the 3D model, or the sketch you are editing.
 - **Properties** on the right: the selected feature, or the document and its parameters when nothing is selected.
-- **Warnings** below the view whenever a feature fails to evaluate.
+- **Warnings** below the view whenever a feature fails to evaluate. Refusals and errors also appear as notices at the top of the view until you dismiss them.
+
+## Theme
+
+The panels come in a light grey and a dark theme. Choose one from the menu at the right of the toolbar; the choice is remembered in the browser. The sketch and 3D surfaces keep their own colours.

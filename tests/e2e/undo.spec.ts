@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { dbg, field, makeCube } from './helpers'
+import { confirmDialog, dbg, field, makeCube, rowAction } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -46,8 +46,8 @@ test('undo and redo from the toolbar and the keyboard', async ({ page }) => {
   expect(d.bodies[0]!.bounds.y0).toBe(-384)
 
   // a cascade delete comes back in one step
-  page.once('dialog', (dlg) => void dlg.accept())
-  await page.click('.timeline .item:has-text("Sketch 1") >> button.danger')
+  await rowAction(page, /^Sketch 1/, 'Delete')
+  await confirmDialog(page, 'Delete')
   d = await dbg(page)
   expect(d.features).toHaveLength(0)
   await undo.click()

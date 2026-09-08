@@ -1,3 +1,4 @@
+import { Button, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Row, Select, SelectItem, TextField } from '@drawing/kit'
 import { FRAMES } from '../core/model/planes'
 import type { ExtrudeFeature, Len, SketchFeature, SketchRect, Slot } from '../core/model/types'
 import { isExpr } from '../core/model/types'
@@ -19,25 +20,19 @@ function DocumentProperties() {
   const dispatch = useStore((s) => s.dispatch)
   return (
     <div>
-      <h3>Document</h3>
-      <label className="field">
-        <span>Title</span>
-        <input value={title} onChange={(e) => dispatch('setTitle', e.target.value)} />
-      </label>
+      <h3 className="section-title">Document</h3>
+      <Fields>
+        <TextField label="Title" value={title} onCommit={(_v, t) => dispatch('setTitle', t)} />
+      </Fields>
       <Parameters />
-      <div className="muted">Select a feature in the timeline or a body in the view to edit it.</div>
+      <Hint>Select a feature in the timeline or a body in the view to edit it.</Hint>
     </div>
   )
 }
 
 function NameField({ id, name }: { id: string; name: string }) {
   const dispatch = useStore((s) => s.dispatch)
-  return (
-    <label className="field">
-      <span>Name</span>
-      <input value={name} onChange={(e) => dispatch('renameFeature', id, e.target.value)} />
-    </label>
-  )
+  return <TextField label="Name" value={name} onCommit={(_v, t) => dispatch('renameFeature', id, t)} />
 }
 
 function SketchProperties({ sketch }: { sketch: SketchFeature }) {
@@ -50,109 +45,56 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
   const single = selection.rectIds.length === 1 ? sketch.rects.find((x) => x.id === selection.rectIds[0]) : undefined
   return (
     <div>
-      <h3>
-        Sketch <span className="muted">{sketch.handle}</span>
+      <h3 className="section-title">
+        Sketch <span className="handle">{sketch.handle}</span>
       </h3>
-      <NameField id={sketch.id} name={sketch.name} />
-      <div className="field">
-        <span>Plane</span>
-        {sketch.plane.kind === 'principal' ? (
-          <div>
-            {sketch.plane.plane}, normal {sketch.plane.normal > 0 ? '+' : '-'}
-            {FRAMES[sketch.plane.plane].n.toUpperCase()}
-          </div>
-        ) : (
-          <div>
-            {sketch.plane.face} face of {featureName(sketch.plane.featureId)}
-            {plane && (
-              <span className="muted">
-                {' '}
-                ({plane.plane} at {formatLength(plane.offset)})
-              </span>
-            )}
-          </div>
+      <Fields>
+        <NameField id={sketch.id} name={sketch.name} />
+        <Field label="Plane">
+          {sketch.plane.kind === 'principal'
+            ? `${sketch.plane.plane}, normal ${sketch.plane.normal > 0 ? '+' : '-'}${FRAMES[sketch.plane.plane].n.toUpperCase()}`
+            : `${sketch.plane.face} face of ${featureName(sketch.plane.featureId)}${plane ? ` (${plane.plane} at ${formatLength(plane.offset)})` : ''}`}
+        </Field>
+        {sketch.plane.kind === 'principal' && (
+          <LenField
+            label="Offset"
+            value={sketch.plane.offset}
+            resolved={plane?.offset}
+            error={r?.kind === 'error' && isExpr(sketch.plane.offset) ? r.message : undefined}
+            onCommit={(v) => dispatch('setSketchPlaneOffset', sketch.id, v)}
+          />
         )}
-      </div>
-      {sketch.plane.kind === 'principal' && (
-        <LenField
-          label="Offset"
-          value={sketch.plane.offset}
-          resolved={plane?.offset}
-          error={r?.kind === 'error' && isExpr(sketch.plane.offset) ? r.message : undefined}
-          onCommit={(v) => dispatch('setSketchPlaneOffset', sketch.id, v)}
-        />
-      )}
-      {r?.kind === 'error' && <div className="field error">{r.message}</div>}
-      {mode.kind !== 'sketch' && <button onClick={() => dispatch('setMode', { kind: 'sketch', sketchId: sketch.id })}>Edit sketch</button>}
-      <h3>Rectangles</h3>
-      <div className="rect-list">
-        {sketch.rects.length === 0 && <div className="muted">None yet. Use the rectangle tool.</div>}
-        {sketch.rects.map((rect) => {
-          const res = r?.kind === 'sketch' ? r.rects.get(rect.id) : undefined
-          const err = r?.kind === 'sketch' ? r.rectErrors.get(rect.id) : undefined
-          return (
-            <div key={rect.id} className={`item ${selection.rectIds.includes(rect.id) ? 'selected' : ''} ${err ? 'error' : ''}`} onClick={(e) => dispatch('toggleRect', rect.id, e.shiftKey)}>
-              <span className="handle">{rect.handle}</span>
-              {res
-                ? `${formatLength((res.u1 - res.u0) as Sixteenths)} x ${formatLength((res.v1 - res.v0) as Sixteenths)} at (${formatLength(res.u0 as Sixteenths)}, ${formatLength(res.v0 as Sixteenths)})`
-                : (err ?? 'unresolved')}
-            </div>
-          )
-        })}
-      </div>
+        {r?.kind === 'error' && <Field error={r.message}>{null}</Field>}
+        {mode.kind !== 'sketch' && <Button onPress={() => dispatch('setMode', { kind: 'sketch', sketchId: sketch.id })}>Edit sketch</Button>}
+      </Fields>
+      <Disclosure title="Rectangles" trailing={String(sketch.rects.length)}>
+        {sketch.rects.length === 0 && <Hint>None yet. Use the rectangle tool.</Hint>}
+        <ListBox
+          aria-label="Rectangles"
+          dense
+          selectionMode="multiple"
+          selectedKeys={selection.rectIds}
+          onSelectionChange={(keys) => dispatch('selectRects', sketch.id, keys === 'all' ? sketch.rects.map((x) => x.id) : ([...keys] as string[]))}
+        >
+          {sketch.rects.map((rect) => {
+            const res = r?.kind === 'sketch' ? r.rects.get(rect.id) : undefined
+            const err = r?.kind === 'sketch' ? r.rectErrors.get(rect.id) : undefined
+            return (
+              <ListBoxItem
+                key={rect.id}
+                id={rect.id}
+                textValue={rect.handle}
+                tone={err ? 'error' : 'neutral'}
+                detail={res ? `${formatLength((res.u1 - res.u0) as Sixteenths)} x ${formatLength((res.v1 - res.v0) as Sixteenths)} at (${formatLength(res.u0 as Sixteenths)}, ${formatLength(res.v0 as Sixteenths)})` : (err ?? 'unresolved')}
+              >
+                {rect.handle}
+              </ListBoxItem>
+            )
+          })}
+        </ListBox>
+      </Disclosure>
       {single && <RectProperties sketch={sketch} rect={single} />}
       <ConstraintList sketch={sketch} />
-    </div>
-  )
-}
-
-const SIDE: Record<'u' | 'v', Record<Slot, string>> = {
-  u: { min: 'left', max: 'right', size: 'width' },
-  v: { min: 'bottom', max: 'top', size: 'height' },
-}
-
-/** Every expression-driven slot in the sketch, selectable and removable. */
-function ConstraintList({ sketch }: { sketch: SketchFeature }) {
-  const ev = useStore((s) => s.eval)
-  const selected = useStore((s) => s.selection.constraint)
-  const dispatch = useStore((s) => s.dispatch)
-  const r = ev.results.get(sketch.id)
-  const entries = sketch.rects.flatMap((rect) =>
-    (['u', 'v'] as const).flatMap((axis) =>
-      (['min', 'max', 'size'] as const).flatMap((slot) => {
-        const v = rect[axis][slot]
-        if (v === undefined || !isExpr(v)) return []
-        const value = r?.kind === 'sketch' ? r.slotValues.get(rect.id)?.[axis]?.[slot] : undefined
-        const error = r?.kind === 'sketch' && value === undefined ? r.rectErrors.get(rect.id) : undefined
-        return [{ rect, axis, slot, expr: v, value, error }]
-      }),
-    ),
-  )
-  if (entries.length === 0) return null
-  return (
-    <div className="constraint-list">
-      <h3>Constraints</h3>
-      {entries.map((e) => {
-        const isSel = selected && selected.rectId === e.rect.id && selected.axis === e.axis && selected.slot === e.slot
-        return (
-          <div key={`${e.rect.id}:${e.axis}:${e.slot}`} className={`item ${isSel ? 'selected' : ''} ${e.error ? 'error' : ''}`} onClick={() => dispatch('selectConstraint', { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot })}>
-            <span className="rel">
-              {e.rect.handle}.{SIDE[e.axis][e.slot]} = {e.expr}
-            </span>
-            <span className="muted">{e.error ? e.error : e.value !== undefined ? formatLength(e.value as Sixteenths) : ''}</span>
-            <button
-              className="danger"
-              title="Remove: keeps the current value as a number"
-              onClick={(ev2) => {
-                ev2.stopPropagation()
-                dispatch('removeConstraint', { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot })
-              }}
-            >
-              x
-            </button>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -165,6 +107,10 @@ function featureName(id: string): string {
 const SLOT_LABEL: Record<'u' | 'v', Record<Slot, string>> = {
   u: { min: 'Left', max: 'Right', size: 'Width' },
   v: { min: 'Bottom', max: 'Top', size: 'Height' },
+}
+const SIDE: Record<'u' | 'v', Record<Slot, string>> = {
+  u: { min: 'left', max: 'right', size: 'width' },
+  v: { min: 'bottom', max: 'top', size: 'height' },
 }
 
 function RectProperties({ sketch, rect }: { sketch: SketchFeature; rect: SketchRect }) {
@@ -195,18 +141,79 @@ function RectProperties({ sketch, rect }: { sketch: SketchFeature; rect: SketchR
     })
   }
   return (
-    <div>
-      <h3>
-        Rectangle <span className="muted">{rect.handle}</span>
-      </h3>
-      {err && <div className="field error">{err}</div>}
-      <div className="muted small">Two values per axis drive it; the third is derived. Expressions may use {'{'}r1.right, face.left, ply{'}'} and + - * /.</div>
-      <div className="row">{axisFields('u')}</div>
-      <div className="row">{axisFields('v')}</div>
-      <button className="danger" onClick={() => dispatch('removeRects', sketch.id, [rect.id])}>
-        Delete rectangle
-      </button>
-    </div>
+    <Disclosure title={`Rectangle ${rect.handle}`}>
+      <Fields>
+        {err && <Field error={err}>{null}</Field>}
+        <Hint>Two values per axis drive it; the third is derived. Expressions may use r1.right, face.left, ply and + - * /.</Hint>
+        <Row>{axisFields('u')}</Row>
+        <Row>{axisFields('v')}</Row>
+        <div>
+          <Button tone="danger" onPress={() => dispatch('removeRects', sketch.id, [rect.id])}>
+            Delete rectangle
+          </Button>
+        </div>
+      </Fields>
+    </Disclosure>
+  )
+}
+
+/** Every expression-driven slot in the sketch, selectable and removable. */
+function ConstraintList({ sketch }: { sketch: SketchFeature }) {
+  const ev = useStore((s) => s.eval)
+  const selected = useStore((s) => s.selection.constraint)
+  const dispatch = useStore((s) => s.dispatch)
+  const r = ev.results.get(sketch.id)
+  const entries = sketch.rects.flatMap((rect) =>
+    (['u', 'v'] as const).flatMap((axis) =>
+      (['min', 'max', 'size'] as const).flatMap((slot) => {
+        const v = rect[axis][slot]
+        if (v === undefined || !isExpr(v)) return []
+        const value = r?.kind === 'sketch' ? r.slotValues.get(rect.id)?.[axis]?.[slot] : undefined
+        const error = r?.kind === 'sketch' && value === undefined ? r.rectErrors.get(rect.id) : undefined
+        return [{ key: `${rect.id}:${axis}:${slot}`, rect, axis, slot, expr: v, value, error }]
+      }),
+    ),
+  )
+  if (entries.length === 0) return null
+  const selectedKey = selected ? `${selected.rectId}:${selected.axis}:${selected.slot}` : undefined
+  return (
+    <Disclosure title="Constraints" trailing={String(entries.length)}>
+      <ListBox
+        aria-label="Constraints"
+        dense
+        selectionMode="single"
+        actionSlots={1}
+        selectedKeys={selectedKey ? [selectedKey] : []}
+        onSelectionChange={(keys) => {
+          const k = keys === 'all' ? undefined : ([...keys][0] as string | undefined)
+          const e = entries.find((x) => x.key === k)
+          dispatch('selectConstraint', e ? { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot } : undefined)
+        }}
+      >
+        {entries.map((e) => (
+          <ListBoxItem
+            key={e.key}
+            id={e.key}
+            textValue={`${e.rect.handle}.${SIDE[e.axis][e.slot]} = ${e.expr}`}
+            tone={e.error ? 'error' : 'neutral'}
+            detail={e.error ?? (e.value !== undefined ? formatLength(e.value as Sixteenths) : '')}
+            actions={
+              <IconButton
+                icon="close"
+                size="sm"
+                tone="danger"
+                aria-label="Remove"
+                onPress={() => dispatch('removeConstraint', { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot })}
+              />
+            }
+          >
+            <span className="mono">
+              {e.rect.handle}.{SIDE[e.axis][e.slot]} = {e.expr}
+            </span>
+          </ListBoxItem>
+        ))}
+      </ListBox>
+    </Disclosure>
   )
 }
 
@@ -231,54 +238,49 @@ function ExtrudeProperties({ extrude }: { extrude: ExtrudeFeature }) {
   const idx = features.findIndex((f) => f.id === extrude.id)
   const bodies = features.slice(0, idx).filter((f): f is ExtrudeFeature => f.kind === 'extrude' && f.op === 'new')
   const { magnitude, against } = splitDistance(extrude.distance)
+  const distanceError = r?.kind === 'error' && /^Distance:/.test(r.message) ? r.message : undefined
   return (
     <div>
-      <h3>Extrude</h3>
-      <NameField id={extrude.id} name={extrude.name} />
-      <div className="field">
-        <span>From</span>
-        <div>
+      <h3 className="section-title">Extrude</h3>
+      <Fields>
+        <NameField id={extrude.id} name={extrude.name} />
+        <Field label="From">
           {sketch?.name ?? extrude.sketchId}, {extrude.rectIds.length} rect{extrude.rectIds.length === 1 ? '' : 's'}
-        </div>
-      </div>
-      <LenField
-        label="Distance"
-        value={magnitude}
-        resolved={r?.kind === 'extrude' ? Math.abs(r.distance) : undefined}
-        error={r?.kind === 'error' && /^Distance:/.test(r.message) ? r.message : undefined}
-        autoFocus
-        allowZero={false}
-        onCommit={(v) => dispatch('updateExtrude', extrude.id, { distance: joinDistance(v, against) })}
-      />
-      <label className="field">
-        <span>Direction</span>
-        <select value={against ? 'against' : 'along'} onChange={(e) => dispatch('updateExtrude', extrude.id, { distance: joinDistance(magnitude, e.target.value === 'against') })}>
-          <option value="along">Along the plane normal (out of the face)</option>
-          <option value="against">Against the normal (into the face)</option>
-        </select>
-      </label>
-      <label className="field">
-        <span>Operation</span>
-        <select value={extrude.op} onChange={(e) => dispatch('updateExtrude', extrude.id, { op: e.target.value as ExtrudeFeature['op'] })}>
-          <option value="new">New body</option>
-          <option value="join">Join</option>
-          <option value="cut">Cut</option>
-        </select>
-      </label>
-      {extrude.op !== 'new' && (
-        <label className="field">
-          <span>Target body</span>
-          <select value={extrude.targetBodyId ?? ''} onChange={(e) => dispatch('updateExtrude', extrude.id, { targetBodyId: e.target.value || undefined })}>
-            <option value="">Choose a body</option>
+        </Field>
+        <LenField
+          label="Distance"
+          value={magnitude}
+          resolved={r?.kind === 'extrude' ? Math.abs(r.distance) : undefined}
+          error={distanceError}
+          autoFocus
+          allowZero={false}
+          onCommit={(v) => dispatch('updateExtrude', extrude.id, { distance: joinDistance(v, against) })}
+        />
+        <Select label="Direction" selectedKey={against ? 'against' : 'along'} onSelectionChange={(k) => dispatch('updateExtrude', extrude.id, { distance: joinDistance(magnitude, k === 'against') })}>
+          <SelectItem id="along">Along the plane normal (out of the face)</SelectItem>
+          <SelectItem id="against">Against the normal (into the face)</SelectItem>
+        </Select>
+        <Select label="Operation" selectedKey={extrude.op} onSelectionChange={(k) => dispatch('updateExtrude', extrude.id, { op: k as ExtrudeFeature['op'] })}>
+          <SelectItem id="new">New body</SelectItem>
+          <SelectItem id="join">Join</SelectItem>
+          <SelectItem id="cut">Cut</SelectItem>
+        </Select>
+        {extrude.op !== 'new' && (
+          <Select
+            label="Target body"
+            placeholder="Choose a body"
+            selectedKey={extrude.targetBodyId ?? null}
+            onSelectionChange={(k) => dispatch('updateExtrude', extrude.id, { targetBodyId: k ? String(k) : undefined })}
+          >
             {bodies.map((b) => (
-              <option key={b.id} value={b.id}>
+              <SelectItem key={b.id} id={b.id}>
                 {b.name}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-        </label>
-      )}
-      {r?.kind === 'error' && !/^Distance:/.test(r.message) && <div className="field error">{r.message}</div>}
+          </Select>
+        )}
+        {r?.kind === 'error' && !distanceError && <Field error={r.message}>{null}</Field>}
+      </Fields>
     </div>
   )
 }

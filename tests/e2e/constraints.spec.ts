@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, faceView, field, isoPoint, makeCube } from './helpers'
+import { type View, choose, clickInches, dbg, drawInches, faceView, field, isoPoint, makeCube, rowAction, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Link tool: click the driven edge, click the anchor edge, type the distance. */
 async function link(page: import('@playwright/test').Page, view: View, driven: [number, number], anchor: [number, number], distance: string) {
-  await page.click('button:has-text("Link")')
+  await tool(page, 'Link')
   await clickInches(page, view, driven[0], driven[1])
   await expect(page.locator('[data-link-label]')).toHaveText(['constrain'])
   await clickInches(page, view, anchor[0], anchor[1])
@@ -46,9 +46,10 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     expect(d.features[2]!.rects[0].u).toEqual({ min: 'face.left + 2', max: 'face.right - 2' })
     expect(d.errors).toEqual([])
     // resolved 2" .. 22"
-    await expect(page.locator('.rect-list .item')).toContainText('20" x 16" at (2", -20")')
-    await expect(page.locator('.constraint-list .item .rel')).toHaveText(['r1.left = face.left + 2', 'r1.right = face.right - 2'])
-    await expect(page.locator('.constraint-list .item').first()).toContainText('2"')
+    await expect(page.getByRole('option', { name: 'r1', exact: true })).toContainText('20" x 16" at (2", -20")')
+    const constraints = page.getByRole('listbox', { name: 'Constraints' }).getByRole('option')
+    await expect(constraints).toContainText(['r1.left = face.left + 2', 'r1.right = face.right - 2'])
+    await expect(constraints.first()).toContainText('2"')
   })
 
   await test.step('driving dimensions are drawn and editable', async () => {
@@ -63,49 +64,49 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
   })
 
   await test.step('non-parallel edges are refused and the tool keeps waiting', async () => {
-    await page.click('button:has-text("Link")')
+    await tool(page, 'Link')
     await clickInches(page, view, 12, -20) // bottom edge of r1
     await clickInches(page, view, 0, -12) // face left edge: not parallel
-    await expect(page.locator('.notice')).toContainText('not parallel')
+    await expect(page.locator('.kit-toast')).toContainText('not parallel')
     await expect(page.locator('.hint')).toContainText('measure from')
     await page.keyboard.press('Escape')
   })
 
   await test.step('width edit is refused when both edges are expressions', async () => {
-    await page.click('text=Select')
-    await page.click('.rect-list .item')
+    await tool(page, 'Select')
+    await page.getByRole('option', { name: 'r1', exact: true }).click()
     const width = field(page, 'Width')
-    await expect(page.locator('.panel.right label.field:has(span:has-text("Width"))')).toHaveClass(/derived/)
+    await expect(page.locator('.kit-textfield[data-derived]:has(label:has-text("Width"))')).toHaveCount(1)
     await width.fill('10')
     await width.press('Enter')
-    await expect(page.locator('.notice').last()).toContainText('r1: size is fixed by min (face.left + 1 1/2) and max (face.right - 2)')
+    await expect(page.locator('.kit-toast', { hasText: 'r1: size is fixed by min (face.left + 1 1/2) and max (face.right - 2)' })).toBeVisible()
     d = await dbg(page)
     expect(d.features[2]!.rects[0].u).toEqual({ min: 'face.left + 1 1/2', max: 'face.right - 2' })
   })
 
   await test.step('cut the pocket, widen the carcass, pocket follows', async () => {
-    await page.click('button:has-text("Extrude")')
+    await page.getByRole('button', { name: /^Extrude/ }).click()
     await field(page, 'Distance').fill('1')
     await field(page, 'Distance').press('Enter')
-    await page.locator('.panel.right select').nth(0).selectOption('against')
-    await page.locator('.panel.right select').nth(1).selectOption('cut')
+    await choose(page, 'Direction', /Against/)
+    await choose(page, 'Operation', 'Cut')
     d = await dbg(page)
     expect(d.errors).toEqual([])
     expect(d.bodies[0]!.volume).toBe(24 ** 3 - 20.5 * 16 * 1)
     // widen Sketch 1's rectangle to 30"
-    await page.click('.timeline .item:has-text("Sketch 1") >> text=Edit')
-    await page.click('.rect-list .item')
+    await rowAction(page, /^Sketch 1/, 'Edit')
+    await page.getByRole('option', { name: 'r1', exact: true }).click()
     await field(page, 'Width').fill('30')
     await field(page, 'Width').press('Enter')
     d = await dbg(page)
     expect(d.errors).toEqual([])
     expect(d.bodies[0]!.volume).toBe(30 * 24 * 24 - 26.5 * 16 * 1)
-    await page.click('text=Finish')
+    await page.getByRole('button', { name: 'Finish' }).click()
   })
 
   await test.step('select a dimension and delete it: the slot freezes as a number', async () => {
-    await page.click('.timeline .item:has-text("Sketch 2") >> text=Edit')
-    await page.click('text=Select')
+    await rowAction(page, /^Sketch 2/, 'Edit')
+    await tool(page, 'Select')
     // a zero-height line is not clickable for Playwright; the label selects the dimension too
     await page.click('[data-dim-slot] text >> nth=0')
     d = await dbg(page)
@@ -115,14 +116,15 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     d = await dbg(page)
     expect(d.features[2]!.rects[0].u).toEqual({ min: 24, max: 'face.right - 2' })
     await expect(page.locator('[data-dim-slot]')).toHaveCount(1)
-    await page.click('text=Dims')
+    await page.getByRole('button', { name: 'Dims' }).click()
     await expect(page.locator('[data-dim-slot]')).toHaveCount(0)
-    // remove the remaining link from the list: right edge freezes at 22 - 2 = 20 ... after widening, face.right is 30, so 28
-    await expect(page.locator('.constraint-list .item')).toHaveCount(1)
-    await page.click('.constraint-list .item button')
+    // remove the remaining link from the list: after widening, face.right is 30, so the edge freezes at 28
+    const list = page.getByRole('listbox', { name: 'Constraints' })
+    await expect(list.getByRole('option')).toHaveCount(1)
+    await rowAction(page, /r1\.right/, 'Remove')
     d = await dbg(page)
     expect(d.features[2]!.rects[0].u).toEqual({ min: 24, max: 28 * 16 })
-    await expect(page.locator('.constraint-list')).toHaveCount(0)
+    await expect(list).toHaveCount(0)
   })
 })
 
@@ -130,46 +132,51 @@ test('parameters drive extrude distance and rectangle size; rename and delete ru
   await makeCube(page)
   // deselect to reach document properties
   await page.mouse.click(...(await isoPoint(page, -80, 80, 0)))
-  await page.locator('.param.add input').nth(0).fill('ply')
-  await page.locator('.param.add input').nth(1).fill('3/4')
-  await page.click('.param.add button')
+  await field(page, 'New name').fill('ply')
+  await field(page, 'New name').press('Enter')
+  const addValue = page.locator('.param-add').getByRole('textbox', { name: 'Value' })
+  await addValue.fill('3/4')
+  await addValue.press('Enter')
+  await page.getByRole('button', { name: 'Add parameter' }).click()
   let d = await dbg(page)
   expect(d.params).toEqual([{ name: 'ply', value: 12 }])
 
-  await page.click('.timeline .item:has-text("Extrude 1")')
+  await page.getByRole('option', { name: 'Extrude 1' }).click()
   await field(page, 'Distance').fill('ply')
   await field(page, 'Distance').press('Enter')
   d = await dbg(page)
   expect(d.features[1]!.distance).toBe('ply')
   expect(d.bodies[0]!.bounds.y0).toBe(-12)
-  await expect(page.locator('.panel.right label.field:has(span:has-text("Distance")) .value')).toHaveText('= 3/4"')
-  await page.locator('.panel.right select').nth(0).selectOption('against')
+  await expect(page.locator('.kit-textfield:has(label:has-text("Distance")) .kit-field-description')).toHaveText('= 3/4"')
+  await choose(page, 'Direction', /Against/)
   d = await dbg(page)
   expect(d.features[1]!.distance).toBe('-(ply)')
   expect(d.bodies[0]!.bounds.y1).toBe(12)
 
   // rectangle size by parameter
-  await page.click('.timeline .item:has-text("Sketch 1") >> text=Edit')
-  await page.click('.rect-list .item')
+  await rowAction(page, /^Sketch 1/, 'Edit')
+  await page.getByRole('option', { name: 'r1', exact: true }).click()
   await field(page, 'Height').fill('ply * 4')
   await field(page, 'Height').press('Enter')
   d = await dbg(page)
   expect(d.features[0]!.rects[0].v).toEqual({ min: 0, size: 'ply * 4' })
   expect(d.bodies[0]!.bounds.z1).toBe(48)
-  await page.click('text=Finish')
+  await page.getByRole('button', { name: 'Finish' }).click()
 
   // rename rewrites, delete refused, change value propagates
   await page.mouse.click(...(await isoPoint(page, -80, 80, 0)))
-  const name = page.locator('.param input').first()
+  await page.getByRole('option', { name: 'ply' }).click()
+  const name = page.getByRole('textbox', { name: 'Name', exact: true })
   await name.fill('stock')
   await name.press('Enter')
   d = await dbg(page)
   expect(d.features[0]!.rects[0].v.size).toBe('stock * 4')
   expect(d.features[1]!.distance).toBe('-(stock)')
-  await page.click('.param button.danger')
-  await expect(page.locator('.notice')).toContainText('stock is used by')
-  await page.locator('.param label.field:has(span:has-text("Value")) input').first().fill('1/2')
-  await page.locator('.param label.field:has(span:has-text("Value")) input').first().press('Enter')
+  await rowAction(page, 'stock', 'Delete')
+  await expect(page.locator('.kit-toast')).toContainText('stock is used by')
+  const valueField = page.getByRole('textbox', { name: 'Value' }).first()
+  await valueField.fill('1/2')
+  await valueField.press('Enter')
   d = await dbg(page)
   expect(d.bodies[0]!.bounds.z1).toBe(32)
   expect(d.bodies[0]!.bounds.y1).toBe(8)

@@ -19,7 +19,7 @@ A feature that cannot evaluate is marked in the timeline and listed under the vi
 
 ## Deleting
 
-Deleting a feature deletes what depends on it: extrudes that use a sketch, sketches attached to a face of an extrude, and extrudes that target the body it created. The confirmation lists everything that will go, in order, before anything is removed.
+Deleting a feature deletes what depends on it: extrudes that use a sketch, sketches attached to a face of an extrude, and extrudes that target the body it created. Hover a row to reveal its delete button; the confirmation lists everything that will go before anything is removed.
 
 ## Undo
 
@@ -27,4 +27,4 @@ Every change to the document can be undone and redone, from the toolbar or with 
 
 ## Reopening a sketch
 
-Press **Edit** beside a sketch to reopen it. It shows the model as it was at that point in the timeline: later bodies and cuts are not there yet, which is exactly the reference geometry the sketch was drawn against.
+Hover a sketch in the timeline and press its edit button to reopen it. It shows the model as it was at that point in the timeline: later bodies and cuts are not there yet, which is exactly the reference geometry the sketch was drawn against.

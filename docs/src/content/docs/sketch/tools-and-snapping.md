@@ -24,7 +24,9 @@ The 3D view uses the same gestures. Its angle is fixed.
 - **Rectangle.** Press, drag, release. The width and height show while you drag. A drag with zero width or height creates nothing.
 - **Link.** Creates a constraint between two edges. See [Link tool](/constraints/link-tool/).
 
-**Extrude** in the toolbar creates an extrude from the selected rectangles, or from all of them when none is selected. **Finish** returns to the 3D view; the sketch stays in the timeline.
+The three tools sit together in the toolbar; arrow keys move between them once one has focus. **Dims** shows and hides driving dimensions.
+
+**Extrude** in the toolbar creates an extrude from the selected rectangles, or from all of them when none is selected. **Finish** returns to the 3D view; the sketch stays in the timeline. Export of the sketch as SVG is in the menu at the right of the toolbar.
 
 ## Snapping
 

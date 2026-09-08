@@ -9,7 +9,7 @@ This walkthrough builds a block with a pocket in its top. It touches every core 
 
 ## Sketch on the front plane
 
-1. Press **New sketch**. The default plane is XZ, the front plane, at offset 0. Press **Create**.
+1. Press **New sketch**. A small dialog offers the plane, an offset, and a flip. The default is XZ, the front plane, at offset 0. Press **Create**.
 2. The sketch editor opens with the Rectangle tool active. Drag from the origin up and to the right to draw a rectangle. The width and height show live while you drag, snapped to a sixteenth.
 3. Click the width label under the rectangle, type `24`, and press Enter. Do the same for the height. You now have a 24" square.
 

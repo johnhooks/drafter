@@ -64,17 +64,57 @@ export async function isoPoint(page: Page, x: number, y: number, z: number): Pro
   return [cb.x + cb.width / 2 + sx * 6, cb.y + cb.height / 2 - sy * 6]
 }
 
-/** Builds the 24" cube from the front plane and returns to model mode. */
-export async function makeCube(page: Page) {
-  await page.click('text=New sketch')
-  await page.click('.dropdown >> text=Create')
-  await drawInches(page, { cu: 12, cv: 12, scale: 12, su: 1 }, [0, 0], [24, 24])
-  await page.click('button:has-text("Extrude")')
-  const dist = page.locator('.panel.right label.field:has(span:has-text("Distance")) input')
-  await dist.fill('24')
-  await dist.press('Enter')
+/** Opens the New sketch dialog and creates on the default plane. */
+export async function newSketch(page: Page, opts: { flip?: boolean } = {}) {
+  await page.getByRole('button', { name: 'New sketch' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New sketch' })
+  // React Aria hides the checkbox input; click its label instead
+  if (opts.flip) await dialog.getByText('Flip normal').click()
+  await dialog.getByRole('button', { name: 'Create' }).click()
+  await expect(dialog).toHaveCount(0)
 }
 
+/** Builds the 24" cube from the front plane and returns to model mode. */
+export async function makeCube(page: Page) {
+  await newSketch(page)
+  await drawInches(page, { cu: 12, cv: 12, scale: 12, su: 1 }, [0, 0], [24, 24])
+  await page.getByRole('button', { name: /^Extrude/ }).click()
+  await field(page, 'Distance').fill('24')
+  await field(page, 'Distance').press('Enter')
+}
+
+/** A kit text field by its label; derived fields carry a "(derived)" suffix. */
 export function field(page: Page, label: string) {
-  return page.locator(`.panel.right label.field:has(span:has-text("${label}")) input`)
+  return page.getByRole('textbox', { name: new RegExp(`^${label}`) })
+}
+
+/** Chooses an option in a kit Select by its label. The trigger's name is its value followed by the label. */
+export async function choose(page: Page, label: string, option: string | RegExp) {
+  await page.getByRole('button', { name: new RegExp(`${label}$`) }).click()
+  await page.getByRole('option', { name: option }).click()
+}
+
+/** Picks a sketch tool from the toolbar toggle group. */
+export async function tool(page: Page, name: 'Select' | 'Rectangle' | 'Link') {
+  await page.getByRole('radio', { name }).click()
+}
+
+/** Clicks an action that only appears when its list row is hovered. */
+export async function rowAction(page: Page, row: string | RegExp, action: string) {
+  const option = page.getByRole('option', { name: row })
+  await option.hover()
+  await option.getByRole('button', { name: action }).click()
+}
+
+/** Opens the More menu and chooses an item. */
+export async function menu(page: Page, item: string | RegExp) {
+  await page.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: item }).click()
+}
+
+/** Confirms or cancels the open confirm dialog. */
+export async function confirmDialog(page: Page, button: string) {
+  const dialog = page.getByRole('alertdialog')
+  await dialog.getByRole('button', { name: button }).click()
+  await expect(dialog).toHaveCount(0)
 }

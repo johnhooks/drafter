@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { type Page, expect, test } from '@playwright/test'
 
-import { dbg, dragSvg, isoPoint } from './helpers'
+import { choose, confirmDialog, dbg, dragSvg, field, isoPoint, menu, newSketch, rowAction, tool } from './helpers'
 
 /** Draw a rect in the current sketch by plane inches, given the view centre and scale the editor is using. */
 async function drawInches(page: Page, view: { cu: number; cv: number; scale: number; su: 1 | -1 }, a: [number, number], b: [number, number]) {
@@ -27,8 +27,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   expect(d.mode.kind).toBe('model')
 
   await test.step('new sketch on the default plane', async () => {
-    await page.click('text=New sketch')
-    await page.click('.dropdown >> text=Create')
+    await newSketch(page)
     d = await dbg(page)
     expect(d.mode.kind).toBe('sketch')
     expect(d.tool).toBe('rect')
@@ -70,40 +69,38 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('select tool and rectangle properties', async () => {
-    await page.click('text=Select')
+    await tool(page, 'Select')
     await dragSvg(page, [-80, 100], [-80, 100])
     d = await dbg(page)
     expect(d.selection.rectIds).toHaveLength(1)
     await dragSvg(page, [300, -300], [300, -300])
     d = await dbg(page)
     expect(d.selection.rectIds).toHaveLength(0)
-    await page.click('.rect-list .item')
-    // rectangle fields: Left, Right, Width, Bottom, Top, Height (after Name and Offset)
-    const left = page.locator('.panel.right label.field:has(span:text-is("Left")) input')
+    await page.getByRole('option', { name: 'r1', exact: true }).click()
+    const left = field(page, 'Left')
     await left.fill('12')
     await left.press('Enter')
     d = await dbg(page)
     expect(d.features[0]!.rects[0].u).toEqual({ min: 192, size: 384 })
     await left.fill('0')
     await left.press('Enter')
-    const width = page.locator('.panel.right label.field:has(span:has-text("Width")) input')
+    const width = field(page, 'Width')
     await width.fill('abc @')
     await width.press('Enter')
-    await expect(page.locator('.panel.right .field .error')).toHaveCount(1)
+    await expect(page.locator('.kit-field-error')).toHaveCount(1)
     d = await dbg(page)
     expect(d.features[0]!.rects[0].u).toEqual({ min: 0, size: 384 })
   })
 
   await test.step('extrude to a 24" cube', async () => {
-    await page.click('button:has-text("Extrude")')
+    await page.getByRole('button', { name: /^Extrude/ }).click()
     d = await dbg(page)
     expect(d.features[1]).toMatchObject({ kind: 'extrude', op: 'new', name: 'Extrude 1' })
     expect(d.mode.kind).toBe('model')
     expect(d.selection.featureId).toBe(d.features[1]!.id)
     expect(d.bodies[0]!.volume).toBe(24 * 24 * 1)
-    const dist = page.locator('.panel.right label.field input').nth(1)
-    await dist.fill('24')
-    await dist.press('Enter')
+    await field(page, 'Distance').fill('24')
+    await field(page, 'Distance').press('Enter')
     d = await dbg(page)
     expect(d.bodies[0]!.volume).toBe(24 ** 3)
   })
@@ -112,7 +109,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await page.mouse.click(...(await isoPoint(page, 24, -12, 12)))
     d = await dbg(page)
     expect(d.selection.bodyId).toBe(d.features[1]!.id)
-    await expect(page.locator('.timeline .item.selected')).toContainText('Extrude 1')
+    await expect(page.getByRole('option', { selected: true })).toContainText('Extrude 1')
     await page.mouse.click(...(await isoPoint(page, -80, 80, 0)))
     d = await dbg(page)
     expect(d.selection.bodyId).toBeUndefined()
@@ -143,7 +140,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await drawInches(page, v2, [18, -4], [24 + px, -2])
     d = await dbg(page)
     expect(d.features[2]!.rects[1].u.max).toBe(384)
-    await page.click('text=Select')
+    await tool(page, 'Select')
     await drawInches(page, v2, [21, -3], [21, -3])
     await page.keyboard.press('Delete')
     d = await dbg(page)
@@ -151,13 +148,13 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('cut a 2" pocket', async () => {
-    await page.click('button:has-text("Extrude")')
+    await page.getByRole('button', { name: /^Extrude/ }).click()
     d = await dbg(page)
     expect(d.features[3]).toMatchObject({ op: 'join', targetBodyId: d.features[1]!.id })
-    await page.locator('.panel.right label.field input').nth(1).fill('2')
-    await page.locator('.panel.right label.field input').nth(1).press('Enter')
-    await page.locator('.panel.right select').nth(0).selectOption('against')
-    await page.locator('.panel.right select').nth(1).selectOption('cut')
+    await field(page, 'Distance').fill('2')
+    await field(page, 'Distance').press('Enter')
+    await choose(page, 'Direction', /Against/)
+    await choose(page, 'Operation', 'Cut')
     d = await dbg(page)
     expect(d.bodies[0]!.volume).toBe(24 ** 3 - 32)
     await page.waitForTimeout(200)
@@ -174,9 +171,9 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const box = (await page.locator('.sketch svg').boundingBox())!
     const v3 = { cu: -12, cv: 12, scale: Math.min((box.width * 0.7) / 24, (box.height * 0.7) / 24), su: 1 as const }
     await drawInches(page, v3, [-20, 4], [-4, 8])
-    await page.click('button:has-text("Extrude")')
-    await page.locator('.panel.right label.field input').nth(1).fill('12')
-    await page.locator('.panel.right label.field input').nth(1).press('Enter')
+    await page.getByRole('button', { name: /^Extrude/ }).click()
+    await field(page, 'Distance').fill('12')
+    await field(page, 'Distance').press('Enter')
     d = await dbg(page)
     expect(d.errors).toEqual([])
     expect(d.bodies[0]!.bounds.x1).toBe(36 * 16)
@@ -184,9 +181,9 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('editing the first extrude re-evaluates everything after it', async () => {
-    await page.click('.timeline .item:has-text("Extrude 1")')
-    await page.locator('.panel.right label.field input').nth(1).fill('30')
-    await page.locator('.panel.right label.field input').nth(1).press('Enter')
+    await page.getByRole('option', { name: 'Extrude 1' }).click()
+    await field(page, 'Distance').fill('30')
+    await field(page, 'Distance').press('Enter')
     d = await dbg(page)
     expect(d.errors).toEqual([])
     expect(d.bodies[0]!.volume).toBe(24 * 24 * 30 - 32 + 16 * 4 * 12)
@@ -194,7 +191,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('reopen a sketch from the timeline', async () => {
-    await page.click('.timeline .item:has-text("Sketch 2") >> text=Edit')
+    await rowAction(page, /^Sketch 2/, 'Edit')
     d = await dbg(page)
     expect(d.mode).toMatchObject({ kind: 'sketch', sketchId: d.features[2]!.id })
     await expect(page.locator('[data-rect-id]')).toHaveCount(1)
@@ -202,7 +199,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('export sketch svg', async () => {
-    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('text=Export SVG')])
+    const [dl] = await Promise.all([page.waitForEvent('download'), menu(page, 'Export sketch as SVG')])
     const p = testInfo.outputPath('sketch.svg')
     await dl.saveAs(p)
     const svg = readFileSync(p, 'utf8')
@@ -210,7 +207,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"')
     expect(svg).toContain('<title>')
     expect(dl.suggestedFilename()).toBe('Untitled-Sketch_2.svg')
-    await page.click('text=Finish')
+    await page.getByRole('button', { name: 'Finish' }).click()
   })
 
   await test.step('autosave survives reload', async () => {
@@ -223,25 +220,22 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
 
   const jsonPath = testInfo.outputPath('doc.json')
   await test.step('json and png export', async () => {
-    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('text=Download JSON')])
+    const [dl] = await Promise.all([page.waitForEvent('download'), menu(page, 'Download JSON')])
     await dl.saveAs(jsonPath)
     const json = JSON.parse(readFileSync(jsonPath, 'utf8'))
     expect(json.version).toBe(2)
     expect(json.features).toHaveLength(6)
-    const [png] = await Promise.all([page.waitForEvent('download'), page.click('text=Export PNG')])
+    const [png] = await Promise.all([page.waitForEvent('download'), menu(page, 'Export view as PNG')])
     const pngPath = testInfo.outputPath('model.png')
     await png.saveAs(pngPath)
     expect(readFileSync(pngPath).length).toBeGreaterThan(1000)
   })
 
   await test.step('delete cascade confirms with the dependent list', async () => {
-    let message = ''
-    page.once('dialog', (dlg) => {
-      message = dlg.message()
-      void dlg.accept()
-    })
-    await page.click('.timeline .item:has-text("Extrude 1") >> button.danger')
-    expect(message).toMatch(/Delete Extrude 1, Sketch 2, Extrude 2, Sketch 3, Extrude 3\?/)
+    await rowAction(page, 'Extrude 1', 'Delete')
+    const dialog = page.getByRole('alertdialog', { name: 'Delete Extrude 1?' })
+    await expect(dialog.locator('.dependents li')).toHaveText(['Sketch 2', 'Extrude 2', 'Sketch 3', 'Extrude 3'])
+    await confirmDialog(page, 'Delete')
     d = await dbg(page)
     expect(d.features.map((f) => f.name)).toEqual(['Sketch 1'])
   })
@@ -250,7 +244,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const bad = testInfo.outputPath('bad.json')
     writeFileSync(bad, JSON.stringify({ version: 2, title: 'x', params: [], features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', rectIds: ['r'], distance: 16, op: 'new' }] }))
     await page.setInputFiles('input[type=file]', bad)
-    await expect(page.locator('.notice')).toContainText('Could not open bad.json')
+    await expect(page.locator('.kit-toast')).toContainText('Could not open bad.json')
     d = await dbg(page)
     expect(d.features).toHaveLength(1)
     await page.setInputFiles('input[type=file]', jsonPath)
@@ -261,7 +255,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await page.evaluate(() => localStorage.setItem('drawing.document.v1', '{not json'))
     await page.reload()
     await page.waitForSelector('.timeline')
-    await expect(page.locator('.notice')).toContainText('could not be read')
+    await expect(page.locator('.kit-toast')).toContainText('could not be read')
     d = await dbg(page)
     expect(d.features).toHaveLength(0)
   })
@@ -269,12 +263,12 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   await test.step('new document asks first', async () => {
     await page.setInputFiles('input[type=file]', jsonPath)
     await expect.poll(async () => (await dbg(page)).features.length).toBe(6)
-    page.once('dialog', (dlg) => void dlg.dismiss())
-    await page.click('text=New document')
+    await menu(page, 'New document')
+    await confirmDialog(page, 'Cancel')
     d = await dbg(page)
     expect(d.features).toHaveLength(6)
-    page.once('dialog', (dlg) => void dlg.accept())
-    await page.click('text=New document')
+    await menu(page, 'New document')
+    await confirmDialog(page, 'New document')
     d = await dbg(page)
     expect(d.features).toHaveLength(0)
   })
@@ -283,9 +277,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
 })
 
 test('back-facing plane is mirrored and labelled', async ({ page }) => {
-  await page.click('text=New sketch')
-  await page.locator('.dropdown input[type=checkbox]').check()
-  await page.click('.dropdown >> text=Create')
+  await newSketch(page, { flip: true })
   await expect(page.locator('.axis-indicator')).toContainText('XZ plane, viewed from +Y. X left, Z up.')
   // dragging to the right now decreases u
   await dragSvg(page, [0, 0], [60, -60])
@@ -296,8 +288,7 @@ test('back-facing plane is mirrored and labelled', async ({ page }) => {
 })
 
 test('sketch view zooms with the wheel and pans with the middle button', async ({ page }) => {
-  await page.click('text=New sketch')
-  await page.click('.dropdown >> text=Create')
+  await newSketch(page)
   const box = (await page.locator('.sketch svg').boundingBox())!
   const cx = box.x + box.width / 2
   const cy = box.y + box.height / 2

@@ -27,3 +27,21 @@ export function save(doc: Document): boolean {
     return false
   }
 }
+
+const THEME_KEY = 'drawing.theme'
+
+export function loadTheme(): 'light' | 'dark' {
+  try {
+    return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
+export function saveTheme(theme: 'light' | 'dark') {
+  try {
+    localStorage.setItem(THEME_KEY, theme)
+  } catch {
+    // storage may be unavailable; the choice then lasts for the session
+  }
+}

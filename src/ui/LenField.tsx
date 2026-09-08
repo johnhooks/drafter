@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { TextField } from '@drawing/kit'
 import { parse } from '../core/expr/parser'
 import type { Len } from '../core/model/types'
 import { isExpr } from '../core/model/types'
@@ -39,55 +39,20 @@ export function parseLen(text: string, allowZero = true): { ok: true; value: Len
   }
 }
 
-/** Text field that holds a length or an expression and only commits when the text parses. */
+/** A kit text field that holds a length or an expression; the kit supplies commit, revert, and error display. */
 export function LenField({ label, value, resolved, error, derived, onCommit, autoFocus, allowZero = true }: Props) {
-  const [text, setText] = useState(lenText(value))
-  const [syntax, setSyntax] = useState<string | null>(null)
-  // Escape reverts then blurs; the blur must not commit the draft that state has not yet dropped
-  const reverting = useRef(false)
-  useEffect(() => {
-    setText(lenText(value))
-    setSyntax(null)
-  }, [value])
-  const commit = () => {
-    if (reverting.current) {
-      reverting.current = false
-      return
-    }
-    if (text === lenText(value)) return
-    const r = parseLen(text, allowZero)
-    if (!r.ok) return setSyntax(r.error)
-    setSyntax(null)
-    onCommit(r.value)
-  }
-  const shown = syntax ?? error
+  const expr = isExpr(value)
   return (
-    <label className={`field ${derived ? 'derived' : ''}`}>
-      <span>
-        {label}
-        {derived && <em> (derived)</em>}
-      </span>
-      <input
-        className={shown ? 'invalid' : isExpr(value) ? 'expr' : ''}
-        value={text}
-        autoFocus={autoFocus}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit()
-          if (e.key === 'Escape') {
-            reverting.current = true
-            setText(lenText(value))
-            setSyntax(null)
-            ;(e.target as HTMLInputElement).blur()
-          }
-        }}
-      />
-      {shown ? (
-        <div className="error">{shown}</div>
-      ) : isExpr(value) && resolved !== undefined ? (
-        <div className="value">= {formatLength(resolved as Sixteenths)}</div>
-      ) : null}
-    </label>
+    <TextField<Len>
+      label={label}
+      value={lenText(value)}
+      validate={(t) => parseLen(t, allowZero)}
+      onCommit={(v) => onCommit(v)}
+      error={error}
+      description={expr && resolved !== undefined && !error ? `= ${formatLength(resolved as Sixteenths)}` : undefined}
+      derived={derived}
+      monospace={expr}
+      autoFocus={autoFocus}
+    />
   )
 }

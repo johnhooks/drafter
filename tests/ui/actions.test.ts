@@ -98,7 +98,7 @@ describe('constraint actions', () => {
     expect(s.eval.errors.map((e) => e.featureId)).toEqual(['s1', 'e1'])
     s = A.setRectSlot(s, 's1', 'r1', 'u', 'max', '30')
     s = A.setRectSlot(s, 's1', 'r1', 'u', 'size', IN(5))
-    expect(s.notices[0]).toMatch(/r1: size is fixed by min \(face.left\) and max \(30\)/)
+    expect(s.notices[0]!.text).toMatch(/r1: size is fixed by min \(face.left\) and max \(30\)/)
   })
 
   it('removeConstraint freezes the current value', () => {
@@ -115,12 +115,12 @@ describe('constraint actions', () => {
     let s = cube()
     s = A.addParam(s, 'ply', '3/4')
     s = A.addParam(s, 'face', 16 as never)
-    expect(s.notices[0]).toMatch(/reserved/)
+    expect(s.notices[0]!.text).toMatch(/reserved/)
     s = A.setRectSlot(s, 's1', 'r1', 'u', 'size', 'ply * 2')
     expect(s.eval.errors).toEqual([])
     s = A.deleteParam(s, 'ply')
     expect(s.doc.params).toHaveLength(1)
-    expect(s.notices[1]).toMatch(/ply is used by r1 u size in Sketch 1/)
+    expect(s.notices[1]!.text).toMatch(/ply is used by r1 u size in Sketch 1/)
     s = A.renameParam(s, 'ply', 'stock')
     expect((s.doc.features[0] as unknown as { rects: Array<{ u: { size: string } }> }).rects[0]!.u.size).toBe('stock * 2')
     s = A.setParamValue(s, 'stock', '1/2')

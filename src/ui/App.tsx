@@ -1,16 +1,40 @@
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Dialog,
+  IconButton,
+  Menu,
+  MenuItem,
+  MenuSection,
+  MenuSeparator,
+  MenuTrigger,
+  Panel,
+  Select,
+  SelectItem,
+  TextField,
+  ToastRegion,
+  ToggleButton,
+  ToggleButtonGroup,
+  Toolbar,
+  ToolbarSeparator,
+  ToolbarSpacer,
+  toast,
+  toastQueue,
+} from '@drawing/kit'
 import { useEffect, useRef, useState } from 'react'
 import { parseDocument, serializeDocument } from '../core/model/document'
 import type { PlaneKind, SketchFeature } from '../core/model/types'
 import { newDocument } from '../core/model/types'
-import { type Sixteenths, formatLength, parseLength } from '../core/units'
+import type { Sixteenths } from '../core/units'
 import { downloadText, downloadUrl, readFile, safeName } from './exportFile'
+import { parseLen } from './LenField'
 import { ModelView } from './model/ModelView'
-import { Notices } from './Notices'
-import { loadSaved, save } from './persist'
+import { loadSaved, loadTheme, save, saveTheme } from './persist'
 import { Properties } from './Properties'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
 import { DEFAULT_EXTRUDE } from './sketch/tools'
-import { canRedo, canUndo } from './store/actions'
+import { type Tool, canRedo, canUndo } from './store/actions'
 import { useStore } from './store/store'
 import { Timeline } from './Timeline'
 
@@ -18,6 +42,7 @@ export function App() {
   const dispatch = useStore((s) => s.dispatch)
   const mode = useStore((s) => s.mode)
   const doc = useStore((s) => s.doc)
+  const theme = useStore((s) => s.theme)
   const errors = useStore((s) => s.eval.errors)
   const centre = useRef<HTMLDivElement>(null)
 
@@ -27,19 +52,48 @@ export function App() {
     // StrictMode re-runs effects in dev; the ref survives that, so the load stays single
     if (!loaded.current) {
       loaded.current = true
+      dispatch('setTheme', loadTheme())
       const r = loadSaved()
       if (r.kind === 'loaded') dispatch('loadDocument', r.doc)
-      else if (r.kind === 'corrupt') dispatch('notify', r.message)
+      else if (r.kind === 'corrupt') dispatch('notify', r.message, 'danger')
     }
     let warned = false
     const unsub = useStore.subscribe((s, prev) => {
       if (s.doc === prev.doc) return
       if (!save(s.doc) && !warned) {
         warned = true
-        dispatch('notify', 'Could not save to browser storage. Download the JSON to keep your work.')
+        dispatch('notify', 'Could not save to browser storage. Download the JSON to keep your work.', 'danger')
       }
     })
     return unsub
+  }, [dispatch])
+
+  // the theme attribute lives on the root so portalled popovers and dialogs are themed too
+  useEffect(() => {
+    document.documentElement.dataset['theme'] = theme
+    saveTheme(theme)
+  }, [theme])
+
+  // new store notices become toasts; closing a toast releases the notice so it can appear again later
+  const shown = useRef(new Set<string>())
+  useEffect(() => {
+    const forward = (notices: ReturnType<typeof useStore.getState>['notices']) => {
+      for (const n of notices) {
+        if (shown.current.has(n.text)) continue
+        shown.current.add(n.text)
+        toast({ title: n.text, tone: n.tone === 'info' ? 'neutral' : n.tone }, {
+          timeout: n.tone === 'info' ? 5000 : undefined,
+          onClose: () => {
+            shown.current.delete(n.text)
+            dispatch('dismissNotice', n.text)
+          },
+        })
+      }
+    }
+    forward(useStore.getState().notices)
+    return useStore.subscribe((s, prev) => {
+      if (s.notices !== prev.notices) forward(s.notices)
+    })
   }, [dispatch])
 
   // Cmd or Ctrl plus Z undoes, with Shift redoes; text fields keep the browser's own text undo
@@ -61,38 +115,45 @@ export function App() {
 
   return (
     <div className="app">
-      <Toolbar centre={centre} sketch={sketch} />
-      <div className="panel left">
+      <AppToolbar centre={centre} sketch={sketch} />
+      <Panel edge="right" className="side">
         <Timeline />
-      </div>
+      </Panel>
       <div className="centre" ref={centre}>
-        <Notices />
         {sketch ? <SketchEditor key={sketch.id} sketch={sketch} /> : <ModelView />}
         {errors.length > 0 && (
           <div className="errors">
             {errors.map((e) => (
-              <div className="error" key={e.featureId}>
+              <div className="error" key={`${e.featureId}:${e.message}`}>
                 {doc.features.find((f) => f.id === e.featureId)?.name ?? e.featureId}: {e.message}
               </div>
             ))}
           </div>
         )}
       </div>
-      <div className="panel right">
+      <Panel edge="left" className="side">
         <Properties />
-      </div>
+      </Panel>
+      <ToastRegion />
     </div>
   )
 }
 
-function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | null>; sketch?: SketchFeature }) {
+function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | null>; sketch?: SketchFeature }) {
   const dispatch = useStore((s) => s.dispatch)
   const doc = useStore((s) => s.doc)
   const mode = useStore((s) => s.mode)
   const tool = useStore((s) => s.tool)
   const selection = useStore((s) => s.selection)
   const showDims = useStore((s) => s.showDims)
+  const theme = useStore((s) => s.theme)
+  const undoable = useStore(canUndo)
+  const redoable = useStore(canRedo)
   const fileInput = useRef<HTMLInputElement>(null)
+  const [newSketchOpen, setNewSketchOpen] = useState(false)
+  const [confirmNew, setConfirmNew] = useState(false)
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
+  const modKey = isMac ? 'Cmd' : 'Ctrl'
 
   const exportSvg = () => {
     if (!centre.current || !sketch) return
@@ -107,42 +168,52 @@ function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | 
   const upload = async (file: File) => {
     const r = parseDocument(await readFile(file))
     if (!r.ok) {
-      dispatch('notify', `Could not open ${file.name}: ${r.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`)
+      dispatch('notify', `Could not open ${file.name}: ${r.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`, 'danger')
       return
     }
     dispatch('loadDocument', r.doc)
+    toastQueue.clear()
+  }
+  const onMenu = (key: React.Key) => {
+    switch (key) {
+      case 'export-svg':
+        return exportSvg()
+      case 'export-png':
+        return exportPng()
+      case 'download':
+        return downloadText(`${safeName(doc.title)}.json`, serializeDocument(doc), 'application/json')
+      case 'open':
+        return fileInput.current?.click()
+      case 'new':
+        return setConfirmNew(true)
+      case 'theme-light':
+        return dispatch('setTheme', 'light')
+      case 'theme-dark':
+        return dispatch('setTheme', 'dark')
+    }
   }
 
-  const undoable = useStore(canUndo)
-  const redoable = useStore(canRedo)
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
-  const mod = isMac ? 'Cmd' : 'Ctrl'
   return (
-    <div className="toolbar">
-      <span className="title">{doc.title}</span>
-      <button disabled={!undoable} title={`Undo (${mod}+Z)`} aria-label="Undo" onClick={() => dispatch('undo')}>
-        Undo
-      </button>
-      <button disabled={!redoable} title={`Redo (${mod}+Shift+Z)`} aria-label="Redo" onClick={() => dispatch('redo')}>
-        Redo
-      </button>
+    <Toolbar aria-label="Main" className="topbar">
+      <span className="kit-toolbar-title">{doc.title}</span>
+      <IconButton icon="undo" aria-label="Undo" isDisabled={!undoable} onPress={() => dispatch('undo')} />
+      <IconButton icon="redo" aria-label="Redo" isDisabled={!redoable} onPress={() => dispatch('redo')} />
+      <ToolbarSeparator />
       {sketch ? (
         <>
-          <button className={tool === 'select' ? 'active' : ''} onClick={() => dispatch('setTool', 'select')}>
-            Select
-          </button>
-          <button className={tool === 'rect' ? 'active' : ''} onClick={() => dispatch('setTool', 'rect')}>
-            Rectangle
-          </button>
-          <button className={tool === 'link' ? 'active' : ''} onClick={() => dispatch('setTool', 'link')}>
-            Link
-          </button>
-          <button className={showDims ? 'active' : ''} onClick={() => dispatch('toggleDims')} title="Show or hide driving dimensions">
+          <ToggleButtonGroup aria-label="Tool" selectedKeys={[tool]} onSelectionChange={(keys) => dispatch('setTool', [...keys][0] as Tool)}>
+            <ToggleButton id="select">Select</ToggleButton>
+            <ToggleButton id="rect">Rectangle</ToggleButton>
+            <ToggleButton id="link">Link</ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButton isSelected={showDims} onChange={() => dispatch('toggleDims')}>
             Dims
-          </button>
-          <button
-            disabled={sketch.rects.length === 0}
-            onClick={() => {
+          </ToggleButton>
+          <ToolbarSeparator />
+          <Button
+            variant="primary"
+            isDisabled={sketch.rects.length === 0}
+            onPress={() => {
               dispatch('addExtrude', sketch.id, selection.rectIds, DEFAULT_EXTRUDE)
               dispatch('setMode', { kind: 'model' })
               const id = useStore.getState().doc.features.at(-1)?.id
@@ -151,23 +222,39 @@ function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | 
             }}
           >
             Extrude {selection.rectIds.length ? `(${selection.rectIds.length})` : '(all)'}
-          </button>
-          <button onClick={() => dispatch('setMode', { kind: 'model' })}>Finish</button>
-          <span className="spacer" />
-          <button onClick={exportSvg}>Export SVG</button>
+          </Button>
+          <Button onPress={() => dispatch('setMode', { kind: 'model' })}>Finish</Button>
         </>
       ) : (
         <>
-          <NewSketchMenu />
-          <button className={mode.kind === 'pickFace' ? 'active' : ''} onClick={() => dispatch('setMode', mode.kind === 'pickFace' ? { kind: 'model' } : { kind: 'pickFace' })}>
+          <Button onPress={() => setNewSketchOpen(true)}>New sketch</Button>
+          <ToggleButton isSelected={mode.kind === 'pickFace'} onChange={(on) => dispatch('setMode', on ? { kind: 'pickFace' } : { kind: 'model' })}>
             Pick face
-          </button>
-          <span className="spacer" />
-          <button onClick={exportPng}>Export PNG</button>
+          </ToggleButton>
         </>
       )}
-      <button onClick={() => downloadText(`${safeName(doc.title)}.json`, serializeDocument(doc), 'application/json')}>Download JSON</button>
-      <button onClick={() => fileInput.current?.click()}>Open JSON</button>
+      <ToolbarSpacer />
+      <MenuTrigger>
+        <IconButton icon="ellipsis" aria-label="More" tooltip={false} />
+        <Menu aria-label="More" placement="bottom end" onAction={onMenu}>
+          <MenuSection title="Export">
+            {sketch ? <MenuItem id="export-svg">Export sketch as SVG</MenuItem> : <MenuItem id="export-png">Export view as PNG</MenuItem>}
+            <MenuItem id="download">Download JSON</MenuItem>
+          </MenuSection>
+          <MenuSeparator />
+          <MenuItem id="open">Open JSON</MenuItem>
+          <MenuItem id="new">New document</MenuItem>
+          <MenuSeparator />
+          <MenuSection title="Theme">
+            <MenuItem id="theme-light">{theme === 'light' ? 'Light (current)' : 'Light'}</MenuItem>
+            <MenuItem id="theme-dark">{theme === 'dark' ? 'Dark (current)' : 'Dark'}</MenuItem>
+          </MenuSection>
+          <MenuSeparator />
+          <MenuItem id="undo-hint" isDisabled>
+            Undo {modKey}+Z, redo {modKey}+Shift+Z
+          </MenuItem>
+        </Menu>
+      </MenuTrigger>
       <input
         ref={fileInput}
         type="file"
@@ -179,78 +266,77 @@ function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | 
           e.target.value = ''
         }}
       />
-      <button
-        onClick={() => {
-          if (window.confirm('Start a new document? The current one is replaced.')) dispatch('loadDocument', newDocument())
+      <NewSketchDialog isOpen={newSketchOpen} onClose={() => setNewSketchOpen(false)} />
+      <ConfirmDialog
+        title="Start a new document?"
+        isOpen={confirmNew}
+        confirmLabel="New document"
+        tone="danger"
+        onConfirm={() => {
+          setConfirmNew(false)
+          dispatch('loadDocument', newDocument())
+          toastQueue.clear()
         }}
+        onCancel={() => setConfirmNew(false)}
       >
-        New document
-      </button>
-    </div>
+        The current document is replaced. Download it first if you want to keep it.
+      </ConfirmDialog>
+    </Toolbar>
   )
 }
 
-function NewSketchMenu() {
+const DEFAULT_NORMAL: Record<PlaneKind, 1 | -1> = { XZ: -1, XY: 1, YZ: 1 }
+const NORMAL_AXIS: Record<PlaneKind, string> = { XZ: 'Y', XY: 'Z', YZ: 'X' }
+
+function NewSketchDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const dispatch = useStore((s) => s.dispatch)
-  const [open, setOpen] = useState(false)
   const [plane, setPlane] = useState<PlaneKind>('XZ')
   const [offsetText, setOffsetText] = useState('0')
   const [flip, setFlip] = useState(false)
-  const parsed = parseLength(offsetText.replace(/^-/, ''))
+  const parsed = parseLen(offsetText.replace(/^-/, ''))
   const negative = offsetText.trim().startsWith('-')
-  const defaultNormal: Record<PlaneKind, 1 | -1> = { XZ: -1, XY: 1, YZ: 1 }
+  const create = () => {
+    if (!parsed.ok) return
+    const offset = typeof parsed.value === 'number' ? (((negative ? -1 : 1) * parsed.value) as Sixteenths) : negative ? `-(${parsed.value})` : parsed.value
+    const normal = (flip ? -DEFAULT_NORMAL[plane] : DEFAULT_NORMAL[plane]) as 1 | -1
+    dispatch('addSketch', { kind: 'principal', plane, offset, normal })
+    onClose()
+  }
   return (
-    <div className="menu">
-      <button className={open ? 'active' : ''} onClick={() => setOpen(!open)}>
-        New sketch
-      </button>
-      {open && (
-        <div className="dropdown">
-          <label className="field">
-            <span>Plane</span>
-            <select value={plane} onChange={(e) => setPlane(e.target.value as PlaneKind)}>
-              <option value="XZ">XZ (front)</option>
-              <option value="XY">XY (top)</option>
-              <option value="YZ">YZ (side)</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Offset along the normal axis</span>
-            <input className={parsed.ok ? '' : 'invalid'} value={offsetText} onChange={(e) => setOffsetText(e.target.value)} />
-            {!parsed.ok && <div className="error">{parsed.error}</div>}
-          </label>
-          <label className="field row">
-            <input type="checkbox" style={{ width: 'auto' }} checked={flip} onChange={(e) => setFlip(e.target.checked)} />
-            <span style={{ margin: 0 }}>Flip normal (sketch from the other side)</span>
-          </label>
-          <div className="row">
-            <button
-              disabled={!parsed.ok}
-              onClick={() => {
-                if (!parsed.ok) return
-                const offset = ((negative ? -1 : 1) * parsed.value) as Sixteenths
-                const normal = (flip ? -defaultNormal[plane] : defaultNormal[plane]) as 1 | -1
-                dispatch('addSketch', { kind: 'principal', plane, offset, normal })
-                setOpen(false)
-              }}
-            >
-              Create
-            </button>
-            <button
-              onClick={() => {
-                dispatch('setMode', { kind: 'pickFace' })
-                setOpen(false)
-              }}
-            >
-              Pick a face instead
-            </button>
-          </div>
-          <div className="muted" style={{ marginTop: 6 }}>
-            Default {formatLength(0 as Sixteenths)} offset, normal {defaultNormal[plane] > 0 ? '+' : '-'}
-            {plane === 'XZ' ? 'Y' : plane === 'XY' ? 'Z' : 'X'}
-          </div>
+    <Dialog title="New sketch" isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <div className="kit-fields">
+        <Select label="Plane" selectedKey={plane} onSelectionChange={(k) => setPlane(k as PlaneKind)}>
+          <SelectItem id="XZ">XZ (front)</SelectItem>
+          <SelectItem id="XY">XY (top)</SelectItem>
+          <SelectItem id="YZ">YZ (side)</SelectItem>
+        </Select>
+        <TextField
+          label={`Offset along ${NORMAL_AXIS[plane]}`}
+          value={offsetText}
+          validate={(t) => {
+            const r = parseLen(t.replace(/^-/, ''))
+            return r.ok ? { ok: true, value: t } : r
+          }}
+          onCommit={(_v, t) => setOffsetText(t)}
+          description={`Default normal ${DEFAULT_NORMAL[plane] > 0 ? '+' : '-'}${NORMAL_AXIS[plane]}`}
+        />
+        <Checkbox isSelected={flip} onChange={setFlip}>
+          Flip normal (sketch from the other side)
+        </Checkbox>
+        <div className="kit-dialog-actions">
+          <Button
+            onPress={() => {
+              dispatch('setMode', { kind: 'pickFace' })
+              onClose()
+            }}
+          >
+            Pick a face instead
+          </Button>
+          <Button variant="primary" isDisabled={!parsed.ok} onPress={create}>
+            Create
+          </Button>
         </div>
-      )}
-    </div>
+      </div>
+    </Dialog>
   )
 }

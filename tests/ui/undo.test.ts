@@ -135,3 +135,11 @@ describe('undo and redo', () => {
     }
   })
 })
+
+describe('theme', () => {
+  it('is kept across document loads', () => {
+    let s = A.setTheme(A.initialState(), 'dark')
+    s = A.loadDocument(s, newDocument())
+    expect(s.theme).toBe('dark')
+  })
+})

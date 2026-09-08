@@ -9,6 +9,9 @@
   letter-spacing: var(--kit-tracking-label);
   text-transform: uppercase;
   color: var(--kit-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .kit-field-derived {
   font-style: normal;

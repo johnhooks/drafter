@@ -1,5 +1,8 @@
+import { Button, Disclosure, Hint, IconButton, ListBox, ListBoxItem, Row, TextField } from '@drawing/kit'
 import { useState } from 'react'
+import type { Len } from '../core/model/types'
 import type { Sixteenths } from '../core/units'
+import { formatLength } from '../core/units'
 import { LenField, parseLen } from './LenField'
 import { useStore } from './store/store'
 
@@ -8,8 +11,10 @@ export function Parameters() {
   const values = useStore((s) => s.eval.params)
   const errors = useStore((s) => s.eval.paramErrors)
   const dispatch = useStore((s) => s.dispatch)
+  const [selected, setSelected] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
+  const current = params.find((p) => p.name === selected)
   const add = () => {
     const r = parseLen(value)
     if (!r.ok) return dispatch('notify', r.error)
@@ -18,51 +23,56 @@ export function Parameters() {
     setValue('')
   }
   return (
-    <div className="params">
-      <h3>Parameters</h3>
-      {params.length === 0 && <div className="muted">Named lengths you can use in expressions, like ply = 3/4.</div>}
-      {params.map((p) => (
-        <div className="param" key={p.name}>
-          <NameField name={p.name} />
-          <LenField
-            label="Value"
-            value={p.value}
-            resolved={values.get(p.name)?.value as Sixteenths | undefined}
-            error={errors.get(p.name)}
-            onCommit={(v) => dispatch('setParamValue', p.name, v)}
+    <Disclosure title="Parameters" trailing={String(params.length)}>
+      {params.length === 0 && <Hint>Named lengths you can use in expressions, like ply = 3/4.</Hint>}
+      <ListBox
+        aria-label="Parameters"
+        dense
+        selectionMode="single"
+        actionSlots={1}
+        selectedKeys={selected ? [selected] : []}
+        onSelectionChange={(keys) => setSelected(keys === 'all' ? null : ((([...keys][0] as string) ?? null) as string | null))}
+      >
+        {params.map((p) => {
+          const err = errors.get(p.name)
+          const v = values.get(p.name)?.value
+          return (
+            <ListBoxItem
+              key={p.name}
+              id={p.name}
+              textValue={p.name}
+              tone={err ? 'error' : 'neutral'}
+              detail={err ?? (v !== undefined ? formatLength(v as Sixteenths) : '')}
+              actions={<IconButton icon="trash" size="sm" tone="danger" aria-label="Delete" onPress={() => dispatch('deleteParam', p.name)} />}
+            >
+              {p.name}
+            </ListBoxItem>
+          )
+        })}
+      </ListBox>
+      {current && (
+        <Row>
+          <TextField
+            label="Name"
+            value={current.name}
+            validate={(t) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(t.trim()) ? { ok: true, value: t.trim() } : { ok: false, error: 'Letters, digits, and underscores; start with a letter' })}
+            onCommit={(v) => {
+              dispatch('renameParam', current.name, v)
+              setSelected(v)
+            }}
           />
-          <button className="danger" title="Delete" onClick={() => dispatch('deleteParam', p.name)}>
-            x
-          </button>
-        </div>
-      ))}
-      <div className="param add">
-        <label className="field">
-          <span>Name</span>
-          <input value={name} placeholder="ply" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-        </label>
-        <label className="field">
-          <span>Value</span>
-          <input value={value} placeholder="3/4" onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-        </label>
-        <button disabled={!name.trim() || !value.trim()} onClick={add}>
-          Add
-        </button>
+          <LenField label="Value" value={current.value} resolved={values.get(current.name)?.value} error={errors.get(current.name)} onCommit={(v) => dispatch('setParamValue', current.name, v)} />
+        </Row>
+      )}
+      <div className="param-add">
+        <Row>
+          <TextField label="New name" value={name} onCommit={(_v, t) => setName(t.trim())} />
+          <TextField<Len> label="Value" value={value} onCommit={(_v, t) => setValue(t.trim())} validate={(t) => parseLen(t)} />
+        </Row>
+        <Button isDisabled={!name || !value} onPress={add}>
+          Add parameter
+        </Button>
       </div>
-    </div>
-  )
-}
-
-function NameField({ name }: { name: string }) {
-  const dispatch = useStore((s) => s.dispatch)
-  const [text, setText] = useState(name)
-  const commit = () => {
-    if (text.trim() !== name) dispatch('renameParam', name, text.trim())
-  }
-  return (
-    <label className="field">
-      <span>Name</span>
-      <input value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} />
-    </label>
+    </Disclosure>
   )
 }

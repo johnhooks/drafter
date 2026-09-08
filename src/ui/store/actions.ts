@@ -34,13 +34,21 @@ export interface History {
   readonly lastAt?: number
 }
 
+export type Theme = 'light' | 'dark'
+export type NoticeTone = 'info' | 'warning' | 'danger'
+export interface Notice {
+  readonly text: string
+  readonly tone: NoticeTone
+}
+
 export interface State {
   readonly doc: Document
   readonly eval: EvalResult
   readonly mode: Mode
   readonly tool: Tool
   readonly selection: Selection
-  readonly notices: readonly string[]
+  readonly notices: readonly Notice[]
+  readonly theme: Theme
   /** Last successfully resolved position per rectangle id, so a failed rectangle can still be drawn. */
   readonly lastGood: ReadonlyMap<string, Rect2>
   readonly showDims: boolean
@@ -60,10 +68,15 @@ export function initialState(doc: Document = newDocument()): State {
     tool: 'select',
     selection: EMPTY_SELECTION,
     notices: [],
+    theme: 'light',
     lastGood: goodRects(ev, new Map()),
     showDims: true,
     history: { past: [], future: [] },
   }
+}
+
+export function setTheme(s: State, theme: Theme): State {
+  return { ...s, theme }
 }
 
 function goodRects(ev: EvalResult, prev: ReadonlyMap<string, Rect2>): Map<string, Rect2> {
@@ -297,14 +310,19 @@ export function toggleDims(s: State): State {
 }
 
 export function loadDocument(s: State, doc: Document): State {
-  return { ...initialState(doc), notices: s.notices }
+  return { ...initialState(doc), notices: s.notices, theme: s.theme }
 }
 
-export function notify(s: State, text: string): State {
-  if (s.notices.includes(text)) return s
-  return { ...s, notices: [...s.notices, text] }
+/** Refusals and failures default to a persistent warning; file and storage failures pass danger. */
+export function notify(s: State, text: string, tone: NoticeTone = 'warning'): State {
+  if (s.notices.some((n) => n.text === text)) return s
+  return { ...s, notices: [...s.notices, { text, tone }] }
 }
 
-export function dismissNotice(s: State, index: number): State {
-  return { ...s, notices: s.notices.filter((_, i) => i !== index) }
+export function dismissNotice(s: State, text: string): State {
+  return { ...s, notices: s.notices.filter((n) => n.text !== text) }
+}
+
+export function selectRects(s: State, sketchId: string, rectIds: readonly string[]): State {
+  return { ...s, selection: { featureId: sketchId, rectIds, constraint: undefined } }
 }

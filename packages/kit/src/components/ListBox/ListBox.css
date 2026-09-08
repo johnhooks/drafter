@@ -47,6 +47,12 @@
   font-family: var(--kit-font-mono);
   font-size: var(--kit-text-xs);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+.kit-listbox-item[data-tone='error'] .kit-listbox-detail {
+  color: var(--kit-danger);
 }
 .kit-listbox-item[data-selected] .kit-listbox-detail {
   color: var(--kit-on-accent);

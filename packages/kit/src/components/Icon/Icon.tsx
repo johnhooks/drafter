@@ -1,4 +1,4 @@
-import { Ellipsis, Eye, EyeOff, type LucideIcon, Pencil, Search, Trash2 } from 'lucide-react'
+import { Ellipsis, Eye, EyeOff, type LucideIcon, Pencil, Redo2, Search, Trash2, Undo2 } from 'lucide-react'
 import type { SVGProps } from 'react'
 import './Icon.css'
 
@@ -23,6 +23,8 @@ const LUCIDE: Record<string, LucideIcon> = {
   eye: Eye,
   'eye-off': EyeOff,
   search: Search,
+  undo: Undo2,
+  redo: Redo2,
 }
 
 export type IconName = keyof typeof MICRO | keyof typeof LUCIDE
