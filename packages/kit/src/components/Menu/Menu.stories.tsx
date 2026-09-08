@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from '../Button/Button'
+import { IconButton } from '../IconButton/IconButton'
 import { Menu, MenuItem, MenuSection, MenuSeparator, MenuTrigger } from './Menu'
 
 const meta: Meta<typeof Menu> = { title: 'Collections/Menu', component: Menu }
@@ -27,9 +28,7 @@ export const NewSketch: Story = {
 export const WithDanger: Story = {
   render: () => (
     <MenuTrigger>
-      <Button variant="quiet" aria-label="More">
-        ...
-      </Button>
+      <IconButton icon="ellipsis" aria-label="More" tooltip={false} />
       <Menu aria-label="Feature">
         <MenuItem id="rename">Rename</MenuItem>
         <MenuItem id="edit">Edit sketch</MenuItem>

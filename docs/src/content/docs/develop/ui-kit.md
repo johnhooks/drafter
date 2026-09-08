@@ -25,10 +25,15 @@ A theme is a stylesheet that assigns the colour tokens under `[data-theme="name"
 
 A consumer imports three stylesheets once: `@drawing/kit/tokens.css`, `@drawing/kit/base.css`, and a theme.
 
+## Icons
+
+Icons come from Lucide, rendered at 14 px with a 1.5 px stroke in `currentColor`. The smallest cells (row actions, steppers, chevrons, toast dismiss) use the kit's own 12 px glyphs so they stay crisp. `Icon` maps a name to either; nothing outside the kit imports an icon library.
+
 ## Components
 
 | Component | Use |
 | --- | --- |
+| `Icon`, `IconButton` | Inline icons and icon-only controls. Text never stands in for an icon; an icon-only control is always an `IconButton` with a label |
 | `Button`, `ToggleButton`, `ToggleButtonGroup`, `Toolbar` | Toolbars and tool switchers |
 | `TextField` | Names and lengths. Commits on Enter or blur, reverts on Escape, takes a `validate` function so the application's own parser decides what is valid |
 | `NumberField` | Plain numbers with steppers |

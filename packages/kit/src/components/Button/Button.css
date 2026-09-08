@@ -17,10 +17,6 @@
   outline: none;
   user-select: none;
 }
-.kit-button[data-square] {
-  width: var(--kit-control-h);
-  padding: 0;
-}
 .kit-button[data-hovered] {
   background: var(--kit-surface-raised);
 }

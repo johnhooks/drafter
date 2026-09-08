@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Button } from '../Button/Button'
+import { IconButton } from '../IconButton/IconButton'
 import { ToggleButton } from '../ToggleButton/ToggleButton'
 import { ToggleButtonGroup } from '../ToggleButtonGroup/ToggleButtonGroup'
 import { Toolbar, ToolbarSeparator, ToolbarSpacer } from './Toolbar'
@@ -23,6 +24,7 @@ export const SketchToolbar: Story = {
       <Button>Finish</Button>
       <ToolbarSpacer />
       <Button variant="quiet">Export SVG</Button>
+      <IconButton icon="ellipsis" aria-label="More" />
     </Toolbar>
   ),
 }

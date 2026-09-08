@@ -25,9 +25,7 @@
   justify-content: center;
   border: none;
   background: var(--kit-surface-control);
-  color: var(--kit-text);
-  font-size: var(--kit-text-xs);
-  line-height: 1;
+  color: var(--kit-text-muted);
   padding: 0;
   cursor: default;
   outline: none;
@@ -37,6 +35,7 @@
 }
 .kit-numberfield-step[data-hovered] {
   background: var(--kit-surface-raised);
+  color: var(--kit-text);
 }
 .kit-numberfield-step[data-pressed] {
   background: var(--kit-surface-panel);

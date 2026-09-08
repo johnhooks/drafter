@@ -16,9 +16,9 @@
   border: var(--kit-line-w) solid var(--kit-line);
   border-radius: var(--kit-radius);
   background: var(--kit-surface-raised);
-  font-family: var(--kit-font-mono);
-  font-size: var(--kit-text-xs);
-  line-height: 1;
+}
+.kit-checkbox-box .kit-icon {
+  stroke-width: 1.75;
 }
 .kit-checkbox[data-hovered] .kit-checkbox-box {
   border-color: var(--kit-line-strong);

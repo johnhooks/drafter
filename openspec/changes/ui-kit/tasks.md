@@ -27,6 +27,8 @@
 
 - [x] 5.1 Panel with a header slot, Field (label above control, error below), Row (horizontal group with gap), and Disclosure; verify stories compose a properties panel that mirrors the app's rectangle properties
 
+- [x] 5.2 Add `Icon` (Lucide plus 12 px micro glyphs) and `IconButton`, and replace every text glyph in the kit (close, chevrons, steppers, checkbox mark); verify stories for both and tests for labelling and press
+
 ## 6. Wrap up
 
 - [x] 6.1 Import the kit's tokens and light theme into the app stylesheet so the app's greys and accent match; verify the app builds and the end-to-end tests still pass

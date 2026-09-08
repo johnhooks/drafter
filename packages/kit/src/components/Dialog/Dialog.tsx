@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Dialog as AriaDialog, type DialogProps as AriaDialogProps, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import { Button } from '../Button/Button'
+import { IconButton } from '../IconButton/IconButton'
 import './Dialog.css'
 
 export { DialogTrigger }
@@ -22,9 +23,12 @@ export function Dialog({ title, children, isOpen, onOpenChange, isDismissable = 
         <AriaDialog {...props} className={['kit-dialog', typeof className === 'string' ? className : ''].join(' ').trim()}>
           {({ close }) => (
             <>
-              <Heading slot="title" className="kit-dialog-title">
-                {title}
-              </Heading>
+              <div className="kit-dialog-head">
+                <Heading slot="title" className="kit-dialog-title">
+                  {title}
+                </Heading>
+                {isDismissable && <IconButton icon="close" size="sm" aria-label="Close" onPress={close} tooltip={false} />}
+              </div>
               <div className="kit-dialog-body">{typeof children === 'function' ? children(close) : children}</div>
             </>
           )}

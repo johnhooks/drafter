@@ -10,14 +10,8 @@
 [data-theme] * {
   box-sizing: border-box;
 }
-.kit-root button,
-.kit-root input,
-.kit-root select,
-.kit-root textarea,
-[data-theme] button,
-[data-theme] input,
-[data-theme] select,
-[data-theme] textarea {
+/* :where() keeps these at zero specificity so component classes always win. */
+:where(.kit-root, [data-theme]) :where(button, input, select, textarea) {
   font: inherit;
   color: inherit;
 }

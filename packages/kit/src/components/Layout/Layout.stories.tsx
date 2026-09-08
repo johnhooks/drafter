@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Button } from '../Button/Button'
+import { IconButton } from '../IconButton/IconButton'
 import { Disclosure } from '../Disclosure/Disclosure'
 import { ListBox, ListBoxItem } from '../ListBox/ListBox'
 import { Select, SelectItem } from '../Select/Select'
@@ -20,7 +20,7 @@ function Len({ label, initial, derived }: { label: string; initial: string; deri
 export const RectangleProperties: Story = {
   render: () => (
     <div style={{ width: 300, height: 520, display: 'flex' }}>
-      <Panel title="Rectangle r1" edge="left" actions={<Button variant="quiet" tone="danger" aria-label="Delete rectangle">x</Button>}>
+      <Panel title="Rectangle r1" edge="left" actions={<IconButton icon="trash" size="sm" tone="danger" aria-label="Delete rectangle" />}>
         <Fields>
           <Hint>Two values per axis drive it; the third is derived. Expressions may use r1.right, face.left, ply and + - * /.</Hint>
           <Row>
@@ -42,10 +42,10 @@ export const RectangleProperties: Story = {
         </Fields>
         <Disclosure title="Constraints" trailing="2">
           <ListBox aria-label="Constraints" dense selectionMode="single">
-            <ListBoxItem id="a" detail={'2"'} actions={<Button variant="quiet" tone="danger" aria-label="Remove">x</Button>}>
+            <ListBoxItem id="a" detail={'2"'} actions={<IconButton icon="close" size="sm" tone="danger" aria-label="Remove" />}>
               r1.left = face.left + 2
             </ListBoxItem>
-            <ListBoxItem id="b" detail={'22"'} actions={<Button variant="quiet" tone="danger" aria-label="Remove">x</Button>}>
+            <ListBoxItem id="b" detail={'22"'} actions={<IconButton icon="close" size="sm" tone="danger" aria-label="Remove" />}>
               r1.right = face.right - 2
             </ListBoxItem>
           </ListBox>

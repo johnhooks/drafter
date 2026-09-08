@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button, Disclosure as AriaDisclosure, DisclosurePanel, type DisclosureProps as AriaDisclosureProps, Heading } from 'react-aria-components'
+import { Icon } from '../Icon/Icon'
 import './Disclosure.css'
 
 export interface DisclosureProps extends Omit<AriaDisclosureProps, 'children'> {
@@ -15,9 +16,7 @@ export function Disclosure({ title, trailing, children, className, defaultExpand
     <AriaDisclosure {...props} defaultExpanded={defaultExpanded} className={['kit-disclosure', typeof className === 'string' ? className : ''].join(' ').trim()}>
       <Heading className="kit-disclosure-heading">
         <Button slot="trigger" className="kit-disclosure-trigger">
-          <span className="kit-disclosure-chevron" aria-hidden>
-            {'>'}
-          </span>
+          <Icon name="chevron-right" className="kit-disclosure-chevron" />
           <span className="kit-disclosure-title">{title}</span>
           {trailing && <span className="kit-disclosure-trailing">{trailing}</span>}
         </Button>

@@ -1,0 +1,37 @@
+.kit-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--kit-control-h);
+  height: var(--kit-control-h);
+  padding: 0;
+  border: var(--kit-line-w) solid transparent;
+  border-radius: var(--kit-radius);
+  background: transparent;
+  color: var(--kit-text-muted);
+  cursor: default;
+  outline: none;
+  flex: none;
+}
+.kit-icon-button[data-size='sm'] {
+  width: 18px;
+  height: 18px;
+}
+.kit-icon-button[data-hovered] {
+  background: var(--kit-surface-control);
+  color: var(--kit-text);
+}
+.kit-icon-button[data-pressed] {
+  background: var(--kit-surface-panel);
+}
+.kit-icon-button[data-focus-visible] {
+  outline: var(--kit-line-w) solid var(--kit-focus);
+  outline-offset: 1px;
+}
+.kit-icon-button[data-disabled] {
+  color: var(--kit-text-muted);
+  opacity: 0.5;
+}
+.kit-icon-button[data-tone='danger'][data-hovered] {
+  color: var(--kit-danger);
+}

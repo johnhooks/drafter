@@ -44,22 +44,3 @@
 .kit-toast-description {
   color: var(--kit-text-muted);
 }
-.kit-toast-close {
-  border: none;
-  background: transparent;
-  color: var(--kit-text-muted);
-  font-family: var(--kit-font-mono);
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border-radius: var(--kit-radius);
-  cursor: default;
-  outline: none;
-}
-.kit-toast-close[data-hovered] {
-  background: var(--kit-surface-control);
-  color: var(--kit-text);
-}
-.kit-toast-close[data-focus-visible] {
-  outline: var(--kit-line-w) solid var(--kit-focus);
-}

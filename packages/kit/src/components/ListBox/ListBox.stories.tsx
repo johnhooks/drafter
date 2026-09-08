@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { Button } from '../Button/Button'
+import { IconButton } from '../IconButton/IconButton'
 import { ListBox, ListBoxItem } from './ListBox'
 
 const meta: Meta<typeof ListBox> = { title: 'Collections/ListBox', component: ListBox }
@@ -10,13 +10,13 @@ export const Timeline: Story = {
   render: () => (
     <div style={{ width: 240 }}>
       <ListBox aria-label="Timeline" selectionMode="single" defaultSelectedKeys={['e1']}>
-        <ListBoxItem id="s1" detail="s1" actions={<><Button variant="quiet">Edit</Button><Button variant="quiet" tone="danger" aria-label="Delete">x</Button></>}>
+        <ListBoxItem id="s1" detail="s1" actions={<><IconButton icon="pencil" size="sm" aria-label="Edit" /><IconButton icon="close" size="sm" tone="danger" aria-label="Delete" /></>}>
           Sketch 1
         </ListBoxItem>
-        <ListBoxItem id="e1" actions={<Button variant="quiet" tone="danger" aria-label="Delete">x</Button>}>
+        <ListBoxItem id="e1" actions={<IconButton icon="close" size="sm" tone="danger" aria-label="Delete" />}>
           Extrude 1
         </ListBoxItem>
-        <ListBoxItem id="s2" detail="s2" tone="error" actions={<Button variant="quiet">Edit</Button>}>
+        <ListBoxItem id="s2" detail="s2" tone="error" actions={<IconButton icon="pencil" size="sm" aria-label="Edit" />}>
           Sketch 2
         </ListBoxItem>
       </ListBox>

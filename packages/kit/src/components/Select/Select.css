@@ -37,10 +37,7 @@
   color: var(--kit-text-muted);
 }
 .kit-select-chevron {
-  font-family: var(--kit-font-mono);
-  font-size: var(--kit-text-xs);
   color: var(--kit-text-muted);
-  transform: scaleX(1.4);
 }
 .kit-popover {
   background: var(--kit-surface-raised);

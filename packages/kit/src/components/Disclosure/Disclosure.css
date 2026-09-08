@@ -18,6 +18,7 @@
   background: transparent;
   color: var(--kit-text-muted);
   font-size: var(--kit-text-xs);
+  font-weight: 500;
   letter-spacing: var(--kit-tracking-label);
   text-transform: uppercase;
   text-align: left;
@@ -32,9 +33,6 @@
   outline-offset: -1px;
 }
 .kit-disclosure-chevron {
-  display: inline-block;
-  width: 10px;
-  font-family: var(--kit-font-mono);
   transition: transform 80ms;
 }
 .kit-disclosure[data-expanded] .kit-disclosure-chevron {

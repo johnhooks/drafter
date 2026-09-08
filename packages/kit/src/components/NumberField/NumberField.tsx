@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button, FieldError, Group, Input, Label, NumberField as AriaNumberField, type NumberFieldProps as AriaNumberFieldProps, Text } from 'react-aria-components'
+import { Icon } from '../Icon/Icon'
 import '../TextField/TextField.css'
 import './NumberField.css'
 
@@ -18,10 +19,10 @@ export function NumberField({ label, description, error, className, ...props }: 
         <Input className="kit-input" />
         <div className="kit-numberfield-steppers">
           <Button slot="increment" className="kit-numberfield-step" aria-label="Increase">
-            +
+            <Icon name="chevron-up" size={10} />
           </Button>
           <Button slot="decrement" className="kit-numberfield-step" aria-label="Decrease">
-            -
+            <Icon name="chevron-down" size={10} />
           </Button>
         </div>
       </Group>

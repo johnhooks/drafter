@@ -12,6 +12,7 @@ import {
   SelectValue,
   Text,
 } from 'react-aria-components'
+import { Icon } from '../Icon/Icon'
 import '../TextField/TextField.css'
 import './Select.css'
 
@@ -30,9 +31,7 @@ export function Select<T extends object>({ label, description, error, items, chi
       {label && <Label className="kit-field-label">{label}</Label>}
       <Button className="kit-select-button">
         <SelectValue className="kit-select-value" />
-        <span aria-hidden className="kit-select-chevron">
-          v
-        </span>
+        <Icon name="chevron-down" className="kit-select-chevron" />
       </Button>
       {description && !error && (
         <Text slot="description" className="kit-field-description">

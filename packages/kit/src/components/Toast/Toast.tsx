@@ -1,5 +1,5 @@
-import { Button } from 'react-aria-components'
 import { UNSTABLE_Toast as AriaToast, UNSTABLE_ToastContent as AriaToastContent, UNSTABLE_ToastQueue as ToastQueue, UNSTABLE_ToastRegion as AriaToastRegion, Text } from 'react-aria-components'
+import { IconButton } from '../IconButton/IconButton'
 import './Toast.css'
 
 export interface ToastMessage {
@@ -31,9 +31,7 @@ export function ToastRegion() {
               </Text>
             )}
           </AriaToastContent>
-          <Button slot="close" className="kit-toast-close" aria-label="Dismiss">
-            x
-          </Button>
+          <IconButton slot="close" icon="close" size="sm" aria-label="Dismiss" tooltip={false} />
         </AriaToast>
       )}
     </AriaToastRegion>

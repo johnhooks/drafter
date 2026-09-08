@@ -19,8 +19,15 @@
   outline: none;
   padding: var(--kit-space-3) var(--kit-space-4) var(--kit-space-4);
 }
+.kit-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--kit-space-2);
+  margin-bottom: var(--kit-space-2);
+}
 .kit-dialog-title {
-  margin: 0 0 var(--kit-space-2);
+  flex: 1;
+  margin: 0;
   font-size: var(--kit-text-lg);
   font-weight: 600;
 }

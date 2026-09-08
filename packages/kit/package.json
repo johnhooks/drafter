@@ -21,6 +21,7 @@
     "react-dom": "^19"
   },
   "dependencies": {
+    "lucide-react": "^1.42.0",
     "react-aria-components": "^1.21.1"
   },
   "devDependencies": {

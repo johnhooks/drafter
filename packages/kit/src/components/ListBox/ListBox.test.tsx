@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Selection } from 'react-aria-components'
 import { describe, expect, it, vi } from 'vitest'
-import { Button } from '../Button/Button'
+import { IconButton } from '../IconButton/IconButton'
 import { ListBox, ListBoxItem } from './ListBox'
 
 function List(props: { onSelectionChange?: (k: Selection) => void; onRemove?: () => void }) {
@@ -11,7 +11,7 @@ function List(props: { onSelectionChange?: (k: Selection) => void; onRemove?: ()
       <ListBoxItem id="s1" detail="s1">
         Sketch 1
       </ListBoxItem>
-      <ListBoxItem id="e1" actions={<Button aria-label="Delete" onPress={props.onRemove}>x</Button>}>
+      <ListBoxItem id="e1" actions={<IconButton icon="close" size="sm" aria-label="Delete" onPress={props.onRemove} tooltip={false} />}>
         Extrude 1
       </ListBoxItem>
     </ListBox>
