@@ -22,7 +22,7 @@ repo to find what changed and what the message should say.
 - Body only when the why is not obvious from the diff. Wrap at 80 characters.
   No bullet list for a single-purpose change.
 - Do not state that the change was tested.
-- No co-author trailer, no session link, no emoji.
+- No emoji.
 
 ## Staging
 
