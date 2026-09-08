@@ -37,6 +37,7 @@ export function Timeline() {
               <span className="kind">{f.kind === 'sketch' ? 'S' : 'E'}</span>
               <span className="name">
                 {f.name}
+                {f.kind === 'sketch' && <span className="handle"> {f.handle}</span>}
                 {r?.kind === 'error' && ' !'}
               </span>
               {f.kind === 'sketch' && !editing && (

@@ -2,8 +2,8 @@ import type { Body } from '../geom/body'
 import { cut, join, newBody } from '../geom/body'
 import type { Box } from '../geom/box'
 import type { Rect2 } from '../geom/rect2d'
+import type { Sixteenths } from '../units'
 import { boxFromRect } from './planes'
-import { normRect } from './sketch'
 import type { ExtrudeFeature, ExtrudeOp, ResolvedPlane, SketchFeature } from './types'
 
 export interface ExtrudeOutcome {
@@ -15,23 +15,27 @@ export interface ExtrudeOutcome {
 
 export type ApplyResult = { ok: true; value: ExtrudeOutcome } | { ok: false; error: string }
 
-/** Applies one extrude to the bodies as they stand at that point in the timeline. */
+/** Applies one extrude to the bodies as they stand at that point in the timeline, using resolved rectangles. */
 export function applyExtrude(
   f: ExtrudeFeature,
   sketch: SketchFeature,
   plane: ResolvedPlane,
+  resolvedRects: ReadonlyMap<string, Rect2>,
+  rectErrors: ReadonlyMap<string, string>,
+  distance: Sixteenths,
   bodies: ReadonlyMap<string, Body>,
 ): ApplyResult {
   if (f.rectIds.length === 0) return { ok: false, error: 'Extrude has no rectangles' }
-  if (f.distance === 0) return { ok: false, error: 'Extrude distance is zero' }
+  if (distance === 0) return { ok: false, error: 'Extrude distance is zero' }
   const boxes = new Map<string, Box>()
   const rects = new Map<string, Rect2>()
   for (const rid of f.rectIds) {
     const r = sketch.rects.find((x) => x.id === rid)
     if (!r) return { ok: false, error: `Rectangle ${rid} is not in ${sketch.name}` }
-    const n = normRect(r)
-    rects.set(rid, n)
-    boxes.set(rid, boxFromRect(plane, n, f.distance))
+    const n = resolvedRects.get(rid)
+    if (!n) return { ok: false, error: `${r.handle} in ${sketch.name} failed: ${rectErrors.get(rid) ?? 'unresolved'}` }
+    rects.set(rid, { u0: n.u0, u1: n.u1, v0: n.v0, v1: n.v1 })
+    boxes.set(rid, boxFromRect(plane, n, distance))
   }
   const next = new Map(bodies)
   if (f.op === 'new') {

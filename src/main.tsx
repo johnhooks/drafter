@@ -17,6 +17,7 @@ if (import.meta.env.DEV) {
       errors: s.eval.errors,
       bodies: [...s.eval.bodies.values()].map((b) => ({ id: b.id, volume: bodyVolume(b) / 4096, bounds: bodyBounds(b) })),
       notices: s.notices,
+      params: s.doc.params,
     }
   }
 }

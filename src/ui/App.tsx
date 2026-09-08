@@ -75,6 +75,7 @@ function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | 
   const mode = useStore((s) => s.mode)
   const tool = useStore((s) => s.tool)
   const selection = useStore((s) => s.selection)
+  const showDims = useStore((s) => s.showDims)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const exportSvg = () => {
@@ -106,6 +107,12 @@ function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | 
           </button>
           <button className={tool === 'rect' ? 'active' : ''} onClick={() => dispatch('setTool', 'rect')}>
             Rectangle
+          </button>
+          <button className={tool === 'link' ? 'active' : ''} onClick={() => dispatch('setTool', 'link')}>
+            Link
+          </button>
+          <button className={showDims ? 'active' : ''} onClick={() => dispatch('toggleDims')} title="Show or hide driving dimensions">
+            Dims
           </button>
           <button
             disabled={sketch.rects.length === 0}

@@ -48,7 +48,7 @@ label.field span { display: block; color: var(--muted); font-size: 11px; margin-
 .timeline .err { color: var(--danger); font-size: 11px; padding: 0 6px 4px 28px; }
 .notices { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 5; }
 .notice { background: #fff7e0; border: 1px solid #e6c97a; padding: 6px 10px; border-radius: 4px; display: flex; gap: 10px; align-items: center; }
-.hint { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--line); pointer-events: none; }
+.hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--line); pointer-events: none; }
 .sketch { width: 100%; height: 100%; touch-action: none; user-select: none; }
 .sketch svg { width: 100%; height: 100%; display: block; background: #fbfbfa; }
 .inline-edit { position: absolute; width: 90px; padding: 2px 4px; font-size: 12px; z-index: 6; }
@@ -58,3 +58,14 @@ label.field span { display: block; color: var(--muted); font-size: 11px; margin-
 .rect-list .item { display: flex; gap: 6px; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-family: ui-monospace, monospace; font-size: 12px; }
 .rect-list .item.selected { background: #e3effb; }
 .muted { color: var(--muted); }
+
+input.expr { font-family: ui-monospace, monospace; background: #f4f8ff; }
+.field .value { color: var(--muted); font-size: 11px; }
+.field.derived input { color: var(--muted); border-style: dashed; }
+.field.derived em { font-style: normal; color: var(--muted); }
+.handle { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; margin-right: 6px; }
+.rect-list .item.error { color: var(--danger); }
+.small { font-size: 11px; margin-bottom: 6px; }
+.param { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: start; }
+.param button { margin-top: 16px; }
+.param.add { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 4px; }

@@ -1,38 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { type Page, expect, test } from '@playwright/test'
 
-interface Debug {
-  mode: { kind: string; sketchId?: string }
-  tool: string
-  selection: { featureId?: string; bodyId?: string; rectIds: string[] }
-  features: Array<Record<string, any>>
-  errors: Array<{ featureId: string; message: string }>
-  bodies: Array<{ id: string; volume: number; bounds: Record<string, number> }>
-  notices: string[]
-}
-
-const dbg = (page: Page) => page.evaluate(() => (window as any).__debug() as Debug)
-
-/** Drag on the sketch svg between pixel offsets relative to its centre. */
-async function dragSvg(page: Page, from: [number, number], to: [number, number]) {
-  const box = (await page.locator('.sketch svg').boundingBox())!
-  const cx = box.x + box.width / 2
-  const cy = box.y + box.height / 2
-  await page.mouse.move(cx + from[0], cy + from[1])
-  await page.mouse.down()
-  await page.mouse.move(cx + to[0], cy + to[1], { steps: 8 })
-  await page.mouse.up()
-}
-
-/** Screen position of a model point in the isometric view at zoom 6, camera at (200,-200,200) looking at the origin. */
-async function isoPoint(page: Page, x: number, y: number, z: number): Promise<[number, number]> {
-  // the canvas starts at its default 300x150 until r3f's resize observer runs
-  await expect.poll(async () => (await page.locator('.centre canvas').boundingBox())?.width ?? 0).toBeGreaterThan(400)
-  const cb = (await page.locator('.centre canvas').boundingBox())!
-  const sx = (x + y) / Math.SQRT2
-  const sy = z * Math.sqrt(2 / 3) - (x - y) / Math.sqrt(6)
-  return [cb.x + cb.width / 2 + sx * 6, cb.y + cb.height / 2 - sy * 6]
-}
+import { dbg, dragSvg, isoPoint } from './helpers'
 
 /** Draw a rect in the current sketch by plane inches, given the view centre and scale the editor is using. */
 async function drawInches(page: Page, view: { cu: number; cv: number; scale: number; su: 1 | -1 }, a: [number, number], b: [number, number]) {
@@ -74,7 +43,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await drawInches(page, v1, [0, 0], [24, 24])
     d = await dbg(page)
     const r = d.features[0]!.rects[0]
-    expect(r).toMatchObject({ u1: 0, v1: 0, u2: 384, v2: 384 })
+    expect(r).toMatchObject({ handle: 'r1', u: { min: 0, max: 384 }, v: { min: 0, max: 384 } })
     await dragSvg(page, [-100, 100], [-100, 100])
     d = await dbg(page)
     expect(d.features[0]!.rects).toHaveLength(1)
@@ -91,7 +60,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await input.fill('23 1/4')
     await input.press('Enter')
     d = await dbg(page)
-    expect(Math.abs(d.features[0]!.rects[0].u2 - d.features[0]!.rects[0].u1)).toBe(372)
+    expect(d.features[0]!.rects[0].u).toEqual({ min: 0, size: 372 })
     await page.click('[data-rect-id] text[data-dim="h"]')
     await page.locator('input.inline-edit').press('Escape')
     await expect(page.locator('input.inline-edit')).toHaveCount(0)
@@ -109,18 +78,20 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     d = await dbg(page)
     expect(d.selection.rectIds).toHaveLength(0)
     await page.click('.rect-list .item')
-    const fields = page.locator('.panel.right label.field input')
-    await fields.nth(2).fill('12')
-    await fields.nth(2).press('Enter')
+    // rectangle fields: Left, Right, Width, Bottom, Top, Height (after Name and Offset)
+    const left = page.locator('.panel.right label.field:has(span:text-is("Left")) input')
+    await left.fill('12')
+    await left.press('Enter')
     d = await dbg(page)
-    expect(Math.min(d.features[0]!.rects[0].u1, d.features[0]!.rects[0].u2)).toBe(192)
-    await fields.nth(2).fill('0')
-    await fields.nth(2).press('Enter')
-    await fields.nth(4).fill('abc')
-    await fields.nth(4).press('Enter')
+    expect(d.features[0]!.rects[0].u).toEqual({ min: 192, size: 384 })
+    await left.fill('0')
+    await left.press('Enter')
+    const width = page.locator('.panel.right label.field:has(span:has-text("Width")) input')
+    await width.fill('abc @')
+    await width.press('Enter')
     await expect(page.locator('.panel.right .field .error')).toHaveCount(1)
     d = await dbg(page)
-    expect(Math.abs(d.features[0]!.rects[0].u2 - d.features[0]!.rects[0].u1)).toBe(384)
+    expect(d.features[0]!.rects[0].u).toEqual({ min: 0, size: 384 })
   })
 
   await test.step('extrude to a 24" cube', async () => {
@@ -166,12 +137,12 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   await test.step('snapping and deletion', async () => {
     await drawInches(page, v2, [10, -14], [14, -10])
     d = await dbg(page)
-    expect(d.features[2]!.rects[0]).toMatchObject({ u1: 160, v1: -224, u2: 224, v2: -160 })
+    expect(d.features[2]!.rects[0]).toMatchObject({ u: { min: 160, max: 224 }, v: { min: -224, max: -160 } })
     // end a drag 4 px past the face edge at u = 24: snaps onto the edge
     const px = 4 / v2.scale
     await drawInches(page, v2, [18, -4], [24 + px, -2])
     d = await dbg(page)
-    expect(Math.max(d.features[2]!.rects[1].u1, d.features[2]!.rects[1].u2)).toBe(384)
+    expect(d.features[2]!.rects[1].u.max).toBe(384)
     await page.click('text=Select')
     await drawInches(page, v2, [21, -3], [21, -3])
     await page.keyboard.press('Delete')
@@ -255,7 +226,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('text=Download JSON')])
     await dl.saveAs(jsonPath)
     const json = JSON.parse(readFileSync(jsonPath, 'utf8'))
-    expect(json.version).toBe(1)
+    expect(json.version).toBe(2)
     expect(json.features).toHaveLength(6)
     const [png] = await Promise.all([page.waitForEvent('download'), page.click('text=Export PNG')])
     const pngPath = testInfo.outputPath('model.png')
@@ -277,7 +248,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
 
   await test.step('invalid json is refused, valid json replaces the document', async () => {
     const bad = testInfo.outputPath('bad.json')
-    writeFileSync(bad, JSON.stringify({ version: 1, title: 'x', features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', rectIds: ['r'], distance: 16, op: 'new' }] }))
+    writeFileSync(bad, JSON.stringify({ version: 2, title: 'x', params: [], features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', rectIds: ['r'], distance: 16, op: 'new' }] }))
     await page.setInputFiles('input[type=file]', bad)
     await expect(page.locator('.notice')).toContainText('Could not open bad.json')
     d = await dbg(page)
@@ -319,8 +290,9 @@ test('back-facing plane is mirrored and labelled', async ({ page }) => {
   // dragging to the right now decreases u
   await dragSvg(page, [0, 0], [60, -60])
   const d = await dbg(page)
+  // the drag started at u = 12" and moved 60 px (5") to the right, which is toward -X on a mirrored plane
   const r = d.features[0]!.rects[0]
-  expect(r.u2).toBeLessThan(r.u1)
+  expect(r.u).toEqual({ min: 112, max: 192 })
 })
 
 test('sketch view zooms with the wheel and pans with the middle button', async ({ page }) => {

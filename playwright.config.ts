@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5199',
     viewport: { width: 1400, height: 900 },
+    screenshot: 'only-on-failure',
     // software GL so the three.js view renders in headless runs
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
   },

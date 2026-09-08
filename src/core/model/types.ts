@@ -2,10 +2,13 @@ import type { Sixteenths } from '../units'
 
 export type PlaneKind = 'XZ' | 'XY' | 'YZ'
 
+/** A length slot: a plain length in whole sixteenths, or an expression string. Unbranded so literals are easy to write. */
+export type Len = number | string
+
 export interface PrincipalPlane {
   readonly kind: 'principal'
   readonly plane: PlaneKind
-  readonly offset: Sixteenths
+  readonly offset: Len
   readonly normal: 1 | -1
 }
 
@@ -27,18 +30,29 @@ export interface ResolvedPlane {
   readonly normal: 1 | -1
 }
 
-/** Two opposite corners in plane coordinates; order does not matter. */
+export type Slot = 'min' | 'max' | 'size'
+export const SLOTS: readonly Slot[] = ['min', 'max', 'size']
+
+/** Exactly two of the three are present; the third is derived. */
+export interface AxisSlots {
+  readonly min?: Len
+  readonly max?: Len
+  readonly size?: Len
+}
+
 export interface SketchRect {
   readonly id: string
-  readonly u1: Sixteenths
-  readonly v1: Sixteenths
-  readonly u2: Sixteenths
-  readonly v2: Sixteenths
+  /** Stable name used in expressions: r1, r2, ... */
+  readonly handle: string
+  readonly u: AxisSlots
+  readonly v: AxisSlots
 }
 
 export interface SketchFeature {
   readonly kind: 'sketch'
   readonly id: string
+  /** Stable name reserved for expressions: s1, s2, ... */
+  readonly handle: string
   readonly name: string
   readonly plane: PlaneDef
   readonly rects: readonly SketchRect[]
@@ -52,22 +66,32 @@ export interface ExtrudeFeature {
   readonly name: string
   readonly sketchId: string
   readonly rectIds: readonly string[]
-  /** Signed: positive along the sketch plane normal. */
-  readonly distance: Sixteenths
+  /** Signed: positive along the sketch plane normal. May be an expression over parameters. */
+  readonly distance: Len
   readonly op: ExtrudeOp
   readonly targetBodyId?: string
 }
 
 export type Feature = SketchFeature | ExtrudeFeature
 
+export interface Param {
+  readonly name: string
+  readonly value: Len
+}
+
 export interface Document {
-  readonly version: 1
+  readonly version: 2
   readonly title: string
+  readonly params: readonly Param[]
   readonly features: readonly Feature[]
 }
 
 export const DEFAULT_PLANE: PrincipalPlane = { kind: 'principal', plane: 'XZ', offset: 0 as Sixteenths, normal: -1 }
 
 export function newDocument(title = 'Untitled'): Document {
-  return { version: 1, title, features: [] }
+  return { version: 2, title, params: [], features: [] }
+}
+
+export function isExpr(v: Len): v is string {
+  return typeof v === 'string'
 }

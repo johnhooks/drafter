@@ -6,6 +6,7 @@ import { dependentsOf } from '../../src/core/model/deps'
 import { parseDocument, serializeDocument } from '../../src/core/model/document'
 import { defaultOp } from '../../src/core/model/extrude'
 import { nextName } from '../../src/core/model/names'
+import { rectFromCorners } from '../../src/core/model/sketch'
 import { DEFAULT_PLANE, type Document, type ExtrudeFeature, type SketchFeature, newDocument } from '../../src/core/model/types'
 import { validateDocument } from '../../src/core/model/validate'
 import { sx } from '../../src/core/units'
@@ -15,9 +16,10 @@ const IN = (n: number) => sx(n * 16)
 const sketch = (id: string, name: string, plane: SketchFeature['plane'], rects: Array<[string, number, number, number, number]>): SketchFeature => ({
   kind: 'sketch',
   id,
+  handle: id,
   name,
   plane,
-  rects: rects.map(([rid, u1, v1, u2, v2]) => ({ id: rid, u1: IN(u1), v1: IN(v1), u2: IN(u2), v2: IN(v2) })),
+  rects: rects.map(([rid, u1, v1, u2, v2], i) => rectFromCorners(rid, `r${i + 1}`, IN(u1), IN(v1), IN(u2), IN(v2))),
 })
 const extrude = (id: string, name: string, sketchId: string, rectIds: string[], distance: number, op: ExtrudeFeature['op'], targetBodyId?: string): ExtrudeFeature => ({
   kind: 'extrude',
@@ -200,10 +202,11 @@ describe('document format', () => {
   })
   it('validation flags zero width, zero distance, missing rects, missing target', () => {
     const errs = validateDocument({
-      version: 1,
+      version: 2,
       title: 't',
+      params: [],
       features: [
-        { kind: 'sketch', id: 's', name: 'S', plane: DEFAULT_PLANE, rects: [{ id: 'r', u1: 0, v1: 0, u2: 0, v2: 10 }] },
+        { kind: 'sketch', id: 's', handle: 's1', name: 'S', plane: DEFAULT_PLANE, rects: [{ id: 'r', handle: 'r1', u: { min: 0, max: 0 }, v: { min: 0, max: 10 } }] },
         { kind: 'extrude', id: 'e', name: 'E', sketchId: 's', rectIds: [], distance: 0, op: 'cut' },
       ],
     })

@@ -1,18 +1,29 @@
 import { type EvalResult, evaluate } from '../../core/eval/evaluate'
+import type { Rect2 } from '../../core/geom/rect2d'
 import { dependentsOf } from '../../core/model/deps'
 import { defaultOp } from '../../core/model/extrude'
-import { newId, nextName } from '../../core/model/names'
-import type { Document, ExtrudeFeature, Feature, PlaneDef, SketchFeature, SketchRect } from '../../core/model/types'
+import { newId, nextHandle, nextName } from '../../core/model/names'
+import { renameParam as renameParamInDoc, usesOf, validateParamName } from '../../core/model/params'
+import { setSlot } from '../../core/model/slots'
+import type { Document, ExtrudeFeature, Feature, Len, PlaneDef, SketchFeature, SketchRect, Slot } from '../../core/model/types'
 import { newDocument } from '../../core/model/types'
 import type { Sixteenths } from '../../core/units'
 
 export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' }
-export type Tool = 'select' | 'rect'
+export type Tool = 'select' | 'rect' | 'link'
+
+export interface ConstraintRef {
+  readonly sketchId: string
+  readonly rectId: string
+  readonly axis: 'u' | 'v'
+  readonly slot: Slot
+}
 
 export interface Selection {
   readonly featureId?: string
   readonly bodyId?: string
   readonly rectIds: readonly string[]
+  readonly constraint?: ConstraintRef
 }
 
 export interface State {
@@ -22,20 +33,38 @@ export interface State {
   readonly tool: Tool
   readonly selection: Selection
   readonly notices: readonly string[]
+  /** Last successfully resolved position per rectangle id, so a failed rectangle can still be drawn. */
+  readonly lastGood: ReadonlyMap<string, Rect2>
+  readonly showDims: boolean
 }
 
 export const EMPTY_SELECTION: Selection = { rectIds: [] }
 
 export function initialState(doc: Document = newDocument()): State {
-  return { doc, eval: evaluate(doc), mode: { kind: 'model' }, tool: 'select', selection: EMPTY_SELECTION, notices: [] }
+  const ev = evaluate(doc)
+  return { doc, eval: ev, mode: { kind: 'model' }, tool: 'select', selection: EMPTY_SELECTION, notices: [], lastGood: goodRects(ev, new Map()), showDims: true }
+}
+
+function goodRects(ev: EvalResult, prev: ReadonlyMap<string, Rect2>): Map<string, Rect2> {
+  const out = new Map(prev)
+  for (const r of ev.results.values()) {
+    if (r.kind !== 'sketch') continue
+    for (const [id, rr] of r.rects) out.set(id, { u0: rr.u0, u1: rr.u1, v0: rr.v0, v1: rr.v1 })
+  }
+  return out
 }
 
 function withDoc(s: State, doc: Document): State {
-  return { ...s, doc, eval: evaluate(doc) }
+  const ev = evaluate(doc)
+  return { ...s, doc, eval: ev, lastGood: goodRects(ev, s.lastGood) }
 }
 
 function mapFeature<T extends Feature>(doc: Document, id: string, fn: (f: T) => T): Document {
   return { ...doc, features: doc.features.map((f) => (f.id === id ? fn(f as T) : f)) }
+}
+
+function sketchOf(s: State, sketchId: string): SketchFeature | undefined {
+  return s.doc.features.find((f): f is SketchFeature => f.kind === 'sketch' && f.id === sketchId)
 }
 
 export function setTitle(s: State, title: string): State {
@@ -43,14 +72,15 @@ export function setTitle(s: State, title: string): State {
 }
 
 export function addSketch(s: State, plane: PlaneDef, id = newId('s')): State {
-  const sketch: SketchFeature = { kind: 'sketch', id, name: nextName(s.doc, 'sketch'), plane, rects: [] }
+  const handles = s.doc.features.filter((f): f is SketchFeature => f.kind === 'sketch').map((f) => f.handle)
+  const sketch: SketchFeature = { kind: 'sketch', id, handle: nextHandle('s', handles), name: nextName(s.doc, 'sketch'), plane, rects: [] }
   const next = withDoc(s, { ...s.doc, features: [...s.doc.features, sketch] })
   return { ...next, mode: { kind: 'sketch', sketchId: id }, tool: 'rect', selection: { featureId: id, rectIds: [] } }
 }
 
 /** Appends an extrude with the spec's defaults: join onto the face's body, or a new body from a principal plane. */
-export function addExtrude(s: State, sketchId: string, rectIds: readonly string[], distance: Sixteenths, id = newId('e')): State {
-  const sketch = s.doc.features.find((f): f is SketchFeature => f.kind === 'sketch' && f.id === sketchId)
+export function addExtrude(s: State, sketchId: string, rectIds: readonly string[], distance: Len, id = newId('e')): State {
+  const sketch = sketchOf(s, sketchId)
   if (!sketch) return s
   const ids = rectIds.length ? rectIds : sketch.rects.map((r) => r.id)
   const op = defaultOp(sketch)
@@ -60,16 +90,7 @@ export function addExtrude(s: State, sketchId: string, rectIds: readonly string[
     if (r?.kind === 'extrude') targetBodyId = r.bodyId
   }
   if (op !== 'new' && !targetBodyId) targetBodyId = s.selection.bodyId
-  const extrude: ExtrudeFeature = {
-    kind: 'extrude',
-    id,
-    name: nextName(s.doc, 'extrude'),
-    sketchId,
-    rectIds: ids,
-    distance,
-    op,
-    targetBodyId,
-  }
+  const extrude: ExtrudeFeature = { kind: 'extrude', id, name: nextName(s.doc, 'extrude'), sketchId, rectIds: ids, distance, op, targetBodyId }
   const next = withDoc(s, { ...s.doc, features: [...s.doc.features, extrude] })
   return { ...next, selection: { featureId: id, rectIds: [] } }
 }
@@ -82,22 +103,53 @@ export function renameFeature(s: State, id: string, name: string): State {
   return withDoc(s, mapFeature<Feature>(s.doc, id, (f) => ({ ...f, name })))
 }
 
-export function setSketchPlaneOffset(s: State, id: string, offset: Sixteenths): State {
-  return withDoc(
-    s,
-    mapFeature<SketchFeature>(s.doc, id, (f) => (f.plane.kind === 'principal' ? { ...f, plane: { ...f.plane, offset } } : f)),
-  )
+export function setSketchPlaneOffset(s: State, id: string, offset: Len): State {
+  return withDoc(s, mapFeature<SketchFeature>(s.doc, id, (f) => (f.plane.kind === 'principal' ? { ...f, plane: { ...f.plane, offset } } : f)))
 }
 
+/** Adds a rectangle, assigning the next free handle unless the rect carries one already in use by nobody. */
 export function addRect(s: State, sketchId: string, rect: SketchRect): State {
-  return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, rects: [...f.rects, rect] })))
+  const sketch = sketchOf(s, sketchId)
+  if (!sketch) return s
+  const taken = sketch.rects.map((r) => r.handle)
+  const handle = rect.handle && !taken.includes(rect.handle) ? rect.handle : nextHandle('r', taken)
+  return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, rects: [...f.rects, { ...rect, handle }] })))
 }
 
 export function updateRect(s: State, sketchId: string, rect: SketchRect): State {
-  return withDoc(
-    s,
-    mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, rects: f.rects.map((r) => (r.id === rect.id ? rect : r)) })),
-  )
+  return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, rects: f.rects.map((r) => (r.id === rect.id ? rect : r)) })))
+}
+
+/** Applies the slot-edit rule; a refusal becomes a notice and leaves the document unchanged. */
+export function setRectSlot(s: State, sketchId: string, rectId: string, axis: 'u' | 'v', slot: Slot, value: Len): State {
+  const sketch = sketchOf(s, sketchId)
+  const rect = sketch?.rects.find((r) => r.id === rectId)
+  if (!sketch || !rect) return s
+  const sr = s.eval.results.get(sketchId)
+  const resolved = sr?.kind === 'sketch' ? sr.rects.get(rectId) : undefined
+  const current = resolved ? (axis === 'u' ? resolved.uAxis : resolved.vAxis) : fallbackAxis(s.lastGood.get(rectId), axis)
+  const r = setSlot(rect[axis], slot, value, current)
+  if (!r.ok) return notify(s, `${rect.handle}: ${r.error}`)
+  return updateRect(s, sketchId, { ...rect, [axis]: r.slots })
+}
+
+function fallbackAxis(last: Rect2 | undefined, axis: 'u' | 'v') {
+  if (!last) return { min: 0, max: 16, size: 16 }
+  return axis === 'u' ? { min: last.u0, max: last.u1, size: last.u1 - last.u0 } : { min: last.v0, max: last.v1, size: last.v1 - last.v0 }
+}
+
+/** Replaces an expression slot with its current resolved number. */
+export function removeConstraint(s: State, c: ConstraintRef): State {
+  const sketch = sketchOf(s, c.sketchId)
+  const rect = sketch?.rects.find((r) => r.id === c.rectId)
+  if (!sketch || !rect) return s
+  const sr = s.eval.results.get(c.sketchId)
+  const values = sr?.kind === 'sketch' ? sr.slotValues.get(c.rectId)?.[c.axis] : undefined
+  const resolved = sr?.kind === 'sketch' ? sr.rects.get(c.rectId) : undefined
+  const ax = resolved ? (c.axis === 'u' ? resolved.uAxis : resolved.vAxis) : fallbackAxis(s.lastGood.get(c.rectId), c.axis)
+  const value = (values?.[c.slot] ?? ax[c.slot]) as Sixteenths
+  const next = updateRect(s, c.sketchId, { ...rect, [c.axis]: { ...rect[c.axis], [c.slot]: value } })
+  return { ...next, selection: { ...next.selection, constraint: undefined } }
 }
 
 /** Removes rects and drops them from extrudes; an extrude left with no rects is deleted with its dependents. */
@@ -127,15 +179,42 @@ export function deleteFeature(s: State, id: string): State {
   return { ...next, mode, selection }
 }
 
+export function addParam(s: State, name: string, value: Len): State {
+  const err = validateParamName(name, s.doc.params.map((p) => p.name))
+  if (err) return notify(s, err)
+  return withDoc(s, { ...s.doc, params: [...s.doc.params, { name, value }] })
+}
+
+export function setParamValue(s: State, name: string, value: Len): State {
+  return withDoc(s, { ...s.doc, params: s.doc.params.map((p) => (p.name === name ? { ...p, value } : p)) })
+}
+
+export function renameParam(s: State, from: string, to: string): State {
+  if (from === to) return s
+  const err = validateParamName(to, s.doc.params.map((p) => p.name))
+  if (err) return notify(s, err)
+  return withDoc(s, renameParamInDoc(s.doc, from, to))
+}
+
+export function deleteParam(s: State, name: string): State {
+  const uses = usesOf(s.doc, name)
+  if (uses.length) return notify(s, `${name} is used by ${uses.map((u) => u.where).join(', ')}`)
+  return withDoc(s, { ...s.doc, params: s.doc.params.filter((p) => p.name !== name) })
+}
+
 export function select(s: State, selection: Partial<Selection>): State {
   return { ...s, selection: { ...EMPTY_SELECTION, ...selection } }
+}
+
+export function selectConstraint(s: State, constraint: ConstraintRef | undefined): State {
+  return { ...s, selection: { ...s.selection, constraint } }
 }
 
 export function toggleRect(s: State, rectId: string, additive: boolean): State {
   const cur = s.selection.rectIds
   const has = cur.includes(rectId)
   const rectIds = additive ? (has ? cur.filter((x) => x !== rectId) : [...cur, rectId]) : [rectId]
-  return { ...s, selection: { ...s.selection, rectIds } }
+  return { ...s, selection: { ...s.selection, rectIds, constraint: undefined } }
 }
 
 export function setMode(s: State, mode: Mode): State {
@@ -146,6 +225,10 @@ export function setMode(s: State, mode: Mode): State {
 
 export function setTool(s: State, tool: Tool): State {
   return { ...s, tool }
+}
+
+export function toggleDims(s: State): State {
+  return { ...s, showDims: !s.showDims }
 }
 
 export function loadDocument(s: State, doc: Document): State {

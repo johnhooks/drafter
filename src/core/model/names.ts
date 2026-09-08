@@ -15,6 +15,17 @@ export function nextName(doc: Document, kind: Feature['kind']): string {
   return `${label} ${max + 1}`
 }
 
+/** Next handle like r4 or s2: one past the highest number in use with that prefix. */
+export function nextHandle(prefix: string, existing: Iterable<string>): string {
+  const re = new RegExp(`^${prefix}(\\d+)$`)
+  let max = 0
+  for (const h of existing) {
+    const m = re.exec(h)
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  return `${prefix}${max + 1}`
+}
+
 let counter = 0
 export function newId(prefix: string): string {
   counter += 1
