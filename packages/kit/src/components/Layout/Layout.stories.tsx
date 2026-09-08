@@ -41,7 +41,7 @@ export const RectangleProperties: Story = {
           </Select>
         </Fields>
         <Disclosure title="Constraints" trailing="2">
-          <ListBox aria-label="Constraints" dense selectionMode="single">
+          <ListBox aria-label="Constraints" dense selectionMode="single" actionSlots={1}>
             <ListBoxItem id="a" detail={'2"'} actions={<IconButton icon="close" size="sm" tone="danger" aria-label="Remove" />}>
               r1.left = face.left + 2
             </ListBoxItem>

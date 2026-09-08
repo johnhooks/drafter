@@ -18,9 +18,6 @@
   outline: none;
   user-select: none;
 }
-.kit-listbox-item {
-  background: var(--kit-surface-panel);
-}
 .kit-listbox-item[data-hovered] {
   background: var(--kit-surface-control);
 }
@@ -54,17 +51,20 @@
 .kit-listbox-item[data-selected] .kit-listbox-detail {
   color: var(--kit-on-accent);
 }
-/* Actions overlay the right end of the row so rows align at rest whatever their action count. */
+/* Actions live in a gutter every row reserves, so details align whether actions show or not. */
+.kit-listbox-item {
+  padding-right: calc(var(--kit-space-2) + var(--kit-listbox-actions-w, 0px) + var(--kit-space));
+}
 .kit-listbox-actions {
   position: absolute;
   top: 0;
   right: var(--kit-space);
   bottom: 0;
+  width: var(--kit-listbox-actions-w, auto);
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 2px;
-  padding-left: var(--kit-space-2);
-  background: inherit;
   visibility: hidden;
 }
 .kit-listbox-item[data-hovered] .kit-listbox-actions,
@@ -72,17 +72,6 @@
 .kit-listbox-item[data-focus-visible] .kit-listbox-actions,
 .kit-listbox-item:has(.kit-listbox-actions :focus-visible) .kit-listbox-actions {
   visibility: visible;
-}
-/* the detail steps aside while actions are shown */
-.kit-listbox-item[data-hovered] .kit-listbox-detail,
-.kit-listbox-item[data-selected] .kit-listbox-detail,
-.kit-listbox-item[data-focus-visible] .kit-listbox-detail {
-  visibility: hidden;
-}
-.kit-listbox-item[data-hovered],
-.kit-listbox-item[data-selected],
-.kit-listbox-item[data-focus-visible] {
-  background-clip: padding-box;
 }
 .kit-listbox-item[data-selected] .kit-icon-button {
   color: var(--kit-on-accent);

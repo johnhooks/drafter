@@ -5,11 +5,27 @@ import './ListBox.css'
 export interface ListBoxProps<T extends object> extends AriaListBoxProps<T> {
   /** Dense rows, 20 px; the default is the 24 px control height. */
   readonly dense?: boolean
+  /**
+   * The most actions any row carries. Every row reserves a gutter that wide so details align
+   * whether a row's actions are hidden, fewer, or absent.
+   */
+  readonly actionSlots?: number
 }
 
+const SLOT_W = 18
+const SLOT_GAP = 2
+
 /** A list of selectable rows: the timeline, rectangle lists, constraint lists. */
-export function ListBox<T extends object>({ dense, className, ...props }: ListBoxProps<T>) {
-  return <AriaListBox {...props} data-dense={dense || undefined} className={['kit-listbox', typeof className === 'string' ? className : ''].join(' ').trim()} />
+export function ListBox<T extends object>({ dense, actionSlots = 0, className, style, ...props }: ListBoxProps<T>) {
+  const gutter = actionSlots > 0 ? actionSlots * SLOT_W + (actionSlots - 1) * SLOT_GAP : 0
+  return (
+    <AriaListBox
+      {...props}
+      data-dense={dense || undefined}
+      style={{ ...(style as object), ['--kit-listbox-actions-w' as string]: `${gutter}px` }}
+      className={['kit-listbox', typeof className === 'string' ? className : ''].join(' ').trim()}
+    />
+  )
 }
 
 export interface ListBoxItemProps extends Omit<AriaListBoxItemProps, 'children'> {

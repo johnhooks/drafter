@@ -9,7 +9,7 @@ type Story = StoryObj<typeof ListBox>
 export const Timeline: Story = {
   render: () => (
     <div style={{ width: 240 }}>
-      <ListBox aria-label="Timeline" selectionMode="single" defaultSelectedKeys={['e1']}>
+      <ListBox aria-label="Timeline" selectionMode="single" defaultSelectedKeys={['e1']} actionSlots={2}>
         <ListBoxItem id="s1" detail="s1" actions={<><IconButton icon="pencil" size="sm" aria-label="Edit" /><IconButton icon="close" size="sm" tone="danger" aria-label="Delete" /></>}>
           Sketch 1
         </ListBoxItem>
