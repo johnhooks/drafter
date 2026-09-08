@@ -6,6 +6,7 @@
   padding: 2px 0;
 }
 .kit-listbox-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--kit-space-2);
@@ -17,8 +18,8 @@
   outline: none;
   user-select: none;
 }
-.kit-listbox[data-dense] .kit-listbox-item {
-  height: var(--kit-row-h);
+.kit-listbox-item {
+  background: var(--kit-surface-panel);
 }
 .kit-listbox-item[data-hovered] {
   background: var(--kit-surface-control);
@@ -53,20 +54,40 @@
 .kit-listbox-item[data-selected] .kit-listbox-detail {
   color: var(--kit-on-accent);
 }
+/* Actions overlay the right end of the row so rows align at rest whatever their action count. */
 .kit-listbox-actions {
+  position: absolute;
+  top: 0;
+  right: var(--kit-space);
+  bottom: 0;
   display: inline-flex;
-  gap: var(--kit-space);
-  margin-left: auto;
+  align-items: center;
+  gap: 2px;
+  padding-left: var(--kit-space-2);
+  background: inherit;
   visibility: hidden;
 }
 .kit-listbox-item[data-hovered] .kit-listbox-actions,
 .kit-listbox-item[data-selected] .kit-listbox-actions,
-.kit-listbox-item[data-focus-visible] .kit-listbox-actions {
+.kit-listbox-item[data-focus-visible] .kit-listbox-actions,
+.kit-listbox-item:has(.kit-listbox-actions :focus-visible) .kit-listbox-actions {
   visibility: visible;
 }
-.kit-listbox-actions .kit-button {
-  height: 18px;
-  min-width: 18px;
-  padding: 0 var(--kit-space);
-  font-size: var(--kit-text-xs);
+/* the detail steps aside while actions are shown */
+.kit-listbox-item[data-hovered] .kit-listbox-detail,
+.kit-listbox-item[data-selected] .kit-listbox-detail,
+.kit-listbox-item[data-focus-visible] .kit-listbox-detail {
+  visibility: hidden;
+}
+.kit-listbox-item[data-hovered],
+.kit-listbox-item[data-selected],
+.kit-listbox-item[data-focus-visible] {
+  background-clip: padding-box;
+}
+.kit-listbox-item[data-selected] .kit-icon-button {
+  color: var(--kit-on-accent);
+}
+.kit-listbox-item[data-selected] .kit-icon-button[data-hovered] {
+  background: var(--kit-surface-raised);
+  color: var(--kit-text);
 }
