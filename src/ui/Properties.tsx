@@ -101,6 +101,58 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
         })}
       </div>
       {single && <RectProperties sketch={sketch} rect={single} />}
+      <ConstraintList sketch={sketch} />
+    </div>
+  )
+}
+
+const SIDE: Record<'u' | 'v', Record<Slot, string>> = {
+  u: { min: 'left', max: 'right', size: 'width' },
+  v: { min: 'bottom', max: 'top', size: 'height' },
+}
+
+/** Every expression-driven slot in the sketch, selectable and removable. */
+function ConstraintList({ sketch }: { sketch: SketchFeature }) {
+  const ev = useStore((s) => s.eval)
+  const selected = useStore((s) => s.selection.constraint)
+  const dispatch = useStore((s) => s.dispatch)
+  const r = ev.results.get(sketch.id)
+  const entries = sketch.rects.flatMap((rect) =>
+    (['u', 'v'] as const).flatMap((axis) =>
+      (['min', 'max', 'size'] as const).flatMap((slot) => {
+        const v = rect[axis][slot]
+        if (v === undefined || !isExpr(v)) return []
+        const value = r?.kind === 'sketch' ? r.slotValues.get(rect.id)?.[axis]?.[slot] : undefined
+        const error = r?.kind === 'sketch' && value === undefined ? r.rectErrors.get(rect.id) : undefined
+        return [{ rect, axis, slot, expr: v, value, error }]
+      }),
+    ),
+  )
+  if (entries.length === 0) return null
+  return (
+    <div className="constraint-list">
+      <h3>Constraints</h3>
+      {entries.map((e) => {
+        const isSel = selected && selected.rectId === e.rect.id && selected.axis === e.axis && selected.slot === e.slot
+        return (
+          <div key={`${e.rect.id}:${e.axis}:${e.slot}`} className={`item ${isSel ? 'selected' : ''} ${e.error ? 'error' : ''}`} onClick={() => dispatch('selectConstraint', { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot })}>
+            <span className="rel">
+              {e.rect.handle}.{SIDE[e.axis][e.slot]} = {e.expr}
+            </span>
+            <span className="muted">{e.error ? e.error : e.value !== undefined ? formatLength(e.value as Sixteenths) : ''}</span>
+            <button
+              className="danger"
+              title="Remove: keeps the current value as a number"
+              onClick={(ev2) => {
+                ev2.stopPropagation()
+                dispatch('removeConstraint', { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot })
+              }}
+            >
+              x
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }

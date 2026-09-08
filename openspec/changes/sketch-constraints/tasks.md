@@ -32,6 +32,11 @@
 - [x] 5.3 Implement dimension graphics for simple links, expression tags for others, label editing that rewrites the literal, dimension selection and Delete, and a show/hide toggle; verify manually against the edit and remove scenarios
 - [x] 5.4 Show rectangle handles in the rectangle list and sketch handles in the timeline; verify manually
 
+## 5b. Constraint list and link labels
+
+- [x] 5.5 Add a Constraints section to sketch properties listing every expression slot with value or error, click to select and highlight, and a remove action that freezes the slot; verify e2e that both links are listed and removing one freezes it
+- [x] 5.6 Label the link tool's chosen edges "constrain" and "anchor" in the sketch view; verify e2e that both labels appear after the second click
+
 ## 6. End-to-end and integration
 
 - [x] 6.1 Extend the Playwright suite: inset door via link tool on both sides, widen the carcass and confirm the door follows, parameter `ply` driving a shelf thickness, refusal when linking the width of a doubly-linked rectangle, version 1 file upload migrates; verify `pnpm test:e2e` passes

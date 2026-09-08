@@ -69,3 +69,8 @@ input.expr { font-family: ui-monospace, monospace; background: #f4f8ff; }
 .param { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: start; }
 .param button { margin-top: 16px; }
 .param.add { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 4px; }
+.constraint-list .item { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.constraint-list .item .rel { font-family: ui-monospace, monospace; }
+.constraint-list .item.selected { background: #e3effb; }
+.constraint-list .item.error { color: var(--danger); }
+.constraint-list .item button { padding: 1px 6px; font-size: 11px; }

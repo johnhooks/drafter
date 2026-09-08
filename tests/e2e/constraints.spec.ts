@@ -14,7 +14,9 @@ test.beforeEach(async ({ page }) => {
 async function link(page: import('@playwright/test').Page, view: View, driven: [number, number], anchor: [number, number], distance: string) {
   await page.click('button:has-text("Link")')
   await clickInches(page, view, driven[0], driven[1])
+  await expect(page.locator('[data-link-label]')).toHaveText(['constrain'])
   await clickInches(page, view, anchor[0], anchor[1])
+  await expect(page.locator('[data-link-label]')).toHaveText(['constrain', 'anchor'])
   const input = page.locator('input.inline-edit')
   await expect(input).toHaveCount(1)
   await input.fill(distance)
@@ -45,6 +47,8 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     expect(d.errors).toEqual([])
     // resolved 2" .. 22"
     await expect(page.locator('.rect-list .item')).toContainText('20" x 16" at (2", -20")')
+    await expect(page.locator('.constraint-list .item .rel')).toHaveText(['r1.left = face.left + 2', 'r1.right = face.right - 2'])
+    await expect(page.locator('.constraint-list .item').first()).toContainText('2"')
   })
 
   await test.step('driving dimensions are drawn and editable', async () => {
@@ -113,6 +117,12 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     await expect(page.locator('[data-dim-slot]')).toHaveCount(1)
     await page.click('text=Dims')
     await expect(page.locator('[data-dim-slot]')).toHaveCount(0)
+    // remove the remaining link from the list: right edge freezes at 22 - 2 = 20 ... after widening, face.right is 30, so 28
+    await expect(page.locator('.constraint-list .item')).toHaveCount(1)
+    await page.click('.constraint-list .item button')
+    d = await dbg(page)
+    expect(d.features[2]!.rects[0].u).toEqual({ min: 24, max: 28 * 16 })
+    await expect(page.locator('.constraint-list')).toHaveCount(0)
   })
 })
 

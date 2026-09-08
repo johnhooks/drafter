@@ -502,6 +502,16 @@ export function SketchEditor({ sketch }: Props) {
         {tagNodes}
         {sr?.face && edgeLines('face', sr.face)}
         {drawn.filter((d) => !d.failed).map((d) => edgeLines(d.rect.id, d.r))}
+        {highlights.map((h, i) => {
+          const r = h.owner === 'face' ? sr?.face : byId.get(h.owner)?.r
+          if (!r) return null
+          const p = h.side === 'left' || h.side === 'right' ? S(h.side === 'left' ? r.u0 : r.u1, (r.v0 + r.v1) / 2) : S((r.u0 + r.u1) / 2, h.side === 'bottom' ? r.v0 : r.v1)
+          return (
+            <text key={`hl${i}`} x={p[0] + 8} y={p[1] - 8} fontSize={11} fill="#e08a00" fontWeight={600} data-link-label>
+              {i === 0 ? 'constrain' : 'anchor'}
+            </text>
+          )
+        })}
         {pointer && pointer.kind !== 'grid' && (
           <g>
             {(() => {

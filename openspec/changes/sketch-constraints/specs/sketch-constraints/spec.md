@@ -53,3 +53,21 @@ The document SHALL be saved as version 2 with rectangles stored per axis as thei
 #### Scenario: Version 1 file loads
 - **WHEN** a version 1 document with a rectangle at corners (0, 0) and (24, 24) is opened
 - **THEN** it loads as version 2 with that rectangle as `r1` with u min 0, u max 384, v min 0, v max 384
+
+### Requirement: Constraints are listed per sketch
+The sketch properties SHALL list every expression-driven slot of every rectangle in the sketch as `<handle>.<side or size> = <expression>` with its current value or error. Clicking an entry SHALL select that constraint and highlight it in the sketch view. Each entry SHALL have a remove action that replaces the slot with its current resolved number, the same as deleting its dimension.
+
+#### Scenario: List shows both links
+- **WHEN** `r1` has u min `face.left + 2` and u max `face.right - 2`
+- **THEN** the sketch properties list `r1.left = face.left + 2` and `r1.right = face.right - 2`
+
+#### Scenario: Remove from the list
+- **WHEN** the user removes `r1.left = face.left + 2` from the list while `face.left` is 0
+- **THEN** `r1`'s u min is the number 2" and the entry disappears
+
+### Requirement: The link tool labels its edges
+While the link tool has an edge chosen, the sketch view SHALL label the first edge "constrain" and, once chosen, the second edge "anchor", so the direction of the relation is visible before the distance is entered.
+
+#### Scenario: Labels during linking
+- **WHEN** the user has clicked `r1`'s left edge and then the face's left edge
+- **THEN** the view shows "constrain" at `r1`'s left edge and "anchor" at the face's left edge
