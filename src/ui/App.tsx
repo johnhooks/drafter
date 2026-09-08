@@ -10,6 +10,7 @@ import { loadSaved, save } from './persist'
 import { Properties } from './Properties'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
 import { DEFAULT_EXTRUDE } from './sketch/tools'
+import { canRedo, canUndo } from './store/actions'
 import { useStore } from './store/store'
 import { Timeline } from './Timeline'
 
@@ -39,6 +40,21 @@ export function App() {
       }
     })
     return unsub
+  }, [dispatch])
+
+  // Cmd or Ctrl plus Z undoes, with Shift redoes; text fields keep the browser's own text undo
+  useEffect(() => {
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
+    const onKey = (e: KeyboardEvent) => {
+      const mod = isMac ? e.metaKey : e.ctrlKey
+      if (!mod || e.key.toLowerCase() !== 'z') return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      dispatch(e.shiftKey ? 'redo' : 'undo')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [dispatch])
 
   const sketch = mode.kind === 'sketch' ? doc.features.find((f): f is SketchFeature => f.kind === 'sketch' && f.id === mode.sketchId) : undefined
@@ -97,9 +113,19 @@ function Toolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement | 
     dispatch('loadDocument', r.doc)
   }
 
+  const undoable = useStore(canUndo)
+  const redoable = useStore(canRedo)
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
+  const mod = isMac ? 'Cmd' : 'Ctrl'
   return (
     <div className="toolbar">
       <span className="title">{doc.title}</span>
+      <button disabled={!undoable} title={`Undo (${mod}+Z)`} aria-label="Undo" onClick={() => dispatch('undo')}>
+        Undo
+      </button>
+      <button disabled={!redoable} title={`Redo (${mod}+Shift+Z)`} aria-label="Redo" onClick={() => dispatch('redo')}>
+        Redo
+      </button>
       {sketch ? (
         <>
           <button className={tool === 'select' ? 'active' : ''} onClick={() => dispatch('setTool', 'select')}>

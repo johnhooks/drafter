@@ -21,6 +21,10 @@ A feature that cannot evaluate is marked in the timeline and listed under the vi
 
 Deleting a feature deletes what depends on it: extrudes that use a sketch, sketches attached to a face of an extrude, and extrudes that target the body it created. The confirmation lists everything that will go, in order, before anything is removed.
 
+## Undo
+
+Every change to the document can be undone and redone, from the toolbar or with Cmd+Z and Cmd+Shift+Z (Ctrl on other systems). One gesture is one step: a drag, a committed field, a link, a delete with everything it cascaded to, a parameter rename with every expression it rewrote. Typing into a name coalesces into one step. What you are looking at does not change: selection, tool, pan, and zoom stay, except that undoing the creation of the sketch you are editing returns you to the model view. Opening or starting a document clears the history, which keeps the last 200 steps and is not saved.
+
 ## Reopening a sketch
 
 Press **Edit** beside a sketch to reopen it. It shows the model as it was at that point in the timeline: later bodies and cuts are not there yet, which is exactly the reference geometry the sketch was drawn against.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { parse } from '../core/expr/parser'
 import type { Len } from '../core/model/types'
 import { isExpr } from '../core/model/types'
@@ -43,11 +43,17 @@ export function parseLen(text: string, allowZero = true): { ok: true; value: Len
 export function LenField({ label, value, resolved, error, derived, onCommit, autoFocus, allowZero = true }: Props) {
   const [text, setText] = useState(lenText(value))
   const [syntax, setSyntax] = useState<string | null>(null)
+  // Escape reverts then blurs; the blur must not commit the draft that state has not yet dropped
+  const reverting = useRef(false)
   useEffect(() => {
     setText(lenText(value))
     setSyntax(null)
   }, [value])
   const commit = () => {
+    if (reverting.current) {
+      reverting.current = false
+      return
+    }
     if (text === lenText(value)) return
     const r = parseLen(text, allowZero)
     if (!r.ok) return setSyntax(r.error)
@@ -70,6 +76,7 @@ export function LenField({ label, value, resolved, error, derived, onCommit, aut
         onKeyDown={(e) => {
           if (e.key === 'Enter') commit()
           if (e.key === 'Escape') {
+            reverting.current = true
             setText(lenText(value))
             setSyntax(null)
             ;(e.target as HTMLInputElement).blur()

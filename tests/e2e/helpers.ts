@@ -9,6 +9,7 @@ export interface Debug {
   bodies: Array<{ id: string; volume: number; bounds: Record<string, number> }>
   notices: string[]
   params: Array<{ name: string; value: unknown }>
+  history: { past: number; future: number }
 }
 
 export const dbg = (page: Page) => page.evaluate(() => (window as any).__debug() as Debug)

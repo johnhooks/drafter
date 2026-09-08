@@ -26,6 +26,14 @@ export interface Selection {
   readonly constraint?: ConstraintRef
 }
 
+export interface History {
+  readonly past: readonly Document[]
+  readonly future: readonly Document[]
+  /** Coalescing: the key and time of the last push, so consecutive keystrokes collapse into one entry. */
+  readonly lastKey?: string
+  readonly lastAt?: number
+}
+
 export interface State {
   readonly doc: Document
   readonly eval: EvalResult
@@ -36,13 +44,26 @@ export interface State {
   /** Last successfully resolved position per rectangle id, so a failed rectangle can still be drawn. */
   readonly lastGood: ReadonlyMap<string, Rect2>
   readonly showDims: boolean
+  readonly history: History
 }
 
 export const EMPTY_SELECTION: Selection = { rectIds: [] }
+export const HISTORY_LIMIT = 200
+export const COALESCE_MS = 2000
 
 export function initialState(doc: Document = newDocument()): State {
   const ev = evaluate(doc)
-  return { doc, eval: ev, mode: { kind: 'model' }, tool: 'select', selection: EMPTY_SELECTION, notices: [], lastGood: goodRects(ev, new Map()), showDims: true }
+  return {
+    doc,
+    eval: ev,
+    mode: { kind: 'model' },
+    tool: 'select',
+    selection: EMPTY_SELECTION,
+    notices: [],
+    lastGood: goodRects(ev, new Map()),
+    showDims: true,
+    history: { past: [], future: [] },
+  }
 }
 
 function goodRects(ev: EvalResult, prev: ReadonlyMap<string, Rect2>): Map<string, Rect2> {
@@ -54,10 +75,54 @@ function goodRects(ev: EvalResult, prev: ReadonlyMap<string, Rect2>): Map<string
   return out
 }
 
-function withDoc(s: State, doc: Document): State {
-  const ev = evaluate(doc)
-  return { ...s, doc, eval: ev, lastGood: goodRects(ev, s.lastGood) }
+interface PushOptions {
+  /** Edits sharing a key within COALESCE_MS collapse into one undo entry. */
+  readonly key?: string
+  readonly now?: number
 }
+
+/** The one place a changed document enters state: evaluates it and records the previous one for undo. */
+function withDoc(s: State, doc: Document, opts: PushOptions = {}): State {
+  if (doc === s.doc) return s
+  const ev = evaluate(doc)
+  const now = opts.now ?? Date.now()
+  const coalesce = opts.key !== undefined && opts.key === s.history.lastKey && s.history.lastAt !== undefined && now - s.history.lastAt < COALESCE_MS
+  const past = coalesce ? s.history.past : [...s.history.past, s.doc].slice(-HISTORY_LIMIT)
+  return { ...s, doc, eval: ev, lastGood: goodRects(ev, s.lastGood), history: { past, future: [], lastKey: opts.key, lastAt: opts.key !== undefined ? now : undefined } }
+}
+
+/** After a document swap, drop view state that points at things which no longer exist. */
+function reconcile(s: State, doc: Document): State {
+  const ev = evaluate(doc)
+  const ids = new Set(doc.features.map((f) => f.id))
+  const sketchIds = new Set(doc.features.filter((f) => f.kind === 'sketch').map((f) => f.id))
+  const mode: Mode = s.mode.kind === 'sketch' && !sketchIds.has(s.mode.sketchId) ? { kind: 'model' } : s.mode
+  const rectIds = new Set(doc.features.flatMap((f) => (f.kind === 'sketch' ? f.rects.map((r) => r.id) : [])))
+  const selection: Selection = {
+    featureId: s.selection.featureId && ids.has(s.selection.featureId) ? s.selection.featureId : undefined,
+    bodyId: s.selection.bodyId && ev.bodies.has(s.selection.bodyId) ? s.selection.bodyId : undefined,
+    rectIds: s.selection.rectIds.filter((id) => rectIds.has(id)),
+    constraint: s.selection.constraint && rectIds.has(s.selection.constraint.rectId) ? s.selection.constraint : undefined,
+  }
+  return { ...s, doc, eval: ev, lastGood: goodRects(ev, s.lastGood), mode, selection }
+}
+
+export function undo(s: State): State {
+  const prev = s.history.past.at(-1)
+  if (!prev) return s
+  const next = reconcile(s, prev)
+  return { ...next, history: { past: s.history.past.slice(0, -1), future: [...s.history.future, s.doc] } }
+}
+
+export function redo(s: State): State {
+  const nextDoc = s.history.future.at(-1)
+  if (!nextDoc) return s
+  const next = reconcile(s, nextDoc)
+  return { ...next, history: { past: [...s.history.past, s.doc].slice(-HISTORY_LIMIT), future: s.history.future.slice(0, -1) } }
+}
+
+export const canUndo = (s: State) => s.history.past.length > 0
+export const canRedo = (s: State) => s.history.future.length > 0
 
 function mapFeature<T extends Feature>(doc: Document, id: string, fn: (f: T) => T): Document {
   return { ...doc, features: doc.features.map((f) => (f.id === id ? fn(f as T) : f)) }
@@ -67,8 +132,8 @@ function sketchOf(s: State, sketchId: string): SketchFeature | undefined {
   return s.doc.features.find((f): f is SketchFeature => f.kind === 'sketch' && f.id === sketchId)
 }
 
-export function setTitle(s: State, title: string): State {
-  return withDoc(s, { ...s.doc, title })
+export function setTitle(s: State, title: string, now?: number): State {
+  return withDoc(s, { ...s.doc, title }, { key: 'title', now })
 }
 
 export function addSketch(s: State, plane: PlaneDef, id = newId('s')): State {
@@ -99,8 +164,8 @@ export function updateExtrude(s: State, id: string, patch: Partial<Omit<ExtrudeF
   return withDoc(s, mapFeature<ExtrudeFeature>(s.doc, id, (f) => ({ ...f, ...patch })))
 }
 
-export function renameFeature(s: State, id: string, name: string): State {
-  return withDoc(s, mapFeature<Feature>(s.doc, id, (f) => ({ ...f, name })))
+export function renameFeature(s: State, id: string, name: string, now?: number): State {
+  return withDoc(s, mapFeature<Feature>(s.doc, id, (f) => ({ ...f, name })), { key: `name:${id}`, now })
 }
 
 export function setSketchPlaneOffset(s: State, id: string, offset: Len): State {

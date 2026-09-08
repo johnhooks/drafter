@@ -18,6 +18,7 @@ if (import.meta.env.DEV) {
       bodies: [...s.eval.bodies.values()].map((b) => ({ id: b.id, volume: bodyVolume(b) / 4096, bounds: bodyBounds(b) })),
       notices: s.notices,
       params: s.doc.params,
+      history: { past: s.history.past.length, future: s.history.future.length },
     }
   }
 }

@@ -14,6 +14,7 @@ The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines
 | Zoom | Wheel, around the pointer |
 | Pan | Middle button drag, or hold Space and drag |
 | Cancel a drag or a tool step | Escape |
+| Undo, redo | Cmd+Z and Cmd+Shift+Z on a Mac, Ctrl elsewhere. Inside a text field the field's own undo applies |
 
 The 3D view uses the same gestures. Its angle is fixed.
 
