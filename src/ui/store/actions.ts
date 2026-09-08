@@ -9,7 +9,7 @@ import type { DimLayout, Document, ExtrudeFeature, Feature, Len, PlaneDef, Sketc
 import { newDocument } from '../../core/model/types'
 import type { Sixteenths } from '../../core/units'
 
-export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' }
+export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' } | { kind: 'pickBody'; extrudeId: string }
 export type Tool = 'select' | 'rect' | 'link'
 
 export interface ConstraintRef {

@@ -21,7 +21,7 @@ export function ModelView() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !(e.target instanceof HTMLInputElement)) setSpace(true)
-      if (e.key === 'Escape' && mode.kind === 'pickFace') dispatch('setMode', { kind: 'model' })
+      if (e.key === 'Escape' && (mode.kind === 'pickFace' || mode.kind === 'pickBody')) dispatch('setMode', { kind: 'model' })
     }
     const up = (e: KeyboardEvent) => e.code === 'Space' && setSpace(false)
     window.addEventListener('keydown', down)
@@ -33,6 +33,7 @@ export function ModelView() {
   }, [mode.kind, dispatch])
 
   const picking = mode.kind === 'pickFace'
+  const pickingBody = mode.kind === 'pickBody'
   const onFace = (face: Face, point: [number, number, number]) => {
     const plane = planeOfFace(face)
     const p = { x: Math.round(point[0]), y: Math.round(point[1]), z: Math.round(point[2]) } as unknown as Vec3
@@ -45,7 +46,7 @@ export function ModelView() {
   const bodies = [...ev.bodies.values()]
   return (
     <div className="view" ref={container} data-model-view>
-      <Canvas orthographic gl={{ preserveDrawingBuffer: true, antialias: true }} onPointerMissed={() => !picking && dispatch('select', {})}>
+      <Canvas orthographic gl={{ preserveDrawingBuffer: true, antialias: true }} onPointerMissed={() => !picking && !pickingBody && dispatch('select', {})}>
         <OrthographicCamera makeDefault position={[200, -200, 200]} up={[0, 0, 1]} zoom={6} near={-2000} far={2000} />
         <OrbitControls
           enableRotate={false}
@@ -59,8 +60,20 @@ export function ModelView() {
             key={b.id}
             body={b}
             selected={selection.bodyId === b.id}
-            pickable={picking}
-            onFace={onFace}
+            pickable={picking || pickingBody}
+            onFace={(face, point) => {
+              if (mode.kind === 'pickBody') {
+                // the body a face belongs to becomes the target; only bodies created before the extrude qualify
+                const idx = doc.features.findIndex((f) => f.id === mode.extrudeId)
+                const creator = doc.features.slice(0, idx).find((f) => f.kind === 'extrude' && f.id === b.id)
+                if (!creator) return dispatch('notify', 'That body is created after this extrude; pick one made earlier in the timeline.')
+                dispatch('updateExtrude', mode.extrudeId, { targetBodyId: b.id })
+                dispatch('setMode', { kind: 'model' })
+                dispatch('select', { featureId: mode.extrudeId, bodyId: b.id })
+                return
+              }
+              onFace(face, point)
+            }}
             onBody={() => {
               const creator = doc.features.find((f) => f.kind === 'extrude' && f.id === b.id)
               dispatch('select', { bodyId: b.id, featureId: creator?.id })
@@ -69,6 +82,7 @@ export function ModelView() {
         ))}
       </Canvas>
       {picking && <div className="hint">Click a face to sketch on it. Esc to cancel.</div>}
+      {pickingBody && <div className="hint">Click a body to use as the target. Esc to cancel.</div>}
       {!picking && bodies.length === 0 && <div className="hint">No bodies yet. New Sketch, draw a rectangle, then Extrude.</div>}
     </div>
   )

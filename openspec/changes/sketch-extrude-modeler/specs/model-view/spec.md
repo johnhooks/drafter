@@ -38,3 +38,10 @@ Bodies affected by an errored feature SHALL render as if that feature were absen
 #### Scenario: Error shown
 - **WHEN** Extrude 2 errors because its target is missing
 - **THEN** the 3D view shows the model without Extrude 2 and the timeline marks Extrude 2 with the message
+
+### Requirement: Pick a target body in the view
+An extrude's properties SHALL offer a Pick in view action when its operation is join or cut. Choosing it SHALL wait for a click on a body in the 3D view; clicking a body created before the extrude SHALL set it as the target and return to the model view with the extrude selected. Clicking a body created after the extrude SHALL show a message and keep waiting. Escape SHALL cancel.
+
+#### Scenario: Pick the cut target
+- **WHEN** Extrude 7 is a cut with no target and the user chooses Pick in view then clicks the body from Extrude 2
+- **THEN** Extrude 7's target is Extrude 2's body and it evaluates

@@ -275,18 +275,23 @@ function ExtrudeProperties({ extrude }: { extrude: ExtrudeFeature }) {
           <SelectItem id="cut">Cut</SelectItem>
         </Select>
         {extrude.op !== 'new' && (
-          <Select
-            label="Target body"
-            placeholder="Choose a body"
-            selectedKey={extrude.targetBodyId ?? null}
-            onSelectionChange={(k) => dispatch('updateExtrude', extrude.id, { targetBodyId: k ? String(k) : undefined })}
-          >
-            {bodies.map((b) => (
-              <SelectItem key={b.id} id={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </Select>
+          <Row>
+            <Select
+              label="Target body"
+              placeholder="Choose a body"
+              selectedKey={extrude.targetBodyId ?? null}
+              onSelectionChange={(k) => dispatch('updateExtrude', extrude.id, { targetBodyId: k ? String(k) : undefined })}
+            >
+              {bodies.map((b) => (
+                <SelectItem key={b.id} id={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </Select>
+            <Field label=" ">
+              <Button onPress={() => dispatch('setMode', { kind: 'pickBody', extrudeId: extrude.id })}>Pick in view</Button>
+            </Field>
+          </Row>
         )}
         {r?.kind === 'error' && !distanceError && <Field error={r.message}>{null}</Field>}
       </Fields>
