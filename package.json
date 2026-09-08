@@ -12,9 +12,13 @@
     "typecheck": "tsc -b --noEmit",
     "test:e2e": "playwright test",
     "docs:dev": "pnpm --filter drawing-docs dev",
-    "docs:build": "pnpm --filter drawing-docs build"
+    "docs:build": "pnpm --filter drawing-docs build",
+    "kit:storybook": "pnpm --filter @drawing/kit storybook",
+    "kit:build": "pnpm --filter @drawing/kit build",
+    "kit:test": "pnpm --filter @drawing/kit test"
   },
   "dependencies": {
+    "@drawing/kit": "workspace:*",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "react": "^19.2.8",

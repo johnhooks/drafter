@@ -1,0 +1,23 @@
+/* Minimal reset the components assume. Import once alongside tokens.css and a theme. */
+.kit-root,
+[data-theme] {
+  font-family: var(--kit-font);
+  font-size: var(--kit-text-sm);
+  line-height: var(--kit-leading);
+  color: var(--kit-text);
+}
+.kit-root *,
+[data-theme] * {
+  box-sizing: border-box;
+}
+.kit-root button,
+.kit-root input,
+.kit-root select,
+.kit-root textarea,
+[data-theme] button,
+[data-theme] input,
+[data-theme] select,
+[data-theme] textarea {
+  font: inherit;
+  color: inherit;
+}

@@ -1,0 +1,40 @@
+.kit-numberfield-group {
+  display: flex;
+  align-items: stretch;
+}
+.kit-numberfield-group .kit-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.kit-numberfield-steppers {
+  display: flex;
+  flex-direction: column;
+  width: 18px;
+  border: var(--kit-line-w) solid var(--kit-line);
+  border-left: none;
+  border-radius: 0 var(--kit-radius) var(--kit-radius) 0;
+  overflow: hidden;
+}
+.kit-numberfield-step {
+  flex: 1;
+  border: none;
+  background: var(--kit-surface-control);
+  color: var(--kit-text);
+  font-size: var(--kit-text-xs);
+  line-height: 1;
+  padding: 0;
+  cursor: default;
+  outline: none;
+}
+.kit-numberfield-step + .kit-numberfield-step {
+  border-top: var(--kit-line-w) solid var(--kit-line);
+}
+.kit-numberfield-step[data-hovered] {
+  background: var(--kit-surface-raised);
+}
+.kit-numberfield-step[data-pressed] {
+  background: var(--kit-surface-panel);
+}
+.kit-numberfield-step[data-disabled] {
+  color: var(--kit-text-muted);
+}

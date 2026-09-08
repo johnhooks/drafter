@@ -1,0 +1,39 @@
+/*
+ * Semantic tokens. Components reference only these; themes assign the colour tokens.
+ * Colour values here are the light theme fallback for consumers that set no data-theme.
+ */
+:root {
+  --kit-font: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --kit-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --kit-text-xs: 10px;
+  --kit-text-sm: 11px;
+  --kit-text-md: 12px;
+  --kit-text-lg: 14px;
+  --kit-leading: 1.35;
+  --kit-tracking-label: 0.06em;
+
+  --kit-space: 4px;
+  --kit-space-2: 8px;
+  --kit-space-3: 12px;
+  --kit-space-4: 16px;
+  --kit-radius: 2px;
+  --kit-line-w: 1px;
+  --kit-control-h: 24px;
+  --kit-row-h: 20px;
+  --kit-control-min-w: 24px;
+
+  --kit-surface-frame: #b4b4b4;
+  --kit-surface-panel: #c8c8c8;
+  --kit-surface-control: #d6d6d6;
+  --kit-surface-raised: #e3e3e3;
+  --kit-line: #9e9e9e;
+  --kit-line-strong: #7a7a7a;
+  --kit-text: #1e1e1e;
+  --kit-text-muted: #5a5a5a;
+  --kit-accent: #f5a623;
+  --kit-on-accent: #1e1e1e;
+  --kit-danger: #b8321f;
+  --kit-warning: #b26a00;
+  --kit-focus: #2f6fd6;
+  --kit-overlay: rgba(0, 0, 0, 0.35);
+}

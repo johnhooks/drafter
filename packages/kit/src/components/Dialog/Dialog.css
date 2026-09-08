@@ -1,0 +1,37 @@
+.kit-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--kit-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.kit-modal {
+  background: var(--kit-surface-panel);
+  border: var(--kit-line-w) solid var(--kit-line-strong);
+  border-radius: var(--kit-radius);
+  min-width: 320px;
+  max-width: 560px;
+  outline: none;
+}
+.kit-dialog {
+  outline: none;
+  padding: var(--kit-space-3) var(--kit-space-4) var(--kit-space-4);
+}
+.kit-dialog-title {
+  margin: 0 0 var(--kit-space-2);
+  font-size: var(--kit-text-lg);
+  font-weight: 600;
+}
+.kit-dialog-body {
+  font-size: var(--kit-text-sm);
+}
+.kit-dialog-message {
+  margin-bottom: var(--kit-space-4);
+}
+.kit-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--kit-space-2);
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@drawing/kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./base.css": "./src/base.css",
+    "./themes/light.css": "./src/themes/light.css",
+    "./themes/dark.css": "./src/themes/dark.css"
+  },
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build": "storybook build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "dependencies": {
+    "react-aria-components": "^1.21.1"
+  },
+  "devDependencies": {
+    "@storybook/addon-a11y": "^10.6.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "jsdom": "^30.0.1",
+    "react": "^19",
+    "react-dom": "^19",
+    "storybook": "^10.6.0",
+    "typescript": "^5.9.0",
+    "vite": "^7",
+    "vitest": "^5"
+  }
+}

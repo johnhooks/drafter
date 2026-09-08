@@ -1,0 +1,17 @@
+/* Dark: the same relationships with the steps reversed; lines stay darker than their surface. */
+[data-theme='dark'] {
+  --kit-surface-frame: #161616;
+  --kit-surface-panel: #232323;
+  --kit-surface-control: #2e2e2e;
+  --kit-surface-raised: #393939;
+  --kit-line: #101010;
+  --kit-line-strong: #050505;
+  --kit-text: #e6e6e6;
+  --kit-text-muted: #9c9c9c;
+  --kit-accent: #f5a623;
+  --kit-on-accent: #1e1e1e;
+  --kit-danger: #ff6f5c;
+  --kit-warning: #ffb454;
+  --kit-focus: #6ea8ff;
+  --kit-overlay: rgba(0, 0, 0, 0.55);
+}

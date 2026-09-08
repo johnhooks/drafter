@@ -37,7 +37,7 @@ export default defineConfig({
         },
         {
           label: 'Development',
-          items: [{ slug: 'develop/architecture' }, { slug: 'develop/testing' }],
+          items: [{ slug: 'develop/architecture' }, { slug: 'develop/testing' }, { slug: 'develop/ui-kit' }],
         },
       ],
     }),

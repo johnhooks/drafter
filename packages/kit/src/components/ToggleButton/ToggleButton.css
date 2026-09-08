@@ -1,0 +1,8 @@
+.kit-toggle-button[data-selected] {
+  background: var(--kit-accent);
+  color: var(--kit-on-accent);
+  border-color: var(--kit-line-strong);
+}
+.kit-toggle-button[data-selected][data-hovered] {
+  filter: brightness(1.06);
+}

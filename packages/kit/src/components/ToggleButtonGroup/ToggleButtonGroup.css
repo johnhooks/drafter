@@ -1,0 +1,21 @@
+.kit-toggle-group {
+  display: inline-flex;
+}
+.kit-toggle-group > .kit-button {
+  border-radius: 0;
+  margin-left: calc(-1 * var(--kit-line-w));
+}
+.kit-toggle-group > .kit-button:first-child {
+  margin-left: 0;
+  border-top-left-radius: var(--kit-radius);
+  border-bottom-left-radius: var(--kit-radius);
+}
+.kit-toggle-group > .kit-button:last-child {
+  border-top-right-radius: var(--kit-radius);
+  border-bottom-right-radius: var(--kit-radius);
+}
+.kit-toggle-group > .kit-button[data-selected],
+.kit-toggle-group > .kit-button[data-focus-visible] {
+  position: relative;
+  z-index: 1;
+}

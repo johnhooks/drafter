@@ -1,0 +1,22 @@
+.kit-tooltip {
+  background: var(--kit-text);
+  color: var(--kit-surface-raised);
+  padding: 2px var(--kit-space-2);
+  border-radius: var(--kit-radius);
+  font-size: var(--kit-text-xs);
+  max-width: 240px;
+  outline: none;
+}
+.kit-tooltip-arrow svg {
+  display: block;
+  fill: var(--kit-text);
+}
+.kit-tooltip[data-placement='bottom'] .kit-tooltip-arrow svg {
+  transform: rotate(180deg);
+}
+.kit-tooltip[data-placement='left'] .kit-tooltip-arrow svg {
+  transform: rotate(-90deg);
+}
+.kit-tooltip[data-placement='right'] .kit-tooltip-arrow svg {
+  transform: rotate(90deg);
+}

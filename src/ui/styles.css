@@ -1,14 +1,18 @@
+@import '@drawing/kit/tokens.css';
+@import '@drawing/kit/themes/light.css';
+
+/* The app's own names map onto the kit's tokens so the greys and accent match before the panels migrate. */
 :root {
-  --bg: #f4f4f2;
-  --panel: #ffffff;
-  --line: #d8d8d4;
-  --text: #1f1f1f;
-  --muted: #6b6b6b;
-  --accent: #0b6bcb;
-  --danger: #b3261e;
-  --warn: #b26a00;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 13px;
+  --bg: var(--kit-surface-frame);
+  --panel: var(--kit-surface-panel);
+  --line: var(--kit-line);
+  --text: var(--kit-text);
+  --muted: var(--kit-text-muted);
+  --accent: var(--kit-accent);
+  --danger: var(--kit-danger);
+  --warn: var(--kit-warning);
+  font-family: var(--kit-font);
+  font-size: var(--kit-text-md);
   color: var(--text);
 }
 * { box-sizing: border-box; }
@@ -28,20 +32,20 @@ body { background: var(--bg); }
 .errors .error { color: var(--danger); }
 h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 12px 0 6px; }
 h3:first-child { margin-top: 0; }
-button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); background: #fafafa; border-radius: 4px; cursor: pointer; }
-button:hover { background: #f0f0ee; }
-button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); background: var(--kit-surface-control); border-radius: var(--kit-radius); cursor: pointer; }
+button:hover { background: var(--kit-surface-raised); }
+button.active { background: var(--accent); color: var(--kit-on-accent); border-color: var(--kit-line-strong); }
 button.danger { color: var(--danger); }
 button:disabled { opacity: 0.5; cursor: default; }
-input, select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; width: 100%; }
+input, select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: var(--kit-radius); width: 100%; background: var(--kit-surface-raised); color: var(--text); }
 input.invalid { border-color: var(--danger); }
 label.field { display: block; margin-bottom: 8px; }
 label.field span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
 .field .error { color: var(--danger); font-size: 11px; }
 .row { display: flex; gap: 6px; align-items: center; }
 .timeline .item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
-.timeline .item:hover { background: #f0f0ee; }
-.timeline .item.selected { background: #e3effb; }
+.timeline .item:hover { background: var(--kit-surface-control); }
+.timeline .item.selected { background: var(--kit-surface-raised); }
 .timeline .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .timeline .item .kind { color: var(--muted); font-size: 11px; width: 16px; }
 .timeline .item button { padding: 1px 6px; font-size: 11px; }
@@ -56,10 +60,10 @@ label.field span { display: block; color: var(--muted); font-size: 11px; margin-
 .menu { position: relative; }
 .menu .dropdown { position: absolute; top: 100%; left: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px; z-index: 10; min-width: 220px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .rect-list .item { display: flex; gap: 6px; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-family: ui-monospace, monospace; font-size: 12px; }
-.rect-list .item.selected { background: #e3effb; }
+.rect-list .item.selected { background: var(--kit-surface-raised); }
 .muted { color: var(--muted); }
 
-input.expr { font-family: ui-monospace, monospace; background: #f4f8ff; }
+input.expr { font-family: var(--kit-font-mono); }
 .field .value { color: var(--muted); font-size: 11px; }
 .field.derived input { color: var(--muted); border-style: dashed; }
 .field.derived em { font-style: normal; color: var(--muted); }
@@ -71,6 +75,6 @@ input.expr { font-family: ui-monospace, monospace; background: #f4f8ff; }
 .param.add { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 4px; }
 .constraint-list .item { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 .constraint-list .item .rel { font-family: ui-monospace, monospace; }
-.constraint-list .item.selected { background: #e3effb; }
+.constraint-list .item.selected { background: var(--kit-surface-raised); }
 .constraint-list .item.error { color: var(--danger); }
 .constraint-list .item button { padding: 1px 6px; font-size: 11px; }
