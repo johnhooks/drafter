@@ -1,0 +1,18 @@
+{
+  "name": "drawing-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.0",
+    "astro": "^7.3.1",
+    "starlight-theme-nova": "^0.12.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

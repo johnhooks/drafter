@@ -1,0 +1,34 @@
+---
+title: Drawing
+description: A small parametric modeller. Sketch rectangles on a plane, extrude them into solids, sketch on any face of what you built.
+template: splash
+hero:
+  title: Drawing
+  tagline: Sketch rectangles on a plane, extrude them into solids, sketch on any face of what you built. Every length is an exact sixteenth of an inch.
+  actions:
+    - text: Start here
+      link: /start/what-it-is/
+      icon: right-arrow
+      variant: primary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Model" icon="pencil">
+    Three principal planes, sketches of rectangles, extrudes that create, join, or cut bodies. A timeline that re-evaluates on every edit.
+    [Planes and sketches](/model/planes-and-sketches/)
+  </Card>
+  <Card title="Sketch" icon="seti:image">
+    Draw with the mouse, snap to a sixteenth or to existing edges, type a dimension by clicking its label.
+    [Tools and snapping](/sketch/tools-and-snapping/)
+  </Card>
+  <Card title="Constrain" icon="approve-check">
+    Link an edge to another edge at a distance, or write an expression. Name a length once as a parameter and use it everywhere.
+    [Driven slots](/constraints/driven-slots/)
+  </Card>
+  <Card title="Keep and share" icon="document">
+    Autosaves in the browser. Download and open JSON, export sketches as SVG and the model as PNG.
+    [Saving and export](/files/saving-and-export/)
+  </Card>
+</CardGrid>
