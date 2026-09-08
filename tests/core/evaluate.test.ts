@@ -200,7 +200,7 @@ describe('document format', () => {
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) expect(parsed.errors.some((e) => e.path.includes('sketchId'))).toBe(true)
   })
-  it('validation flags zero width, zero distance, missing rects, missing target', () => {
+  it('validation flags zero width, zero distance, missing rects; a missing target is left to evaluation', () => {
     const errs = validateDocument({
       version: 2,
       title: 't',
@@ -210,9 +210,7 @@ describe('document format', () => {
         { kind: 'extrude', id: 'e', name: 'E', sketchId: 's', rectIds: [], distance: 0, op: 'cut' },
       ],
     })
-    expect(errs.map((e) => e.path).sort()).toEqual(
-      ['features[0].rects[0]', 'features[1].distance', 'features[1].rectIds', 'features[1].targetBodyId'].sort(),
-    )
+    expect(errs.map((e) => e.path).sort()).toEqual(['features[0].rects[0]', 'features[1].distance', 'features[1].rectIds'].sort())
   })
   it('rejects non-JSON and non-object', () => {
     expect(parseDocument('{').ok).toBe(false)

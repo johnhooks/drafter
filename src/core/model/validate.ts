@@ -155,10 +155,9 @@ function validateExtrude(f: Record<string, unknown>, i: number, p: string, featu
   }
   checkLen(f['distance'], `${p}.distance`, err, { nonZero: true })
   if (!OPS.has(f['op'] as string)) err(`${p}.op`, 'Operation must be new, join, or cut')
-  else if (f['op'] !== 'new') {
-    const t = f['targetBodyId']
-    if (typeof t !== 'string') err(`${p}.targetBodyId`, 'Join and cut need a target body')
-  }
+  // a join or cut without a target is a feature error at evaluation, not a broken file: the editor
+  // saves that state while the user is still choosing, and refusing to load it would lose the document
+  if (f['targetBodyId'] !== undefined && typeof f['targetBodyId'] !== 'string') err(`${p}.targetBodyId`, 'Target body must be an id')
 }
 
 export function isFeature(x: unknown): x is Feature {
