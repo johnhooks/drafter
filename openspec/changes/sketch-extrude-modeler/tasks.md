@@ -31,34 +31,34 @@
 
 ## 6. Store and app shell
 
-- [ ] 6.1 Implement the zustand store and pure actions (add/edit/delete features with cascade, selection, mode, editing) recomputing `eval` on every doc change; verify action unit tests for add sketch, add extrude, edit distance re-evaluates, and delete cascade
-- [ ] 6.2 Build `App` with timeline panel, centre area switching between model view and sketch editor, properties panel, and notices; verify by running the dev server and seeing an empty document with a New Sketch action
+- [x] 6.1 Implement the zustand store and pure actions (add/edit/delete features with cascade, selection, mode, editing) recomputing `eval` on every doc change; verify action unit tests for add sketch, add extrude, edit distance re-evaluates, and delete cascade
+- [x] 6.2 Build `App` with timeline panel, centre area switching between model view and sketch editor, properties panel, and notices; verify by running the dev server and seeing an empty document with a New Sketch action
 
 ## 7. Model view (three.js)
 
-- [ ] 7.1 Implement the geometry builder from `faces(body)` rectangles with orientation shading and a `BodyMesh` component with `EdgesGeometry` edges; verify a test that triangle count is two per face rectangle
-- [ ] 7.2 Implement `ModelView` with an r3f `Canvas`, drei `OrthographicCamera` at the isometric angle, `OrbitControls` with rotation disabled, and bodies subscribed from the store; verify manually that a cut pocket renders with visible floor and walls
-- [ ] 7.3 Implement hover highlight, face picking via r3f pointer events mapped to a face reference, and body selection; verify manually against the click-cap and select-body scenarios
-- [ ] 7.4 Implement New Sketch (principal plane with offset, or Pick Face) creating and opening a sketch; verify manually that a sketch on a picked top face opens showing the face
+- [x] 7.1 Implement the geometry builder from `faces(body)` rectangles with orientation shading and a `BodyMesh` component with `EdgesGeometry` edges; verify a test that triangle count is two per face rectangle
+- [x] 7.2 Implement `ModelView` with an r3f `Canvas`, drei `OrthographicCamera` at the isometric angle, `OrbitControls` with rotation disabled, and bodies subscribed from the store; verify manually that a cut pocket renders with visible floor and walls
+- [x] 7.3 Implement hover highlight, face picking via r3f pointer events mapped to a face reference, and body selection; verify manually against the click-cap and select-body scenarios
+- [x] 7.4 Implement New Sketch (principal plane with offset, or Pick Face) creating and opening a sketch; verify manually that a sketch on a picked top face opens showing the face
 
 ## 8. Sketch editor
 
-- [ ] 8.1 Build the SVG sketch view with grid, origin, axis indicator, coplanar face fills, outlines, zoom, and pan, looking along -normal with v up; verify manually on XZ default and on a back-facing plane that mirroring is shown by the axis indicator
-- [ ] 8.2 Implement snapping as an ordered snapper list (corners, edges per axis, sixteenth grid) with the snap kind returned for the indicator in `snapping.ts`; verify unit tests for grid snap, edge beats grid, and corner beats edge
-- [ ] 8.3 Implement the tool interface (state, pointer and key handlers, cancel, preview) and the editor's preview rendering shared with committed rectangles; verify a unit test that a tool's preview entities render through the same function as committed ones
-- [ ] 8.4 Implement the rectangle tool as a state machine (press, drag with live size, release, zero-size ignored, Escape cancels); verify manually against the drag-creates scenario
-- [ ] 8.5 Implement the select tool (click, shift-click, clear, Delete key); verify manually
-- [ ] 8.6 Implement inline width and height dimension editing with Enter, blur, Escape, and error handling; verify manually against the type-a-width scenario
-- [ ] 8.7 Implement the rectangle properties panel (lower-left u, v, width, height); verify manually against move-by-typing
-- [ ] 8.8 Implement Extrude from the toolbar (selected or all rectangles, defaults, opens extrude properties) and Finish; verify manually that the body appears in the model view as soon as a distance is entered and that reopening a sketch shows reference geometry from its point in the timeline
+- [x] 8.1 Build the SVG sketch view with grid, origin, axis indicator, coplanar face fills, outlines, zoom, and pan, looking along -normal with v up; verify manually on XZ default and on a back-facing plane that mirroring is shown by the axis indicator
+- [x] 8.2 Implement snapping as an ordered snapper list (corners, edges per axis, sixteenth grid) with the snap kind returned for the indicator in `snapping.ts`; verify unit tests for grid snap, edge beats grid, and corner beats edge
+- [x] 8.3 Implement the tool interface (state, pointer and key handlers, cancel, preview) and the editor's preview rendering shared with committed rectangles; verify a unit test that a tool's preview entities render through the same function as committed ones
+- [x] 8.4 Implement the rectangle tool as a state machine (press, drag with live size, release, zero-size ignored, Escape cancels); verify manually against the drag-creates scenario
+- [x] 8.5 Implement the select tool (click, shift-click, clear, Delete key); verify manually
+- [x] 8.6 Implement inline width and height dimension editing with Enter, blur, Escape, and error handling; verify manually against the type-a-width scenario
+- [x] 8.7 Implement the rectangle properties panel (lower-left u, v, width, height); verify manually against move-by-typing
+- [x] 8.8 Implement Extrude from the toolbar (selected or all rectangles, defaults, opens extrude properties) and Finish; verify manually that the body appears in the model view as soon as a distance is entered and that reopening a sketch shows reference geometry from its point in the timeline
 
 ## 9. Persistence and export
 
-- [ ] 9.1 Implement autosave, load with validation, corrupt-storage notice, and New Document with confirmation; verify manually via reload and by writing junk into the storage key
-- [ ] 9.2 Implement JSON download and upload with rejection of invalid files; verify manually with a valid and an invalid file
-- [ ] 9.3 Implement sketch SVG export with embedded styles; verify by opening the exported file directly in a browser
-- [ ] 9.4 Implement 3D view PNG export from the canvas; verify the file opens and matches the screen
+- [x] 9.1 Implement autosave, load with validation, corrupt-storage notice, and New Document with confirmation; verify manually via reload and by writing junk into the storage key
+- [x] 9.2 Implement JSON download and upload with rejection of invalid files; verify manually with a valid and an invalid file
+- [x] 9.3 Implement sketch SVG export with embedded styles; verify by opening the exported file directly in a browser
+- [x] 9.4 Implement 3D view PNG export from the canvas; verify the file opens and matches the screen
 
 ## 10. Integration check
 
-- [ ] 10.1 Build a base cabinet carcass end to end: front rectangle extruded to a box, sketch on its top face and cut a pocket, sketch on a side face and join a shelf, then change the first extrude's distance and confirm everything follows; verify `pnpm test` and `pnpm build` pass and record the walkthrough result in a short notes file in the change directory
+- [x] 10.1 Build a base cabinet carcass end to end: front rectangle extruded to a box, sketch on its top face and cut a pocket, sketch on a side face and join a shelf, then change the first extrude's distance and confirm everything follows; verify `pnpm test` and `pnpm build` pass and record the walkthrough result in a short notes file in the change directory
