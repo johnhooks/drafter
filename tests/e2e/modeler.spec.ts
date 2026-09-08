@@ -49,7 +49,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('inline dimension editing', async () => {
-    await page.click('[data-rect-id] text[data-dim="w"]')
+    await page.click('text[data-dim="w"]')
     const input = page.locator('input.inline-edit')
     await expect(input).toHaveCount(1)
     await input.fill('abc')
@@ -60,10 +60,10 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await input.press('Enter')
     d = await dbg(page)
     expect(d.features[0]!.rects[0].u).toEqual({ min: 0, size: 372 })
-    await page.click('[data-rect-id] text[data-dim="h"]')
+    await page.click('text[data-dim="h"]')
     await page.locator('input.inline-edit').press('Escape')
     await expect(page.locator('input.inline-edit')).toHaveCount(0)
-    await page.click('[data-rect-id] text[data-dim="w"]')
+    await page.click('text[data-dim="w"]')
     await page.locator('input.inline-edit').fill('24')
     await page.locator('input.inline-edit').press('Enter')
   })

@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-Every rectangle shows its width under its bottom edge and its height beside its right edge, in blue.
+Every rectangle shows its width under its bottom edge and its height beside its right edge, in blue. Both can be moved: with the Select tool, drag the label along its edge to slide it, or drag it away from the edge to push it further out or to the other side. A short press without moving opens it for editing.
 
 ## Type a size on the sketch
 

@@ -40,13 +40,30 @@ export interface AxisSlots {
   readonly size?: Len
 }
 
+/**
+ * Where a dimension is drawn. offset is sixteenths from the rectangle edge, positive away from
+ * the rectangle on the dimension's default side, negative on the other side. label is a fraction
+ * along the line, 0.5 by default, clamped to -0.5..1.5 so short dimensions can carry text outside.
+ */
+export interface DimLayout {
+  readonly offset: number
+  readonly label?: number
+}
+
+export type AxisLayout = Partial<Record<Slot, DimLayout>>
+
 export interface SketchRect {
   readonly id: string
   /** Stable name used in expressions: r1, r2, ... */
   readonly handle: string
   readonly u: AxisSlots
   readonly v: AxisSlots
+  /** Optional placements for this rectangle's dimensions; absent means automatic. */
+  readonly layout?: { readonly u?: AxisLayout; readonly v?: AxisLayout }
 }
+
+export const LABEL_MIN = -0.5
+export const LABEL_MAX = 1.5
 
 export interface SketchFeature {
   readonly kind: 'sketch'

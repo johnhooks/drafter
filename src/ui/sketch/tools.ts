@@ -1,6 +1,6 @@
 import { newId } from '../../core/model/names'
 import { rectFromCorners } from '../../core/model/sketch'
-import type { SketchRect, Slot } from '../../core/model/types'
+import type { DimLayout, SketchRect, Slot } from '../../core/model/types'
 import type { Snapped } from '../../core/snap'
 import { type Sixteenths, formatLength, parseLength } from '../../core/units'
 
@@ -22,13 +22,26 @@ export interface EdgeRef {
 export const edgeAxis = (side: EdgeSide): 'u' | 'v' => (side === 'left' || side === 'right' ? 'u' : 'v')
 export const edgeSlot = (side: EdgeSide): Slot => (side === 'left' || side === 'bottom' ? 'min' : 'max')
 
+/** A dimension the pointer is over: a driving dimension or a size label, its line or its label. */
+export interface DimHit {
+  readonly rectId: string
+  readonly axis: 'u' | 'v'
+  readonly slot: Slot
+  readonly part: 'line' | 'label'
+}
+
 export interface PointerInfo {
   readonly snapped: Snapped
+  /** Unsnapped plane position in sixteenths, for drags. */
+  readonly raw: readonly [number, number]
+  /** Screen position in pixels, for the drag threshold. */
+  readonly px: readonly [number, number]
   readonly shift: boolean
   /** Rect id under the pointer, if any. */
   readonly hit?: string
   /** Edge under the pointer, if any. */
   readonly hitEdge?: EdgeRef
+  readonly hitDim?: DimHit
 }
 
 export interface ToolHost {
@@ -43,7 +56,16 @@ export interface ToolHost {
   setSlot(rectId: string, axis: 'u' | 'v', slot: Slot, expr: string): void
   notify(text: string): void
   changed(): void
+  /** Current placement of a dimension, stored or automatic, plus the span its label runs along. */
+  dimBase(target: DimHit): { offset: number; label: number; from: number; to: number } | undefined
+  /** Live placement while dragging; null clears it. */
+  previewDim(target: DimHit, layout: DimLayout | null): void
+  commitDim(target: DimHit, layout: DimLayout): void
+  selectDim(target: DimHit): void
+  editDim(target: DimHit): void
 }
+
+export const DRAG_THRESHOLD_PX = 3
 
 /** A request from a tool for the editor to show an inline text input at an edge. */
 export interface Prompt {
@@ -102,6 +124,7 @@ export class RectTool extends BaseTool {
   private start: Snapped | null = null
   private current: Snapped | null = null
   override down(p: PointerInfo) {
+    if (p.hitDim?.part === 'label') return this.host.editDim(p.hitDim)
     this.start = p.snapped
     this.current = p.snapped
     this.host.changed()
@@ -143,20 +166,92 @@ export class RectTool extends BaseTool {
 
 export class SelectTool extends BaseTool {
   readonly name = 'select'
+  private candidate: { target: DimHit; start: PointerInfo; base: { offset: number; label: number; from: number; to: number } } | null = null
+  private dragging = false
+  private mode: 'line' | 'label' = 'line'
+  private latest: DimLayout | null = null
   override down(p: PointerInfo) {
+    if (p.hitDim) {
+      const base = this.host.dimBase(p.hitDim)
+      if (base) {
+        this.candidate = { target: p.hitDim, start: p, base }
+        this.dragging = false
+        return
+      }
+    }
     if (p.hit) this.host.toggleRect(p.hit, p.shift)
     else if (!p.shift) this.host.clearSelection()
   }
+  override move(p: PointerInfo) {
+    const c = this.candidate
+    if (!c) return
+    if (!this.dragging) {
+      const dx = p.px[0] - c.start.px[0]
+      const dy = p.px[1] - c.start.px[1]
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+      this.dragging = true
+      // a size label is its own line: the first movement decides whether it slides along or moves away
+      if (c.target.slot === 'size' && c.target.part === 'label') {
+        const alongPx = c.target.axis === 'u' ? Math.abs(dx) : Math.abs(dy)
+        const perpPx = c.target.axis === 'u' ? Math.abs(dy) : Math.abs(dx)
+        this.mode = perpPx > alongPx ? 'line' : 'label'
+      } else this.mode = c.target.part
+    }
+    this.latest = this.mode === 'line' ? lineDrag(c.target, c.base, c.start.raw, p.raw) : labelDrag(c.target, c.base, p.raw)
+    this.host.previewDim(c.target, this.latest)
+  }
+  override up() {
+    const c = this.candidate
+    this.candidate = null
+    if (!c) return
+    if (this.dragging && this.latest) {
+      this.host.previewDim(c.target, null)
+      this.host.commitDim(c.target, this.latest)
+    } else if (c.target.part === 'label') this.host.editDim(c.target)
+    else this.host.selectDim(c.target)
+    this.dragging = false
+    this.latest = null
+  }
   override key(key: string) {
+    if (key === 'Escape' && this.candidate) {
+      this.cancel()
+      return true
+    }
     if (key === 'Delete' || key === 'Backspace') {
       this.host.deleteSelection()
       return true
     }
     return false
   }
-  override hint() {
-    return 'Click to select, shift-click to add, Delete to remove'
+  override cancel() {
+    if (this.candidate) this.host.previewDim(this.candidate.target, null)
+    this.candidate = null
+    this.dragging = false
+    this.latest = null
   }
+  override hint() {
+    return 'Click to select, shift-click to add, Delete to remove. Drag a dimension line or label to move it'
+  }
+}
+
+/**
+ * Perpendicular movement changes the offset. Positive is the dimension's default side: above for
+ * horizontal driving dimensions, below for the width label, left for vertical driving dimensions,
+ * right for the height label.
+ */
+function lineDrag(t: DimHit, base: { offset: number; label: number }, start: readonly [number, number], now: readonly [number, number]): DimLayout {
+  const du = now[0] - start[0]
+  const dv = now[1] - start[1]
+  const driving = t.slot !== 'size'
+  const delta = t.axis === 'u' ? (driving ? dv : -dv) : driving ? -du : du
+  return base.label === 0.5 ? { offset: Math.round(base.offset + delta) } : { offset: Math.round(base.offset + delta), label: base.label }
+}
+
+function labelDrag(t: DimHit, base: { offset: number; from: number; to: number }, now: readonly [number, number]): DimLayout {
+  const along = t.axis === 'u' ? now[0] : now[1]
+  const span = base.to - base.from
+  const f = span === 0 ? 0.5 : (along - base.from) / span
+  return { offset: base.offset, label: Math.min(1.5, Math.max(-0.5, Math.round(f * 100) / 100)) }
 }
 
 /** Click the edge to constrain, click the anchor edge, type the distance. */
@@ -166,6 +261,7 @@ export class LinkTool extends BaseTool {
   private anchor: EdgeRef | null = null
   private error: string | undefined
   override down(p: PointerInfo) {
+    if (p.hitDim?.part === 'label') return this.host.editDim(p.hitDim)
     const e = p.hitEdge
     if (!e) return
     if (this.anchor) return

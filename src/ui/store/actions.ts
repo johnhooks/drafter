@@ -5,7 +5,7 @@ import { defaultOp } from '../../core/model/extrude'
 import { newId, nextHandle, nextName } from '../../core/model/names'
 import { renameParam as renameParamInDoc, usesOf, validateParamName } from '../../core/model/params'
 import { setSlot } from '../../core/model/slots'
-import type { Document, ExtrudeFeature, Feature, Len, PlaneDef, SketchFeature, SketchRect, Slot } from '../../core/model/types'
+import type { DimLayout, Document, ExtrudeFeature, Feature, Len, PlaneDef, SketchFeature, SketchRect, Slot } from '../../core/model/types'
 import { newDocument } from '../../core/model/types'
 import type { Sixteenths } from '../../core/units'
 
@@ -226,8 +226,28 @@ export function removeConstraint(s: State, c: ConstraintRef): State {
   const resolved = sr?.kind === 'sketch' ? sr.rects.get(c.rectId) : undefined
   const ax = resolved ? (c.axis === 'u' ? resolved.uAxis : resolved.vAxis) : fallbackAxis(s.lastGood.get(c.rectId), c.axis)
   const value = (values?.[c.slot] ?? ax[c.slot]) as Sixteenths
-  const next = updateRect(s, c.sketchId, { ...rect, [c.axis]: { ...rect[c.axis], [c.slot]: value } })
+  // the placement belongs to the constraint and goes with it
+  const next = updateRect(s, c.sketchId, withLayout({ ...rect, [c.axis]: { ...rect[c.axis], [c.slot]: value } }, c.axis, c.slot, undefined))
   return { ...next, selection: { ...next.selection, constraint: undefined } }
+}
+
+function withLayout(rect: SketchRect, axis: 'u' | 'v', slot: Slot, layout: DimLayout | undefined): SketchRect {
+  const axisLayout = { ...(rect.layout?.[axis] ?? {}) }
+  if (layout) axisLayout[slot] = layout
+  else delete axisLayout[slot]
+  const all = { ...(rect.layout ?? {}) }
+  if (Object.keys(axisLayout).length) all[axis] = axisLayout
+  else delete all[axis]
+  const { layout: _old, ...rest } = rect
+  return Object.keys(all).length ? { ...rest, layout: all } : rest
+}
+
+/** Stores where a dimension is drawn; undefined returns it to automatic placement. */
+export function setDimLayout(s: State, sketchId: string, rectId: string, axis: 'u' | 'v', slot: Slot, layout: DimLayout | undefined): State {
+  const sketch = sketchOf(s, sketchId)
+  const rect = sketch?.rects.find((r) => r.id === rectId)
+  if (!sketch || !rect) return s
+  return updateRect(s, sketchId, withLayout(rect, axis, slot, layout))
 }
 
 /** Removes rects and drops them from extrudes; an extrude left with no rects is deleted with its dependents. */

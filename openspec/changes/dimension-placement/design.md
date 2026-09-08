@@ -18,7 +18,7 @@
 
 **Offsets in sixteenths, labels as fractions.** Offsets scale with zoom and stay exact. The label fraction is dimensionless and survives changes to the dimension's length; clamped to [-0.5, 1.5] so a label can sit past an end for short dimensions. Automatic placement still uses pixel constants (22 px) so it looks the same at every zoom; a dragged offset converts pixels to sixteenths at the current scale on release.
 
-**Sign convention.** Positive offset is away from the rectangle on the dimension's default side (above for u-axis driving dimensions, below for the width label, and so on); negative crosses to the other side. The renderer computes the side from the sign, so a drag across the rectangle flips the dimension without special handling.
+**Sign convention.** The offset is a continuous coordinate from one reference edge: positive is away from the rectangle on the dimension's default side (above for u-axis driving dimensions, below for the width label, and so on), zero is on that edge, and negative runs through the rectangle and out the far side. Extension lines start from whichever edge is nearer the line. This lets a dimension sit inside the geometry it measures, which is ordinary drafting, and a drag across the rectangle needs no special handling.
 
 **Automatic placement.** Driving dimensions move to the side opposite the size labels (above and left). Within one axis of one rectangle, driving dimensions without a placement stack outward in slot order (min, then max) by one step. Size labels keep today's spots.
 

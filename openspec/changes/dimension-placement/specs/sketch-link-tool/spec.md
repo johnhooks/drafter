@@ -8,5 +8,5 @@ For every driven slot whose expression is a single reference optionally plus or 
 - **THEN** a dimension from the face's left edge to `r1`'s left edge reads `2"` above the rectangle
 
 #### Scenario: Dimension drawn at a placement
-- **WHEN** that slot has a stored offset of -2" and label fraction 1
+- **WHEN** `r1` is 16" tall and that slot has a stored offset of -18" and label fraction 1
 - **THEN** the dimension is drawn 2" below the rectangle's bottom edge with its label at the driven end

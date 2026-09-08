@@ -105,6 +105,22 @@ function validateSketch(f: Record<string, unknown>, p: string, features: unknown
     if (typeof r['handle'] !== 'string' || !IDENT_RE.test(r['handle'])) err(`${rp}.handle`, 'Rect needs a handle')
     else if (rectHandles.has(r['handle'])) err(`${rp}.handle`, `Duplicate rect handle ${r['handle']}`)
     else rectHandles.add(r['handle'])
+    const layout = r['layout'] as Record<string, unknown> | undefined
+    if (layout !== undefined) {
+      if (typeof layout !== 'object' || layout === null) err(`${rp}.layout`, 'Layout must be an object')
+      else
+        for (const axis of ['u', 'v'] as const) {
+          const al = layout[axis] as Record<string, unknown> | undefined
+          if (al === undefined) continue
+          for (const s of ['min', 'max', 'size'] as const) {
+            const d = al[s] as Record<string, unknown> | undefined
+            if (d === undefined) continue
+            if (!isInt(d['offset'])) err(`${rp}.layout.${axis}.${s}.offset`, 'Offset must be whole sixteenths')
+            if (d['label'] !== undefined && (typeof d['label'] !== 'number' || d['label'] < -0.5 || d['label'] > 1.5))
+              err(`${rp}.layout.${axis}.${s}.label`, 'Label must be a fraction between -0.5 and 1.5')
+          }
+        }
+    }
     for (const axis of ['u', 'v'] as const) {
       const a = r[axis] as Record<string, unknown> | undefined
       if (!a || typeof a !== 'object') {

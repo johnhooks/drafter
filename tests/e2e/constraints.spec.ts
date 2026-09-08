@@ -53,9 +53,9 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
   })
 
   await test.step('driving dimensions are drawn and editable', async () => {
-    await expect(page.locator('[data-dim-slot]')).toHaveCount(2)
-    await expect(page.locator('[data-dim-slot] text').first()).toHaveText('2"')
-    await page.click('[data-dim-slot] text >> nth=0')
+    await expect(page.locator('[data-dim-slot]:not([data-dim-slot$=":size"])')).toHaveCount(2)
+    await expect(page.locator('[data-dim-slot$=":min"] text')).toHaveText('2"')
+    await page.click('[data-dim-slot$=":min"] text')
     const input = page.locator('input.inline-edit')
     await input.fill('1 1/2')
     await input.press('Enter')
@@ -108,16 +108,16 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     await rowAction(page, /^Sketch 2/, 'Edit')
     await tool(page, 'Select')
     // a zero-height line is not clickable for Playwright; the label selects the dimension too
-    await page.click('[data-dim-slot] text >> nth=0')
+    await page.click('[data-dim-slot$=":min"] text')
     d = await dbg(page)
     expect(d.selection.constraint).toMatchObject({ axis: 'u', slot: 'min' })
     await page.locator('input.inline-edit').press('Escape')
     await page.keyboard.press('Delete')
     d = await dbg(page)
     expect(d.features[2]!.rects[0].u).toEqual({ min: 24, max: 'face.right - 2' })
-    await expect(page.locator('[data-dim-slot]')).toHaveCount(1)
+    await expect(page.locator('[data-dim-slot]:not([data-dim-slot$=":size"])')).toHaveCount(1)
     await page.getByRole('button', { name: 'Dims' }).click()
-    await expect(page.locator('[data-dim-slot]')).toHaveCount(0)
+    await expect(page.locator('[data-dim-slot]:not([data-dim-slot$=":size"])')).toHaveCount(0)
     // remove the remaining link from the list: after widening, face.right is 30, so the edge freezes at 28
     const list = page.getByRole('listbox', { name: 'Constraints' })
     await expect(list.getByRole('option')).toHaveCount(1)

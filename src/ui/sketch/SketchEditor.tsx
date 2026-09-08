@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import type { Rect2 } from '../../core/geom/rect2d'
-import type { SketchFeature, SketchRect, Slot } from '../../core/model/types'
+import type { DimLayout, SketchFeature, SketchRect, Slot } from '../../core/model/types'
 import { type SnapContext, snap } from '../../core/snap'
 import { type Sixteenths, formatLength, parseLength } from '../../core/units'
 import type { ConstraintRef } from '../store/actions'
 import { useStore } from '../store/store'
-import { type DimSpec, dimensionsOf } from './Dimensions'
-import { type EdgeRef, type EdgeSide, type PointerInfo, type Tool, edgeAxis, edgeSlot, lenLiteral, makeTool } from './tools'
+import { type DimSpec, type DimTarget, dimKey, dimensionsOf, sizeLabel } from './Dimensions'
+import { type DimHit, type EdgeRef, type EdgeSide, type PointerInfo, type Tool, edgeAxis, edgeSlot, lenLiteral, makeTool } from './tools'
 import { type SketchView, axisLabels, mirrorSign, toPlaneInches, toScreen } from './view'
 
 const SNAP_PX = 6
-const DIM_OFFSET_PX = 22
 
 type Editing =
   | { kind: 'size'; rectId: string; axis: 'u' | 'v'; text: string; error?: string }
@@ -37,9 +36,11 @@ export function SketchEditor({ sketch }: Props) {
   const [size, setSize] = useState({ w: 800, h: 600 })
   const [pointer, setPointer] = useState<ReturnType<typeof snap> | null>(null)
   const [editing, setEditing] = useState<Editing | null>(null)
+  const [overrides, setOverrides] = useState<Map<string, DimLayout>>(new Map())
   const [, bump] = useReducer((x: number) => x + 1, 0)
   const pan = useRef<{ x: number; y: number; cu: number; cv: number } | null>(null)
   const space = useRef(false)
+  const pxPerSx = view.scale / 16
 
   // drawn geometry: resolved rectangles, or the last good position for a failed one
   const drawn = useMemo(() => {
@@ -83,16 +84,44 @@ export function SketchEditor({ sketch }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sketch.id])
 
+  const dims = useMemo(
+    () => (sr && showDims ? dimensionsOf(sketch, sr, { pxPerSx, overrides }) : { dims: [] as DimSpec[], tags: [] }),
+    [sketch, sr, showDims, pxPerSx, overrides],
+  )
+  const sizeLabels = useMemo(
+    () =>
+      drawn
+        .filter((d) => !d.failed)
+        .flatMap((d) => (['u', 'v'] as const).map((axis) => sizeLabel(d.rect, d.r, axis, { pxPerSx, overrides }))),
+    [drawn, pxPerSx, overrides],
+  )
+
+  // the tool must survive re-renders during a drag, so its host reads the latest values through a ref
+  const latest = useRef({ sr, byId, dims, sizeLabels })
+  latest.current = { sr, byId, dims, sizeLabels }
+
   const edgeCoord = (e: EdgeRef): number | undefined => {
+    const { sr, byId } = latest.current
     const r = e.owner === 'face' ? sr?.face : byId.get(e.owner)?.r
     if (!r) return undefined
     return e.side === 'left' ? r.u0 : e.side === 'right' ? r.u1 : e.side === 'bottom' ? r.v0 : r.v1
   }
   const edgeName = (e: EdgeRef): string | undefined => {
+    const { sr, byId } = latest.current
     if (e.owner === 'face') return sr?.face ? `face.${e.side}` : undefined
     const rect = byId.get(e.owner)?.rect
     return rect ? `${rect.handle}.${e.side}` : undefined
   }
+  const dimBase = (t: DimHit) => {
+    const { dims, sizeLabels } = latest.current
+    if (t.slot === 'size') {
+      const s = sizeLabels.find((x) => x.target.rectId === t.rectId && x.axis === t.axis)
+      return s ? { offset: s.offset, label: s.labelAt, from: s.from, to: s.to } : undefined
+    }
+    const d = dims.dims.find((x) => x.ref.rectId === t.rectId && x.ref.axis === t.axis && x.ref.slot === t.slot)
+    return d ? { offset: d.offset, label: d.labelAt, from: d.from, to: d.to } : undefined
+  }
+  const asTarget = (t: DimHit): DimTarget => ({ rectId: t.rectId, axis: t.axis, slot: t.slot })
 
   const tool = useMemo<Tool>(
     () =>
@@ -110,9 +139,35 @@ export function SketchEditor({ sketch }: Props) {
         setSlot: (rectId, axis, slot, expr) => dispatch('setRectSlot', sketch.id, rectId, axis, slot, expr),
         notify: (t) => dispatch('notify', t),
         changed: bump,
+        dimBase,
+        previewDim: (t, layout) =>
+          setOverrides((prev) => {
+            const next = new Map(prev)
+            if (layout) next.set(dimKey(asTarget(t)), layout)
+            else next.delete(dimKey(asTarget(t)))
+            return next
+          }),
+        commitDim: (t, layout) => dispatch('setDimLayout', sketch.id, t.rectId, t.axis, t.slot, layout),
+        selectDim: (t) => {
+          if (t.slot !== 'size') dispatch('selectConstraint', { sketchId: sketch.id, rectId: t.rectId, axis: t.axis, slot: t.slot })
+        },
+        editDim: (t) => {
+          const { byId, dims } = latest.current
+          if (t.slot === 'size') {
+            const d = byId.get(t.rectId)
+            if (!d) return
+            const len = t.axis === 'u' ? d.r.u1 - d.r.u0 : d.r.v1 - d.r.v0
+            setEditing({ kind: 'size', rectId: t.rectId, axis: t.axis, text: formatLength(len as Sixteenths) })
+          } else {
+            const d = dims.dims.find((x) => x.ref.rectId === t.rectId && x.ref.axis === t.axis && x.ref.slot === t.slot)
+            if (!d) return
+            dispatch('selectConstraint', d.ref)
+            setEditing({ kind: 'literal', dim: d, text: d.label })
+          }
+        },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [toolName, sketch.id, dispatch, byId, sr?.face],
+    [toolName, sketch.id, dispatch],
   )
 
   // snap candidates: reference faces, body outlines, and the sketch's own rectangles
@@ -134,12 +189,16 @@ export function SketchEditor({ sketch }: Props) {
     const px = e.clientX - rect.left - rect.width / 2
     const py = e.clientY - rect.top - rect.height / 2
     const [ui, vi] = toPlaneInches(view, su, px, py)
-    const snapped = snap(ui * 16, vi * 16, snapCtx)
+    const raw: [number, number] = [ui * 16, vi * 16]
+    const snapped = snap(raw[0], raw[1], snapCtx)
     const target = e.target as Element
     const edgeAttr = target.closest?.('[data-edge]')?.getAttribute('data-edge')
     const hitEdge = edgeAttr ? parseEdge(edgeAttr) : undefined
     const hit = target.closest?.('[data-rect-id]')?.getAttribute('data-rect-id') ?? undefined
-    return { snapped, shift: e.shiftKey, hit, hitEdge }
+    const dimEl = target.closest?.('[data-dim-slot]')
+    const dimAttr = dimEl?.getAttribute('data-dim-slot')
+    const hitDim = dimAttr ? parseDimHit(dimAttr, target.closest?.('[data-dim-label]') ? 'label' : 'line') : undefined
+    return { snapped, raw, px: [px, py], shift: e.shiftKey, hit, hitEdge, hitDim }
   }
 
   useEffect(() => {
@@ -172,13 +231,7 @@ export function SketchEditor({ sketch }: Props) {
       return
     }
     if (e.button !== 0) return
-    const target = e.target as Element
-    const dimAttr = target.closest?.('[data-dim-slot]')?.getAttribute('data-dim-slot')
-    if (dimAttr && toolName === 'select') {
-      e.preventDefault()
-      dispatch('selectConstraint', parseConstraint(sketch.id, dimAttr))
-      return
-    }
+    e.preventDefault()
     svgRef.current?.setPointerCapture(e.pointerId)
     tool.down(pointerInfo(e))
   }
@@ -304,8 +357,6 @@ export function SketchEditor({ sketch }: Props) {
     const d = drawRect(r)
     const id = rect?.id ?? null
     const selected = id !== null && selection.rectIds.includes(id)
-    const wPos = S((r.u0 + r.u1) / 2, r.v0)
-    const hPos = S(r.u1, (r.v0 + r.v1) / 2)
     const stroke = failed ? '#b3261e' : preview || selected ? '#0b6bcb' : '#222'
     return (
       <g key={id ?? 'preview'} data-rect-id={id ?? undefined}>
@@ -319,115 +370,93 @@ export function SketchEditor({ sketch }: Props) {
           strokeWidth={selected || preview ? 2 : 1.25}
           strokeDasharray={preview || failed ? '4 3' : undefined}
         />
-        {rect && !failed && (
+        {preview && (
           <>
-            <text
-              x={wPos[0]}
-              y={wPos[1] + 14}
-              textAnchor="middle"
-              fontSize={12}
-              fill="#0b6bcb"
-              style={{ cursor: 'text' }}
-              data-dim="w"
-              onPointerDown={(e) => {
-                // preventDefault stops the follow-on mousedown from blurring the input that opens here
-                e.preventDefault()
-                e.stopPropagation()
-                setEditing({ kind: 'size', rectId: rect.id, axis: 'u', text: formatLength((r.u1 - r.u0) as Sixteenths) })
-              }}
-            >
+            <text x={S((r.u0 + r.u1) / 2, r.v0)[0]} y={S(0, r.v0)[1] + 14} textAnchor="middle" fontSize={12} fill="#0b6bcb">
               {formatLength((r.u1 - r.u0) as Sixteenths)}
             </text>
-            <text
-              x={hPos[0] + (su > 0 ? 6 : -6)}
-              y={hPos[1] + 4}
-              textAnchor={su > 0 ? 'start' : 'end'}
-              fontSize={12}
-              fill="#0b6bcb"
-              style={{ cursor: 'text' }}
-              data-dim="h"
-              onPointerDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                setEditing({ kind: 'size', rectId: rect.id, axis: 'v', text: formatLength((r.v1 - r.v0) as Sixteenths) })
-              }}
-            >
+            <text x={S(r.u1, 0)[0] + 6 * su} y={S(0, (r.v0 + r.v1) / 2)[1] + 4} textAnchor={su > 0 ? 'start' : 'end'} fontSize={12} fill="#0b6bcb">
               {formatLength((r.v1 - r.v0) as Sixteenths)}
             </text>
           </>
         )}
-        {rect && <text x={d.x + 4} y={d.y + 12} fontSize={10} fill={failed ? '#b3261e' : '#888'} fontFamily="ui-monospace, monospace">
-          {rect.handle}
-        </text>}
+        {rect && (
+          <text x={d.x + 4} y={d.y + 12} fontSize={10} fill={failed ? '#b3261e' : '#888'} fontFamily="ui-monospace, monospace">
+            {rect.handle}
+          </text>
+        )}
       </g>
     )
   }
 
-  const dims = useMemo(() => (sr && showDims ? dimensionsOf(sketch, sr) : { dims: [], tags: [] }), [sketch, sr, showDims])
+  /** A label with an invisible hit rectangle behind it, so a press between glyphs still lands. */
+  const labelNode = (x: number, y: number, anchor: 'start' | 'middle' | 'end', text: string, fill: string, fontSize: number, extra: Record<string, string> = {}) => {
+    const w = text.length * fontSize * 0.62 + 8
+    // stays clear of the dimension line beside it, which is 5 px past the baseline
+    const h = fontSize + 3
+    const left = anchor === 'middle' ? x - w / 2 : anchor === 'start' ? x - 4 : x - w + 4
+    return (
+      <g data-dim-label style={{ cursor: 'grab' }}>
+        <rect x={left} y={y - fontSize} width={w} height={h} fill="transparent" />
+        <text x={x} y={y} textAnchor={anchor} fontSize={fontSize} fill={fill} {...extra}>
+          {text}
+        </text>
+      </g>
+    )
+  }
+
+  // size labels are dimension-like: draggable along their edge and away from it
+  const sizeLabelNodes = sizeLabels.map((sl) => {
+    const key = dimKey(sl.target)
+    const along = sl.from + (sl.to - sl.from) * sl.labelAt
+    const p = sl.axis === 'u' ? S(along, sl.at) : S(sl.at, along)
+    const len = sl.to - sl.from
+    return (
+      <g key={key} data-dim-slot={key}>
+        {labelNode(p[0], p[1] + 4, sl.axis === 'u' ? 'middle' : su > 0 ? 'start' : 'end', formatLength(len as Sixteenths), '#0b6bcb', 12, { 'data-dim': sl.axis === 'u' ? 'w' : 'h' })}
+      </g>
+    )
+  })
 
   const dimNodes = dims.dims.map((d) => {
-    const key = `${d.ref.rectId}:${d.ref.axis}:${d.ref.slot}`
-    const selected = selection.constraint && `${selection.constraint.rectId}:${selection.constraint.axis}:${selection.constraint.slot}` === key
+    const key = dimKey(d.ref)
+    const selected = selection.constraint && dimKey(selection.constraint) === key
     const color = selected ? '#0b6bcb' : '#8a5a00'
-    const off = DIM_OFFSET_PX
+    const labelAlong = d.from + (d.to - d.from) * d.labelAt
     if (d.axis === 'u') {
-      const y = S(0, d.at)[1] + off
+      const y = S(0, d.at)[1]
+      const ye = S(0, d.edge)[1]
       const x1 = S(d.from, 0)[0]
       const x2 = S(d.to, 0)[0]
-      const ya = S(0, d.at)[1]
+      const past = y > ye ? 4 : -4
+      const lx = S(labelAlong, 0)[0]
       return (
-        <g key={key} data-dim-slot={key} style={{ cursor: 'pointer' }}>
-          <line x1={x1} y1={ya} x2={x1} y2={y + 4} stroke={color} strokeWidth={1} />
-          <line x1={x2} y1={ya} x2={x2} y2={y + 4} stroke={color} strokeWidth={1} />
+        <g key={key} data-dim-slot={key} style={{ cursor: 'ns-resize' }}>
+          <line x1={x1} y1={ye} x2={x1} y2={y + past} stroke={color} strokeWidth={1} />
+          <line x1={x2} y1={ye} x2={x2} y2={y + past} stroke={color} strokeWidth={1} />
+          <line x1={x1} y1={y} x2={x2} y2={y} stroke="transparent" strokeWidth={10} />
           <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth={selected ? 2 : 1} />
           <line x1={x1} y1={y - 3} x2={x1} y2={y + 3} stroke={color} strokeWidth={2} />
           <line x1={x2} y1={y - 3} x2={x2} y2={y + 3} stroke={color} strokeWidth={2} />
-          <text
-            x={(x1 + x2) / 2}
-            y={y + 13}
-            textAnchor="middle"
-            fontSize={11}
-            fill={color}
-            data-dim-label
-            onPointerDown={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              dispatch('selectConstraint', d.ref)
-              setEditing({ kind: 'literal', dim: d, text: d.label })
-            }}
-          >
-            {d.label}
-          </text>
+          {labelNode(lx, y > ye ? y + 13 : y - 5, 'middle', d.label, color, 11)}
         </g>
       )
     }
-    const x = S(d.at, 0)[0] + off * su
+    const x = S(d.at, 0)[0]
+    const xe = S(d.edge, 0)[0]
     const y1 = S(0, d.from)[1]
     const y2 = S(0, d.to)[1]
-    const xa = S(d.at, 0)[0]
+    const past = x > xe ? 4 : -4
+    const ly = S(0, labelAlong)[1]
     return (
-      <g key={key} data-dim-slot={key} style={{ cursor: 'pointer' }}>
-        <line x1={xa} y1={y1} x2={x + 4 * su} y2={y1} stroke={color} strokeWidth={1} />
-        <line x1={xa} y1={y2} x2={x + 4 * su} y2={y2} stroke={color} strokeWidth={1} />
+      <g key={key} data-dim-slot={key} style={{ cursor: 'ew-resize' }}>
+        <line x1={xe} y1={y1} x2={x + past} y2={y1} stroke={color} strokeWidth={1} />
+        <line x1={xe} y1={y2} x2={x + past} y2={y2} stroke={color} strokeWidth={1} />
+        <line x1={x} y1={y1} x2={x} y2={y2} stroke="transparent" strokeWidth={10} />
         <line x1={x} y1={y1} x2={x} y2={y2} stroke={color} strokeWidth={selected ? 2 : 1} />
         <line x1={x - 3} y1={y1} x2={x + 3} y2={y1} stroke={color} strokeWidth={2} />
         <line x1={x - 3} y1={y2} x2={x + 3} y2={y2} stroke={color} strokeWidth={2} />
-        <text
-          x={x + 6 * su}
-          y={(y1 + y2) / 2 + 4}
-          textAnchor={su > 0 ? 'start' : 'end'}
-          fontSize={11}
-          fill={color}
-          data-dim-label
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            dispatch('selectConstraint', d.ref)
-            setEditing({ kind: 'literal', dim: d, text: d.label })
-          }}
-        >
-          {d.label}
-        </text>
+        {labelNode(x > xe ? x + 6 : x - 6, ly + 4, x > xe ? 'start' : 'end', d.label, color, 11)}
       </g>
     )
   })
@@ -445,15 +474,17 @@ export function SketchEditor({ sketch }: Props) {
   const prompt = tool.prompt()
   const inputPos = (() => {
     if (editing?.kind === 'size') {
-      const d = byId.get(editing.rectId)
-      if (!d) return null
-      const p = editing.axis === 'u' ? S((d.r.u0 + d.r.u1) / 2, d.r.v0) : S(d.r.u1, (d.r.v0 + d.r.v1) / 2)
-      return { left: p[0] + half.w - 45, top: p[1] + half.h + (editing.axis === 'u' ? 4 : -10) }
+      const sl = sizeLabels.find((x) => x.target.rectId === editing.rectId && x.axis === editing.axis)
+      if (!sl) return null
+      const along = sl.from + (sl.to - sl.from) * sl.labelAt
+      const p = sl.axis === 'u' ? S(along, sl.at) : S(sl.at, along)
+      return { left: p[0] + half.w - 45, top: p[1] + half.h - 10 }
     }
     if (editing?.kind === 'literal') {
       const d = editing.dim
-      const p = d.axis === 'u' ? [S((d.from + d.to) / 2, 0)[0], S(0, d.at)[1] + DIM_OFFSET_PX] : [S(d.at, 0)[0] + DIM_OFFSET_PX * su, S(0, (d.from + d.to) / 2)[1]]
-      return { left: p[0]! + half.w - 45, top: p[1]! + half.h - 10 }
+      const along = d.from + (d.to - d.from) * d.labelAt
+      const p = d.axis === 'u' ? S(along, d.at) : S(d.at, along)
+      return { left: p[0] + half.w - 45, top: p[1] + half.h - 10 }
     }
     if (prompt) {
       const c = edgeCoord(prompt.edge)
@@ -498,6 +529,7 @@ export function SketchEditor({ sketch }: Props) {
         <circle cx={S(0, 0)[0]} cy={S(0, 0)[1]} r={3} fill="#999" />
         {drawn.map((d) => rectNodes(d.r, d.rect, false, d.failed))}
         {tool.preview().map((p) => rectNodes({ u0: Math.min(p.u0, p.u1), u1: Math.max(p.u0, p.u1), v0: Math.min(p.v0, p.v1), v1: Math.max(p.v0, p.v1) }, null, true))}
+        {sizeLabelNodes}
         {dimNodes}
         {tagNodes}
         {sr?.face && edgeLines('face', sr.face)}
@@ -571,13 +603,14 @@ function parseEdge(attr: string): EdgeRef | undefined {
   return { owner: attr.slice(0, i), side }
 }
 
-function parseConstraint(sketchId: string, attr: string): ConstraintRef | undefined {
+function parseDimHit(attr: string, part: 'line' | 'label'): DimHit | undefined {
   const parts = attr.split(':')
   if (parts.length !== 3) return undefined
-  return { sketchId, rectId: parts[0]!, axis: parts[1] as 'u' | 'v', slot: parts[2] as Slot }
+  return { rectId: parts[0]!, axis: parts[1] as 'u' | 'v', slot: parts[2] as Slot, part }
 }
 
 export { edgeSlot }
+export type { ConstraintRef }
 
 export function sketchSvgForExport(container: HTMLElement, title: string): string | null {
   const svg = container.querySelector('svg')
