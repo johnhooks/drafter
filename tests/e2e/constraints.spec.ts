@@ -132,12 +132,13 @@ test('parameters drive extrude distance and rectangle size; rename and delete ru
   await makeCube(page)
   // deselect to reach document properties
   await page.mouse.click(...(await isoPoint(page, -80, 80, 0)))
-  await field(page, 'New name').fill('ply')
-  await field(page, 'New name').press('Enter')
-  const addValue = page.locator('.param-add').getByRole('textbox', { name: 'Value' })
-  await addValue.fill('3/4')
-  await addValue.press('Enter')
-  await page.getByRole('button', { name: 'Add parameter' }).click()
+  // typed, not committed with Enter: the Add button must enable from what is typed
+  const add = page.getByRole('button', { name: 'Add parameter' })
+  await expect(add).toBeDisabled()
+  await page.getByRole('textbox', { name: 'New name' }).fill('ply')
+  await page.locator('.param-add').getByRole('textbox', { name: 'Value' }).fill('3/4')
+  await expect(add).toBeEnabled()
+  await add.click()
   let d = await dbg(page)
   expect(d.params).toEqual([{ name: 'ply', value: 12 }])
 

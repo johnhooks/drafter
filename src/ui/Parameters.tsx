@@ -1,8 +1,8 @@
 import { Button, Disclosure, Hint, IconButton, ListBox, ListBoxItem, Row, TextField } from '@drawing/kit'
 import { useState } from 'react'
-import type { Len } from '../core/model/types'
 import type { Sixteenths } from '../core/units'
 import { formatLength } from '../core/units'
+import { validateParamName } from '../core/model/params'
 import { LenField, parseLen } from './LenField'
 import { useStore } from './store/store'
 
@@ -15,10 +15,14 @@ export function Parameters() {
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
   const current = params.find((p) => p.name === selected)
+  const trimmedName = name.trim()
+  const nameError = trimmedName ? validateParamName(trimmedName, params.map((p) => p.name)) : null
+  const parsed = value.trim() ? parseLen(value) : null
+  const valueError = parsed && !parsed.ok ? parsed.error : null
+  const canAdd = !!trimmedName && !nameError && !!parsed && parsed.ok
   const add = () => {
-    const r = parseLen(value)
-    if (!r.ok) return dispatch('notify', r.error)
-    dispatch('addParam', name.trim(), r.value)
+    if (!canAdd || !parsed || !parsed.ok) return
+    dispatch('addParam', trimmedName, parsed.value)
     setName('')
     setValue('')
   }
@@ -65,11 +69,34 @@ export function Parameters() {
         </Row>
       )}
       <div className="param-add">
+        {/* live inputs, not commit-on-blur fields: the Add button must see what is typed as it is typed */}
         <Row>
-          <TextField label="New name" value={name} onCommit={(_v, t) => setName(t.trim())} />
-          <TextField<Len> label="Value" value={value} onCommit={(_v, t) => setValue(t.trim())} validate={(t) => parseLen(t)} />
+          <label className="kit-textfield">
+            <span className="kit-field-label">New name</span>
+            <input
+              className="kit-input"
+              aria-label="New name"
+              value={name}
+              placeholder="ply"
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canAdd && add()}
+            />
+          </label>
+          <label className="kit-textfield">
+            <span className="kit-field-label">Value</span>
+            <input
+              className="kit-input"
+              aria-label="Value"
+              value={value}
+              placeholder="3/4"
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canAdd && add()}
+            />
+          </label>
         </Row>
-        <Button isDisabled={!name || !value} onPress={add}>
+        {nameError && <Hint>{nameError}</Hint>}
+        {valueError && <Hint>{valueError}</Hint>}
+        <Button isDisabled={!canAdd} onPress={add}>
           Add parameter
         </Button>
       </div>
