@@ -19,5 +19,15 @@ Verification: `pnpm test` (213), `pnpm test:e2e` (13, including `orbit.spec.ts`)
   so face picks work from any angle and the tests hold for any view.
 - The first orbit test attempt dragged before the canvas had its real size; the
   helper now waits for it, as the picking helper already did.
-- The cube's face normals are in gizmo space (y up); they are remapped to the
-  model's z-up frame before finding the nearest view.
+- The cube's face normals map straight onto the world frame; an assumed y-up
+  remap sent Top to Front and Front to Bottom. Fixed by measuring every face.
+- Faces were single-sided with one winding, so the bottom, back, and left faces
+  were culled from the angles that could now see them. Faces are wound outward
+  from their normal and the material is double-sided.
+- Top and bottom views sit at 89 degrees rather than the pole, so a drag from
+  them always has a direction to move in; at the exact pole the controls clamp
+  and the view locks.
+- The ground grid does not write depth, so seen from below it stays behind the
+  bodies instead of hatching through them.
+- Key and cube view changes jump exactly rather than easing, so a second press
+  during an ease cannot start from a moving value.

@@ -15,8 +15,9 @@ export const CANONICAL_VIEWS: readonly CanonicalView[] = [
   { id: 'back', azimuth: 90, elevation: 0 },
   { id: 'right', azimuth: 0, elevation: 0 },
   { id: 'left', azimuth: 180, elevation: 0 },
-  { id: 'top', azimuth: -90, elevation: 89.9 },
-  { id: 'bottom', azimuth: -90, elevation: -89.9 },
+  // just short of the poles so an orbit drag always has a direction to move in
+  { id: 'top', azimuth: -90, elevation: 89 },
+  { id: 'bottom', azimuth: -90, elevation: -89 },
   { id: 'iso-fl', azimuth: DEFAULT_CAMERA.azimuth, elevation: ISO },
   { id: 'iso-fr', azimuth: -135, elevation: ISO },
   { id: 'iso-br', azimuth: 135, elevation: ISO },
@@ -24,7 +25,7 @@ export const CANONICAL_VIEWS: readonly CanonicalView[] = [
 ]
 
 export const SNAP_DEGREES = 8
-export const ELEVATION_LIMIT = 89.9
+export const ELEVATION_LIMIT = 89
 
 const rad = (d: number) => (d * Math.PI) / 180
 
@@ -80,4 +81,26 @@ export function sphericalOf(dx: number, dy: number, dz: number): { azimuth: numb
 export function lerpView(from: CameraState, to: { azimuth: number; elevation: number }, t: number): { azimuth: number; elevation: number } {
   const da = wrapAzimuth(to.azimuth - from.azimuth)
   return { azimuth: wrapAzimuth(from.azimuth + da * t), elevation: from.elevation + (to.elevation - from.elevation) * t }
+}
+
+/** Unit direction from the centre toward the camera for a view. */
+export function directionOf(v: { azimuth: number; elevation: number }): [number, number, number] {
+  const az = rad(v.azimuth)
+  const el = rad(v.elevation)
+  return [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)]
+}
+
+/** The canonical view whose camera direction best matches a world direction. */
+export function viewForDirection(d: [number, number, number]): CanonicalView {
+  let best = CANONICAL_VIEWS[0]!
+  let bestDot = -Infinity
+  for (const v of CANONICAL_VIEWS) {
+    const c = directionOf(v)
+    const dot = c[0] * d[0] + c[1] * d[1] + c[2] * d[2]
+    if (dot > bestDot) {
+      bestDot = dot
+      best = v
+    }
+  }
+  return best
 }

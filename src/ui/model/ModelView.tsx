@@ -11,7 +11,7 @@ import type { CameraState } from '../../core/model/types'
 import { DEFAULT_CAMERA } from '../../core/model/types'
 import { useStore } from '../store/store'
 import { BodyMesh, planeOfFace } from './BodyMesh'
-import { CANONICAL_VIEWS, type CanonicalView, clampElevation, lerpView, snapTarget, sphericalOf, wrapAzimuth } from './views'
+import { CANONICAL_VIEWS, type CanonicalView, clampElevation, lerpView, snapTarget, sphericalOf, viewForDirection, wrapAzimuth } from './views'
 
 const ORBIT_DISTANCE = 200
 const EASE_MS = 150
@@ -61,7 +61,11 @@ export function ModelView() {
   }
   const goTo = (id: CanonicalView['id']) => {
     const v = CANONICAL_VIEWS.find((x) => x.id === id)
-    if (v) easeTo(v)
+    if (!v) return
+    // a key or cube click is a decision: jump exactly rather than start another ease from a moving value
+    if (easing.current) cancelAnimationFrame(easing.current)
+    easing.current = null
+    dispatch('setCamera', { azimuth: v.azimuth, elevation: v.elevation })
   }
 
   /** Centres and zooms so every body fits with a margin. */
@@ -141,8 +145,8 @@ export function ModelView() {
           target={targetOf(camera)}
           enableRotate
           enableDamping={false}
-          minPolarAngle={0.002}
-          maxPolarAngle={Math.PI - 0.002}
+          minPolarAngle={(1 * Math.PI) / 180}
+          maxPolarAngle={(179 * Math.PI) / 180}
           mouseButtons={{
             LEFT: space ? MOUSE.PAN : alt ? MOUSE.ROTATE : (undefined as unknown as MOUSE),
             MIDDLE: MOUSE.PAN,
@@ -162,7 +166,10 @@ export function ModelView() {
         {/* light fixed to the camera so brightness follows the angle to the viewer from every side */}
         <ambientLight intensity={0.55} />
         <directionalLight position={cameraPosition({ ...camera, azimuth: camera.azimuth + 25, elevation: Math.min(80, camera.elevation + 20) })} intensity={1.1} />
-        <gridHelper args={[400, 400, '#d0d0cc', '#e8e8e5']} rotation={[Math.PI / 2, 0, 0]} />
+        {/* the ground grid never writes depth, so from below it stays behind the bodies instead of hatching them */}
+        <gridHelper args={[400, 400, '#d0d0cc', '#e8e8e5']} rotation={[Math.PI / 2, 0, 0]} renderOrder={-1}>
+          <lineBasicMaterial attach="material" vertexColors depthWrite={false} transparent opacity={0.9} />
+        </gridHelper>
         <axesHelper args={[12]} />
         {bodies.map((b) => (
           <BodyMesh
@@ -198,14 +205,13 @@ export function ModelView() {
             faces={['Right', 'Left', 'Back', 'Front', 'Top', 'Bottom']}
             onClick={(e: ThreeEvent<MouseEvent>) => {
               e.stopPropagation()
-              // the clicked face normal in gizmo space is the direction to look from
+              // the clicked face's outward normal, in the gizmo's own frame, is the direction to look from;
+              // the gizmo mirrors the world camera, so its frame is the world frame rotated to y-up
               const n = e.face?.normal
               if (!n) return null
-              // gizmo axes: x right, y up (our z), z toward viewer (our -y)
-              const dir = { x: n.x, y: -n.z, z: n.y }
-              const sph = sphericalOf(dir.x, dir.y, dir.z)
-              const nearest = CANONICAL_VIEWS.map((v) => ({ v, d: Math.hypot(wrapAzimuth(v.azimuth - sph.azimuth), v.elevation - sph.elevation) })).sort((a, b) => a.d - b.d)[0]!.v
-              easeTo(nearest)
+              // measured against all six faces: the gizmo's frame matches the world's z-up frame directly
+              const world: [number, number, number] = [n.x, n.y, n.z]
+              easeTo(viewForDirection(world))
               return null
             }}
           />

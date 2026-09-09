@@ -69,7 +69,7 @@ test('orbit by right drag, snap near a canonical view, stay when far, keys and c
   await test.step('keys select views and Home returns to the default', async () => {
     await page.keyboard.press('5')
     await page.waitForTimeout(250)
-    expect((await cam()).elevation).toBeCloseTo(89.9, 1)
+    expect((await cam()).elevation).toBeCloseTo(89, 1)
     await page.keyboard.press('Home')
     await page.waitForTimeout(250)
     expect(await cam()).toMatchObject({ azimuth: -45 })

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BufferAttribute, BufferGeometry } from 'three'
+import { BufferAttribute, BufferGeometry, DoubleSide } from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { Body } from '../../core/geom/body'
 import { type Face, faces } from '../../core/geom/faces'
@@ -22,14 +22,21 @@ function toXYZ(f: Face, u: number, v: number): [number, number, number] {
   return [p.x * IN, p.y * IN, p.z * IN]
 }
 
+/**
+ * Faces wound counter-clockwise seen from outside the body, so lighting and culling both treat
+ * the outward side as the front. The (u, v) frame is right-handed for +axis faces and mirrored
+ * for -axis faces, hence the flip.
+ */
 export function faceGeometry(f: Face): BufferGeometry {
   const pos: number[] = []
+  const flip = f.dir < 0
   for (const r of f.rects) {
     const a = toXYZ(f, r.u0, r.v0)
     const b = toXYZ(f, r.u1, r.v0)
     const c = toXYZ(f, r.u1, r.v1)
     const d = toXYZ(f, r.u0, r.v1)
-    pos.push(...a, ...b, ...c, ...a, ...c, ...d)
+    if (flip) pos.push(...a, ...c, ...b, ...a, ...d, ...c)
+    else pos.push(...a, ...b, ...c, ...a, ...c, ...d)
   }
   const g = new BufferGeometry()
   g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3))
@@ -82,7 +89,7 @@ export function BodyMesh({ body, selected, pickable, onFace, onBody }: Props) {
               else onBody()
             }}
           >
-            <meshLambertMaterial color={hover === i && pickable ? HOVER : selected ? SELECTED : BASE} />
+            <meshLambertMaterial color={hover === i && pickable ? HOVER : selected ? SELECTED : BASE} side={DoubleSide} />
           </mesh>
           <lineSegments>
             <bufferGeometry>
