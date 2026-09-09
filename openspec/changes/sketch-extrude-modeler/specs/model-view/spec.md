@@ -45,3 +45,14 @@ An extrude's properties SHALL offer a Pick in view action when its operation is 
 #### Scenario: Pick the cut target
 - **WHEN** Extrude 7 is a cut with no target and the user chooses Pick in view then clicks the body from Extrude 2
 - **THEN** Extrude 7's target is Extrude 2's body and it evaluates
+
+### Requirement: Returning to the document settings
+The timeline SHALL begin with a row for the document itself, showing its title, that is selected whenever no feature is selected. Choosing it SHALL clear the selection so the properties panel shows the document settings and parameters. In the model view, Escape with no pick in progress SHALL also clear the selection.
+
+#### Scenario: Back to document settings
+- **WHEN** an extrude is selected and the user clicks the document row at the top of the timeline
+- **THEN** nothing is selected and the properties panel shows the document title and parameters
+
+#### Scenario: Escape clears
+- **WHEN** a body is selected in the model view and the user presses Escape
+- **THEN** nothing is selected

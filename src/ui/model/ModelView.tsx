@@ -87,7 +87,10 @@ export function ModelView() {
     const down = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isText(e.target)) setSpace(true)
       if (e.key === 'Alt') setAlt(true)
-      if (e.key === 'Escape' && (mode.kind === 'pickFace' || mode.kind === 'pickBody')) dispatch('setMode', { kind: 'model' })
+      if (e.key === 'Escape') {
+        if (mode.kind === 'pickFace' || mode.kind === 'pickBody') dispatch('setMode', { kind: 'model' })
+        else if (!isText(e.target)) dispatch('select', {})
+      }
       if (isText(e.target) || e.metaKey || e.ctrlKey) return
       if (KEY_VIEWS[e.key]) goTo(KEY_VIEWS[e.key]!)
       else if (e.key === 'Home') goTo('iso-fl')

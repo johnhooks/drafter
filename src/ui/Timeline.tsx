@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { dependentsOf } from '../core/model/deps'
 import { useStore } from './store/store'
 
+/** Row id for the document itself, never a feature id. */
+const DOCUMENT_ROW = '__document__'
+
 export function Timeline() {
   const doc = useStore((s) => s.doc)
   const ev = useStore((s) => s.eval)
@@ -17,15 +20,15 @@ export function Timeline() {
   return (
     <div className="timeline">
       <h3 className="section-title">Timeline</h3>
-      {doc.features.length === 0 && <Hint>No features yet. Start with New sketch.</Hint>}
       <ListBox
         aria-label="Timeline"
         selectionMode="single"
         actionSlots={2}
-        selectedKeys={selection.featureId ? [selection.featureId] : []}
+        selectedKeys={[selection.featureId ?? DOCUMENT_ROW]}
         onSelectionChange={(keys) => {
           const id = keys === 'all' ? undefined : ([...keys][0] as string | undefined)
-          if (!id) return dispatch('select', {})
+          // the document row is always present, so selecting it is how you get back to the document settings
+          if (!id || id === DOCUMENT_ROW) return dispatch('select', {})
           const f = doc.features.find((x) => x.id === id)
           if (f?.kind === 'extrude') {
             const res = ev.results.get(f.id)
@@ -33,6 +36,9 @@ export function Timeline() {
           } else dispatch('select', { featureId: id })
         }}
       >
+        <ListBoxItem id={DOCUMENT_ROW} textValue={doc.title} detail={`${doc.params.length} param${doc.params.length === 1 ? '' : 's'}`}>
+          {doc.title}
+        </ListBoxItem>
         {doc.features.map((f) => {
           const r = ev.results.get(f.id)
           const failed = r?.kind === 'error'
@@ -58,6 +64,7 @@ export function Timeline() {
           )
         })}
       </ListBox>
+      {doc.features.length === 0 && <Hint>No features yet. Start with New sketch.</Hint>}
       <ConfirmDialog
         title={`Delete ${names[0] ?? ''}?`}
         isOpen={pending !== null}
