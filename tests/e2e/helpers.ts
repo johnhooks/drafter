@@ -3,8 +3,10 @@ import { type Page, expect } from '@playwright/test'
 export interface Debug {
   mode: { kind: string; sketchId?: string }
   tool: string
-  selection: { featureId?: string; bodyId?: string; rectIds: string[]; constraint?: unknown }
+  selection: { featureId?: string; bodyId?: string; lineIds: string[]; regions: Array<{ vertical: string; horizontal: string }>; constraint?: unknown }
   features: Array<Record<string, any>>
+  /** Regions per sketch id: corner refs, bounds in sixteenths, and area. */
+  regions: Record<string, Array<{ ref: { vertical: string; horizontal: string }; bounds: { u0: number; u1: number; v0: number; v1: number }; area: number }>>
   errors: Array<{ featureId: string; message: string }>
   bodies: Array<{ id: string; volume: number; bounds: Record<string, number> }>
   notices: string[]
@@ -42,10 +44,33 @@ export async function clickInches(page: Page, view: View, u: number, v: number) 
   await page.mouse.click(box.x + box.width / 2 + x, box.y + box.height / 2 + y)
 }
 
-/** Draw a rect in the current sketch by plane inches. */
+/** Draw a rectangle in the current sketch by plane inches, with the Rectangle tool active. */
 export async function drawInches(page: Page, view: View, a: [number, number], b: [number, number]) {
   await dragSvg(page, px(view, a[0], a[1]), px(view, b[0], b[1]))
 }
+
+/** Draw a chain of lines through the points with the Line tool, then end the chain with Escape. */
+export async function lineInches(page: Page, view: View, points: Array<[number, number]>) {
+  await tool(page, 'Line')
+  for (const [u, v] of points) await clickInches(page, view, u, v)
+  await page.keyboard.press('Escape')
+}
+
+/** Click inside a region with the Select tool. */
+export async function regionAt(page: Page, view: View, u: number, v: number, shift = false) {
+  await tool(page, 'Select')
+  const box = (await page.locator('.sketch svg').boundingBox())!
+  const [x, y] = px(view, u, v)
+  if (shift) await page.keyboard.down('Shift')
+  await page.mouse.click(box.x + box.width / 2 + x, box.y + box.height / 2 + y)
+  if (shift) await page.keyboard.up('Shift')
+}
+
+/** Lines of a sketch feature from the debug hook, by id. */
+export const linesOf = (d: Debug, i: number): Array<Record<string, any>> => d.features[i]!.lines
+export const lineById = (d: Debug, i: number, id: string): Record<string, any> | undefined => linesOf(d, i).find((l) => l.id === id)
+/** Regions of the sketch at feature index i. */
+export const regionsOf = (d: Debug, i: number) => d.regions[d.features[i]!.id] ?? []
 
 /** The view a face sketch opens with: framed on its face at 70% of the viewport. */
 export async function faceView(page: Page, face: { u0: number; u1: number; v0: number; v1: number }, su: 1 | -1 = 1): Promise<View> {
@@ -114,7 +139,7 @@ export async function choose(page: Page, label: string, option: string | RegExp)
 }
 
 /** Picks a sketch tool from the toolbar toggle group. */
-export async function tool(page: Page, name: 'Select' | 'Rectangle' | 'Link') {
+export async function tool(page: Page, name: 'Select' | 'Line' | 'Rectangle' | 'Link') {
   await page.getByRole('radio', { name }).click()
 }
 

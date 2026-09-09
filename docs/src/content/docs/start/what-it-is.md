@@ -5,13 +5,13 @@ sidebar:
   order: 1
 ---
 
-Drawing builds solid models from rectangles. You sketch rectangles on a plane, extrude them into a box, then sketch on any face of that box and extrude again to add or remove material. Every feature is recorded in a timeline, and editing an early feature re-evaluates everything after it, so a model keeps its intent when a dimension changes.
+Drawing builds solid models from lines. You sketch horizontal and vertical lines on a plane, and wherever they close an outline they enclose a region. Extrude a region into a solid, then sketch on any face of that solid and extrude again to add or remove material. Every feature is recorded in a timeline, and editing an early feature re-evaluates everything after it, so a model keeps its intent when a dimension changes.
 
 Three things set it apart from a drawing program:
 
 - **Exact lengths.** Every length is a whole number of sixteenths of an inch. Sums and differences are exact; there is no floating point drift and no rounding surprise.
 - **Real solids.** Cutting removes material. A pocket has a floor and walls; a through hole shows through.
-- **Relations.** An edge can be defined relative to another edge or to a named parameter. Change the parameter and everything built on it follows.
+- **Relations.** A line can be placed relative to another line, a face edge, or a named parameter. Change the parameter and everything built on it follows.
 
 The model is axis-aligned throughout: sketch planes are the three principal planes or faces of bodies, and extrudes run along a plane's normal. That is what makes the geometry exact and the tool small.
 

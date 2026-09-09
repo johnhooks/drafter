@@ -18,3 +18,14 @@ describe('snap', () => {
     expect(snap(370, 100, ctx)).toMatchObject({ u: 370, v: 100, kind: 'grid' })
   })
 })
+
+describe('snap to sketch lines', () => {
+  // a vertical line at u = 160 supplies a u edge; its endpoints are corners
+  const lines = { corners: [[160, 0], [160, 256]] as const, uEdges: [160], vEdges: [], range: 6 }
+  it('a pointer near a vertical line snaps its u only', () => {
+    expect(snap(163, 100.4, lines)).toMatchObject({ u: 160, v: 100, kind: 'edge', snappedU: true, snappedV: false })
+  })
+  it('a pointer near an endpoint snaps both', () => {
+    expect(snap(163, 253, lines)).toMatchObject({ u: 160, v: 256, kind: 'corner' })
+  })
+})

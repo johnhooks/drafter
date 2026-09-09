@@ -1,7 +1,8 @@
-import { Button, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Row, Select, SelectItem, TextField } from '@drawing/kit'
+import { Button, Checkbox, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Row, Select, SelectItem, TextField } from '@drawing/kit'
 import { FRAMES } from '../core/model/planes'
-import type { ExtrudeFeature, Len, SketchFeature, SketchRect, Slot } from '../core/model/types'
-import { isExpr } from '../core/model/types'
+import type { ExtrudeFeature, Len, LineDir, LineSlot, SketchFeature, SketchLine, Slot } from '../core/model/types'
+import { isExpr, regionKey } from '../core/model/types'
+import { isAttachment } from './sketch/Dimensions'
 import { type Sixteenths, formatLength } from '../core/units'
 import { LenField } from './LenField'
 import { Parameters } from './Parameters'
@@ -42,7 +43,9 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
   const dispatch = useStore((s) => s.dispatch)
   const r = ev.results.get(sketch.id)
   const plane = r?.kind === 'sketch' ? r.plane : null
-  const single = selection.rectIds.length === 1 ? sketch.rects.find((x) => x.id === selection.rectIds[0]) : undefined
+  const regions = r?.kind === 'sketch' ? r.regions : []
+  const single = selection.lineIds.length === 1 ? sketch.lines.find((x) => x.id === selection.lineIds[0]) : undefined
+  const selectedRegionKeys = selection.regions.map(regionKey)
   return (
     <div>
       <h3 className="section-title">
@@ -67,33 +70,64 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
         {r?.kind === 'error' && <Field error={r.message}>{null}</Field>}
         {mode.kind !== 'sketch' && <Button onPress={() => dispatch('setMode', { kind: 'sketch', sketchId: sketch.id })}>Edit sketch</Button>}
       </Fields>
-      <Disclosure title="Rectangles" trailing={String(sketch.rects.length)}>
-        {sketch.rects.length === 0 && <Hint>None yet. Use the rectangle tool.</Hint>}
+      <Disclosure title="Shapes" trailing={String(regions.length)}>
+        {regions.length === 0 && <Hint>None yet. Close an outline with lines or draw a rectangle.</Hint>}
         <ListBox
-          aria-label="Rectangles"
+          aria-label="Shapes"
           dense
           selectionMode="multiple"
-          selectedKeys={selection.rectIds}
-          onSelectionChange={(keys) => dispatch('selectRects', sketch.id, keys === 'all' ? sketch.rects.map((x) => x.id) : ([...keys] as string[]))}
+          selectedKeys={selectedRegionKeys}
+          onSelectionChange={(keys) => {
+            const chosen = keys === 'all' ? regions.map((x) => x.key) : ([...keys] as string[])
+            dispatch('selectRegions', sketch.id, regions.filter((x) => chosen.includes(x.key)).map((x) => x.ref))
+          }}
         >
-          {sketch.rects.map((rect) => {
-            const res = r?.kind === 'sketch' ? r.rects.get(rect.id) : undefined
-            const err = r?.kind === 'sketch' ? r.rectErrors.get(rect.id) : undefined
+          {regions.map((region) => {
+            const b = region.bounds
+            const size = `${formatLength((b.u1 - b.u0) as Sixteenths)} x ${formatLength((b.v1 - b.v0) as Sixteenths)}`
+            const kind = region.rects.length === 1 ? 'Rectangle' : 'Region'
+            // in sketch order, so a rectangle reads l1 l2 l3 l4
+            const bounding = sketch.lines.filter((l) => region.boundary.some((e) => e.lineId === l.id)).map((l) => l.handle).join(' ')
             return (
-              <ListBoxItem
-                key={rect.id}
-                id={rect.id}
-                textValue={rect.handle}
-                tone={err ? 'error' : 'neutral'}
-                detail={res ? `${formatLength((res.u1 - res.u0) as Sixteenths)} x ${formatLength((res.v1 - res.v0) as Sixteenths)} at (${formatLength(res.u0 as Sixteenths)}, ${formatLength(res.v0 as Sixteenths)})` : (err ?? 'unresolved')}
-              >
-                {rect.handle}
+              <ListBoxItem key={region.key} id={region.key} textValue={`${kind} ${size}`} detail={`at (${formatLength(b.u0 as Sixteenths)}, ${formatLength(b.v0 as Sixteenths)}), lines ${bounding}`}>
+                {kind} {size}
               </ListBoxItem>
             )
           })}
         </ListBox>
       </Disclosure>
-      {single && <RectProperties sketch={sketch} rect={single} />}
+      <Disclosure title="Lines" trailing={String(sketch.lines.length)} defaultExpanded={false}>
+        {sketch.lines.length === 0 && <Hint>None yet. Use the line or rectangle tool.</Hint>}
+        <ListBox
+          aria-label="Lines"
+          dense
+          selectionMode="multiple"
+          selectedKeys={selection.lineIds}
+          onSelectionChange={(keys) => dispatch('selectLines', sketch.id, keys === 'all' ? sketch.lines.map((x) => x.id) : ([...keys] as string[]))}
+        >
+          {sketch.lines.map((line) => {
+            const res = r?.kind === 'sketch' ? r.lines.get(line.id) : undefined
+            const err = r?.kind === 'sketch' ? r.lineErrors.get(line.id) : undefined
+            const dir = line.dir === 'h' ? 'horizontal' : 'vertical'
+            return (
+              <ListBoxItem
+                key={line.id}
+                id={line.id}
+                textValue={line.handle}
+                tone={err ? 'error' : 'neutral'}
+                detail={
+                  res
+                    ? `${dir}${line.construction ? ', construction' : ''} at ${formatLength(res.at as Sixteenths)}, ${formatLength(res.min as Sixteenths)} to ${formatLength(res.max as Sixteenths)}`
+                    : (err ?? 'unresolved')
+                }
+              >
+                {line.handle}
+              </ListBoxItem>
+            )
+          })}
+        </ListBox>
+      </Disclosure>
+      {single && <LineProperties sketch={sketch} line={single} />}
       <ConstraintList sketch={sketch} />
     </div>
   )
@@ -104,52 +138,63 @@ function featureName(id: string): string {
   return f?.name ?? id
 }
 
-const SLOT_LABEL: Record<'u' | 'v', Record<Slot, string>> = {
-  u: { min: 'Left', max: 'Right', size: 'Width' },
-  v: { min: 'Bottom', max: 'Top', size: 'Height' },
-}
-const SIDE: Record<'u' | 'v', Record<Slot, string>> = {
-  u: { min: 'left', max: 'right', size: 'width' },
-  v: { min: 'bottom', max: 'top', size: 'height' },
+function handleOf(sketch: SketchFeature, lineId: string): string {
+  return sketch.lines.find((l) => l.id === lineId)?.handle ?? lineId
 }
 
-function RectProperties({ sketch, rect }: { sketch: SketchFeature; rect: SketchRect }) {
+const RUN_LABEL: Record<LineDir, Record<Slot, string>> = {
+  h: { min: 'Left', max: 'Right', size: 'Length' },
+  v: { min: 'Bottom', max: 'Top', size: 'Length' },
+}
+const SLOT_NAME: Record<LineDir, Record<LineSlot, string>> = {
+  h: { at: 'at', min: 'left', max: 'right', size: 'length' },
+  v: { at: 'at', min: 'bottom', max: 'top', size: 'length' },
+}
+
+function LineProperties({ sketch, line }: { sketch: SketchFeature; line: SketchLine }) {
   const ev = useStore((s) => s.eval)
   const dispatch = useStore((s) => s.dispatch)
   const r = ev.results.get(sketch.id)
-  const resolved = r?.kind === 'sketch' ? r.rects.get(rect.id) : undefined
-  const slotValues = r?.kind === 'sketch' ? r.slotValues.get(rect.id) : undefined
-  const err = r?.kind === 'sketch' ? r.rectErrors.get(rect.id) : undefined
-  const axisFields = (axis: 'u' | 'v') => {
-    const slots = rect[axis]
-    const ax = resolved ? (axis === 'u' ? resolved.uAxis : resolved.vAxis) : undefined
-    return (['min', 'max', 'size'] as const).map((slot) => {
-      const driven = slots[slot] !== undefined
-      const value: Len = driven ? (slots[slot] as Len) : ((ax?.[slot] ?? 0) as Sixteenths)
-      const evaluated = driven && isExpr(value) ? slotValues?.[axis]?.[slot] : undefined
-      return (
-        <LenField
-          key={`${axis}-${slot}`}
-          label={SLOT_LABEL[axis][slot]}
-          value={value}
-          derived={!driven}
-          resolved={evaluated}
-          error={driven && isExpr(value) && err ? err : undefined}
-          onCommit={(v) => dispatch('setRectSlot', sketch.id, rect.id, axis, slot, v)}
-        />
-      )
-    })
-  }
+  const resolved = r?.kind === 'sketch' ? r.lines.get(line.id) : undefined
+  const slotValues = r?.kind === 'sketch' ? r.slotValues.get(line.id) : undefined
+  const err = r?.kind === 'sketch' ? r.lineErrors.get(line.id) : undefined
+  const runFields = (['min', 'max', 'size'] as const).map((slot) => {
+    const driven = line.run[slot] !== undefined
+    const fallback = resolved ? (slot === 'size' ? resolved.size : resolved[slot]) : 0
+    const value: Len = driven ? (line.run[slot] as Len) : (fallback as Sixteenths)
+    const evaluated = driven && isExpr(value) ? slotValues?.[slot] : undefined
+    return (
+      <LenField
+        key={slot}
+        label={RUN_LABEL[line.dir][slot]}
+        value={value}
+        derived={!driven}
+        resolved={evaluated}
+        error={driven && isExpr(value) && err ? err : undefined}
+        onCommit={(v) => dispatch('setLineSlot', sketch.id, line.id, slot, v)}
+      />
+    )
+  })
   return (
-    <Disclosure title={`Rectangle ${rect.handle}`}>
+    <Disclosure title={`Line ${line.handle}`}>
       <Fields>
         {err && <Field error={err}>{null}</Field>}
-        <Hint>Two values per axis drive it; the third is derived. Expressions may use r1.right, face.left, ply and + - * /.</Hint>
-        <Row>{axisFields('u')}</Row>
-        <Row>{axisFields('v')}</Row>
+        <Field label="Direction">{line.dir === 'h' ? 'Horizontal' : 'Vertical'}</Field>
+        <LenField
+          label={line.dir === 'h' ? 'Position (v)' : 'Position (u)'}
+          value={line.at}
+          resolved={isExpr(line.at) ? slotValues?.at : undefined}
+          error={isExpr(line.at) && err ? err : undefined}
+          onCommit={(v) => dispatch('setLineSlot', sketch.id, line.id, 'at', v)}
+        />
+        <Hint>Two of the run values drive the line; the third is derived. Expressions may use l1.at, l2.right, face.left, ply and + - * /.</Hint>
+        <Row>{runFields}</Row>
+        <Checkbox isSelected={!!line.construction} onChange={(on) => dispatch('setConstruction', sketch.id, [line.id], on)}>
+          Construction
+        </Checkbox>
         <div>
-          <Button tone="danger" onPress={() => dispatch('removeRects', sketch.id, [rect.id])}>
-            Delete rectangle
+          <Button tone="danger" onPress={() => dispatch('removeLines', sketch.id, [line.id])}>
+            Delete line
           </Button>
         </div>
       </Fields>
@@ -157,25 +202,23 @@ function RectProperties({ sketch, rect }: { sketch: SketchFeature; rect: SketchR
   )
 }
 
-/** Every expression-driven slot in the sketch, selectable and removable. */
+/** Every expression-driven slot in the sketch other than endpoint attachments, selectable and removable. */
 function ConstraintList({ sketch }: { sketch: SketchFeature }) {
   const ev = useStore((s) => s.eval)
   const selected = useStore((s) => s.selection.constraint)
   const dispatch = useStore((s) => s.dispatch)
   const r = ev.results.get(sketch.id)
-  const entries = sketch.rects.flatMap((rect) =>
-    (['u', 'v'] as const).flatMap((axis) =>
-      (['min', 'max', 'size'] as const).flatMap((slot) => {
-        const v = rect[axis][slot]
-        if (v === undefined || !isExpr(v)) return []
-        const value = r?.kind === 'sketch' ? r.slotValues.get(rect.id)?.[axis]?.[slot] : undefined
-        const error = r?.kind === 'sketch' && value === undefined ? r.rectErrors.get(rect.id) : undefined
-        return [{ key: `${rect.id}:${axis}:${slot}`, rect, axis, slot, expr: v, value, error }]
-      }),
-    ),
+  const entries = sketch.lines.flatMap((line) =>
+    (['at', 'min', 'max', 'size'] as const).flatMap((slot) => {
+      const v = slot === 'at' ? line.at : line.run[slot]
+      if (v === undefined || !isExpr(v) || isAttachment(sketch, line, slot)) return []
+      const value = r?.kind === 'sketch' ? r.slotValues.get(line.id)?.[slot] : undefined
+      const error = r?.kind === 'sketch' && value === undefined ? r.lineErrors.get(line.id) : undefined
+      return [{ key: `${line.id}:${slot}`, line, slot, expr: v, value, error }]
+    }),
   )
   if (entries.length === 0) return null
-  const selectedKey = selected ? `${selected.rectId}:${selected.axis}:${selected.slot}` : undefined
+  const selectedKey = selected ? `${selected.lineId}:${selected.slot}` : undefined
   return (
     <Disclosure title="Constraints" trailing={String(entries.length)}>
       <ListBox
@@ -187,14 +230,14 @@ function ConstraintList({ sketch }: { sketch: SketchFeature }) {
         onSelectionChange={(keys) => {
           const k = keys === 'all' ? undefined : ([...keys][0] as string | undefined)
           const e = entries.find((x) => x.key === k)
-          dispatch('selectConstraint', e ? { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot } : undefined)
+          dispatch('selectConstraint', e ? { sketchId: sketch.id, lineId: e.line.id, slot: e.slot } : undefined)
         }}
       >
         {entries.map((e) => (
           <ListBoxItem
             key={e.key}
             id={e.key}
-            textValue={`${e.rect.handle}.${SIDE[e.axis][e.slot]} = ${e.expr}`}
+            textValue={`${e.line.handle}.${SLOT_NAME[e.line.dir][e.slot]} = ${e.expr}`}
             tone={e.error ? 'error' : 'neutral'}
             detail={e.error ?? (e.value !== undefined ? formatLength(e.value as Sixteenths) : '')}
             actions={
@@ -203,12 +246,12 @@ function ConstraintList({ sketch }: { sketch: SketchFeature }) {
                 size="sm"
                 tone="danger"
                 aria-label="Remove"
-                onPress={() => dispatch('removeConstraint', { sketchId: sketch.id, rectId: e.rect.id, axis: e.axis, slot: e.slot })}
+                onPress={() => dispatch('removeConstraint', { sketchId: sketch.id, lineId: e.line.id, slot: e.slot })}
               />
             }
           >
             <span className="mono">
-              {e.rect.handle}.{SIDE[e.axis][e.slot]} = {e.expr}
+              {e.line.handle}.{SLOT_NAME[e.line.dir][e.slot]} = {e.expr}
             </span>
           </ListBoxItem>
         ))}
@@ -245,7 +288,7 @@ function ExtrudeProperties({ extrude }: { extrude: ExtrudeFeature }) {
       <Fields>
         <NameField id={extrude.id} name={extrude.name} />
         <Field label="From">
-          {sketch?.name ?? extrude.sketchId}, {extrude.rectIds.length} rect{extrude.rectIds.length === 1 ? '' : 's'}
+          {sketch?.name ?? extrude.sketchId}, {extrude.regions.length} region{extrude.regions.length === 1 ? '' : 's'}
         </Field>
         <LenField
           label="Distance"

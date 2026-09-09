@@ -158,6 +158,10 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   const theme = useStore((s) => s.theme)
   const undoable = useStore(canUndo)
   const redoable = useStore(canRedo)
+  const regionCount = useStore((s) => {
+    const r = sketch ? s.eval.results.get(sketch.id) : undefined
+    return r?.kind === 'sketch' ? r.regions.length : 0
+  })
   const fileInput = useRef<HTMLInputElement>(null)
   const [newSketchOpen, setNewSketchOpen] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
@@ -212,6 +216,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
         <>
           <ToggleButtonGroup aria-label="Tool" selectedKeys={[tool]} onSelectionChange={(keys) => dispatch('setTool', [...keys][0] as Tool)}>
             <ToggleButton id="select">Select</ToggleButton>
+            <ToggleButton id="line">Line</ToggleButton>
             <ToggleButton id="rect">Rectangle</ToggleButton>
             <ToggleButton id="link">Link</ToggleButton>
           </ToggleButtonGroup>
@@ -221,16 +226,16 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
           <ToolbarSeparator />
           <Button
             variant="primary"
-            isDisabled={sketch.rects.length === 0}
+            isDisabled={regionCount === 0}
             onPress={() => {
-              dispatch('addExtrude', sketch.id, selection.rectIds, DEFAULT_EXTRUDE)
+              dispatch('addExtrude', sketch.id, selection.regions, DEFAULT_EXTRUDE)
               dispatch('setMode', { kind: 'model' })
               const id = useStore.getState().doc.features.at(-1)?.id
               const res = id ? useStore.getState().eval.results.get(id) : undefined
               if (id) dispatch('select', { featureId: id, bodyId: res?.kind === 'extrude' ? res.bodyId : undefined })
             }}
           >
-            Extrude {selection.rectIds.length ? `(${selection.rectIds.length})` : '(all)'}
+            Extrude {selection.regions.length ? `(${selection.regions.length})` : '(all)'}
           </Button>
           <Button onPress={() => dispatch('setMode', { kind: 'model' })}>Finish</Button>
         </>

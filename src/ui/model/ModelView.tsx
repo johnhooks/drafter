@@ -222,7 +222,7 @@ export function ModelView() {
       </Canvas>
       {picking && <div className="hint">Click a face to sketch on it. Esc to cancel.</div>}
       {pickingBody && <div className="hint">Click a body to use as the target. Esc to cancel.</div>}
-      {!picking && !pickingBody && bodies.length === 0 && <div className="hint">No bodies yet. New Sketch, draw a rectangle, then Extrude.</div>}
+      {!picking && !pickingBody && bodies.length === 0 && <div className="hint">No bodies yet. New Sketch, draw a closed outline, then Extrude.</div>}
     </div>
   )
 }

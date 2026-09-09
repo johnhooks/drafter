@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { type Page, expect, test } from '@playwright/test'
 
-import { choose, confirmDialog, dbg, dragSvg, field, isoPoint, makeCube, menu, newSketch, rowAction, tool } from './helpers'
+import { choose, confirmDialog, dbg, dragSvg, field, isoPoint, linesOf, makeCube, menu, newSketch, regionAt, regionsOf, rowAction, tool } from './helpers'
 
 /** Draw a rect in the current sketch by plane inches, given the view centre and scale the editor is using. */
 async function drawInches(page: Page, view: { cu: number; cv: number; scale: number; su: 1 | -1 }, a: [number, number], b: [number, number]) {
@@ -38,14 +38,21 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   // empty sketch opens centred on (12, 12) at 12 px/in
   const v1 = { cu: 12, cv: 12, scale: 12, su: 1 as const }
 
-  await test.step('rectangle tool draws, snaps to the grid, ignores zero-size drags', async () => {
+  await test.step('rectangle tool draws four attached lines, snaps to the grid, ignores zero-size drags', async () => {
     await drawInches(page, v1, [0, 0], [24, 24])
     d = await dbg(page)
-    const r = d.features[0]!.rects[0]
-    expect(r).toMatchObject({ handle: 'r1', u: { min: 0, max: 384 }, v: { min: 0, max: 384 } })
+    expect(linesOf(d, 0).map((l) => [l.handle, l.dir, l.at])).toEqual([
+      ['l1', 'v', 0],
+      ['l2', 'h', 0],
+      ['l3', 'v', 384],
+      ['l4', 'h', 384],
+    ])
+    expect(linesOf(d, 0)[0]!.run).toEqual({ min: 'l2.at', max: 'l4.at' })
+    expect(regionsOf(d, 0)).toHaveLength(1)
+    expect(regionsOf(d, 0)[0]!.bounds).toEqual({ u0: 0, u1: 384, v0: 0, v1: 384 })
     await dragSvg(page, [-100, 100], [-100, 100])
     d = await dbg(page)
-    expect(d.features[0]!.rects).toHaveLength(1)
+    expect(linesOf(d, 0)).toHaveLength(4)
   })
 
   await test.step('inline dimension editing', async () => {
@@ -59,7 +66,9 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await input.fill('23 1/4')
     await input.press('Enter')
     d = await dbg(page)
-    expect(d.features[0]!.rects[0].u).toEqual({ min: 0, size: 372 })
+    // the region's width moves its right line
+    expect(linesOf(d, 0)[2]!.at).toBe(372)
+    expect(regionsOf(d, 0)[0]!.bounds.u1).toBe(372)
     await page.click('text[data-dim="h"]')
     await page.locator('input.inline-edit').press('Escape')
     await expect(page.locator('input.inline-edit')).toHaveCount(0)
@@ -68,28 +77,36 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await page.locator('input.inline-edit').press('Enter')
   })
 
-  await test.step('select tool and rectangle properties', async () => {
+  await test.step('select tool: regions, lines, and line properties', async () => {
     await tool(page, 'Select')
     await dragSvg(page, [-80, 100], [-80, 100])
     d = await dbg(page)
-    expect(d.selection.rectIds).toHaveLength(1)
+    expect(d.selection.regions).toHaveLength(1)
+    expect(d.selection.lineIds).toHaveLength(0)
     await dragSvg(page, [300, -300], [300, -300])
     d = await dbg(page)
-    expect(d.selection.rectIds).toHaveLength(0)
-    await page.getByRole('option', { name: 'r1', exact: true }).click()
-    const left = field(page, 'Left')
-    await left.fill('12')
-    await left.press('Enter')
+    expect(d.selection.regions).toHaveLength(0)
+    // a click on the left line wins over the region under it
+    await dragSvg(page, [-144, 0], [-144, 0])
     d = await dbg(page)
-    expect(d.features[0]!.rects[0].u).toEqual({ min: 192, size: 384 })
-    await left.fill('0')
-    await left.press('Enter')
-    const width = field(page, 'Width')
-    await width.fill('abc @')
-    await width.press('Enter')
+    expect(d.selection.lineIds).toEqual([linesOf(d, 0)[0]!.id])
+    expect(d.selection.regions).toHaveLength(0)
+    await page.getByRole('button', { name: /^Lines/ }).click()
+    await expect(page.getByRole('option', { name: 'l1', exact: true })).toHaveAttribute('aria-selected', 'true')
+    const position = field(page, 'Position')
+    await position.fill('12')
+    await position.press('Enter')
+    d = await dbg(page)
+    expect(linesOf(d, 0)[0]!.at).toBe(192)
+    expect(regionsOf(d, 0)[0]!.bounds).toMatchObject({ u0: 192, u1: 384 })
+    await position.fill('0')
+    await position.press('Enter')
+    const length = field(page, 'Length')
+    await length.fill('abc @')
+    await length.press('Enter')
     await expect(page.locator('.kit-field-error')).toHaveCount(1)
     d = await dbg(page)
-    expect(d.features[0]!.rects[0].u).toEqual({ min: 0, size: 384 })
+    expect(linesOf(d, 0)[0]!.at).toBe(0)
   })
 
   await test.step('extrude to a 24" cube', async () => {
@@ -121,7 +138,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await page.mouse.move(tx, ty)
     await page.mouse.click(tx, ty)
     d = await dbg(page)
-    expect(d.features[2]).toMatchObject({ kind: 'sketch', plane: { kind: 'face', face: 'vMax', featureId: d.features[1]!.id } })
+    expect(d.features[2]).toMatchObject({ kind: 'sketch', plane: { kind: 'face', face: 'side', featureId: d.features[1]!.id, lineId: linesOf(d, 0)[3]!.id, outward: 1 } })
     expect(d.mode.kind).toBe('sketch')
     await expect(page.locator('.axis-indicator')).toContainText('XY plane, viewed from +Z. X right, Y up.')
     await expect(page.locator('.sketch svg path')).toHaveCount(1)
@@ -134,17 +151,20 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   await test.step('snapping and deletion', async () => {
     await drawInches(page, v2, [10, -14], [14, -10])
     d = await dbg(page)
-    expect(d.features[2]!.rects[0]).toMatchObject({ u: { min: 160, max: 224 }, v: { min: -224, max: -160 } })
+    expect(regionsOf(d, 2)[0]!.bounds).toEqual({ u0: 160, u1: 224, v0: -224, v1: -160 })
     // end a drag 4 px past the face edge at u = 24: snaps onto the edge
     const px = 4 / v2.scale
     await drawInches(page, v2, [18, -4], [24 + px, -2])
     d = await dbg(page)
-    expect(d.features[2]!.rects[1].u.max).toBe(384)
-    await tool(page, 'Select')
-    await drawInches(page, v2, [21, -3], [21, -3])
+    expect(regionsOf(d, 2)[1]!.bounds.u1).toBe(384)
+    // selecting the second region and deleting removes the lines that bound only it
+    await regionAt(page, v2, 21, -3)
+    d = await dbg(page)
+    expect(d.selection.regions).toHaveLength(1)
     await page.keyboard.press('Delete')
     d = await dbg(page)
-    expect(d.features[2]!.rects).toHaveLength(1)
+    expect(linesOf(d, 2)).toHaveLength(4)
+    expect(regionsOf(d, 2)).toHaveLength(1)
   })
 
   await test.step('cut a 2" pocket', async () => {
@@ -166,7 +186,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const [tx, ty] = await isoPoint(page, 24, -12, 12)
     await page.mouse.click(tx, ty)
     d = await dbg(page)
-    expect(d.features[4]).toMatchObject({ kind: 'sketch', plane: { face: 'uMax' } })
+    expect(d.features[4]).toMatchObject({ kind: 'sketch', plane: { face: 'side', lineId: linesOf(d, 0)[2]!.id, outward: 1 } })
     await expect(page.locator('.axis-indicator')).toContainText('YZ plane, viewed from +X. Y right, Z up.')
     const box = (await page.locator('.sketch svg').boundingBox())!
     const v3 = { cu: -12, cv: 12, scale: Math.min((box.width * 0.7) / 24, (box.height * 0.7) / 24), su: 1 as const }
@@ -194,8 +214,9 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     await rowAction(page, /^Sketch 2/, 'Edit')
     d = await dbg(page)
     expect(d.mode).toMatchObject({ kind: 'sketch', sketchId: d.features[2]!.id })
-    await expect(page.locator('[data-rect-id]')).toHaveCount(1)
-    await expect(page.locator('.sketch svg path')).toHaveCount(1)
+    await expect(page.locator('[data-line-id]')).toHaveCount(4)
+    // one coplanar face fill plus one region fill
+    await expect(page.locator('.sketch svg path')).toHaveCount(2)
   })
 
   await test.step('export sketch svg', async () => {
@@ -223,7 +244,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const [dl] = await Promise.all([page.waitForEvent('download'), menu(page, 'Download JSON')])
     await dl.saveAs(jsonPath)
     const json = JSON.parse(readFileSync(jsonPath, 'utf8'))
-    expect(json.version).toBe(3)
+    expect(json.version).toBe(4)
     expect(json.model.features).toHaveLength(6)
     expect(json.view.camera.zoom).toBeGreaterThan(0)
     const [png] = await Promise.all([page.waitForEvent('download'), menu(page, 'Export view as PNG')])
@@ -243,7 +264,14 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
 
   await test.step('invalid json is refused, valid json replaces the document', async () => {
     const bad = testInfo.outputPath('bad.json')
-    writeFileSync(bad, JSON.stringify({ version: 3, model: { title: 'x', params: [], features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', rectIds: ['r'], distance: 16, op: 'new' }] }, view: { camera: { azimuth: 0, elevation: 0, zoom: 6, center: [0, 0, 0] } } }))
+    writeFileSync(
+      bad,
+      JSON.stringify({
+        version: 4,
+        model: { title: 'x', params: [], features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', regions: [{ vertical: 'a', horizontal: 'b' }], distance: 16, op: 'new' }] },
+        view: { camera: { azimuth: 0, elevation: 0, zoom: 6, center: [0, 0, 0] } },
+      }),
+    )
     await page.setInputFiles('input[type=file]', bad)
     await expect(page.locator('.kit-toast')).toContainText('Could not open bad.json')
     d = await dbg(page)
@@ -284,8 +312,7 @@ test('back-facing plane is mirrored and labelled', async ({ page }) => {
   await dragSvg(page, [0, 0], [60, -60])
   const d = await dbg(page)
   // the drag started at u = 12" and moved 60 px (5") to the right, which is toward -X on a mirrored plane
-  const r = d.features[0]!.rects[0]
-  expect(r.u).toEqual({ min: 112, max: 192 })
+  expect(regionsOf(d, 0)[0]!.bounds).toMatchObject({ u0: 112, u1: 192 })
 })
 
 test('sketch view zooms with the wheel and pans with the middle button', async ({ page }) => {

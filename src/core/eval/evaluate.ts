@@ -1,15 +1,15 @@
 import { type Value, evaluateExpr } from '../expr/evaluate'
 import type { Body } from '../geom/body'
-import type { Box } from '../geom/box'
 import { type Face, faces } from '../geom/faces'
 import { type Rect2, rectsOverlap } from '../geom/rect2d'
-import { applyExtrude } from '../model/extrude'
+import { type SketchRegion, computeRegions } from '../geom/regions'
+import { type ExtrudedRegion, applyExtrude } from '../model/extrude'
 import { evaluateParams } from '../model/params'
-import { FRAMES, boxToPlaneRect, facePlaneOfExtrusion, planesEqual } from '../model/planes'
+import { FRAMES, boxToPlaneRect, capPlane, planesEqual, sideBox, sidePlane } from '../model/planes'
 import type { Document, FaceRef, Len, PlaneDef, ResolvedPlane, SketchFeature } from '../model/types'
-import { isExpr } from '../model/types'
+import { isExpr, regionKey } from '../model/types'
 import type { Sixteenths } from '../units'
-import { type ResolvedRect, type SketchResolution, resolveSketch } from './resolveSketch'
+import { type ResolvedLine, type SketchResolution, resolveSketch } from './resolveSketch'
 
 export interface SketchResult {
   readonly kind: 'sketch'
@@ -20,19 +20,21 @@ export interface SketchResult {
   readonly coplanarFaces: Face[]
   /** Every body box projected onto the plane. Drawn as faint outlines. */
   readonly outlines: Rect2[]
-  /** Resolved rectangles by id; a rectangle in error is absent and listed in rectErrors. */
-  readonly rects: Map<string, ResolvedRect>
-  readonly rectErrors: Map<string, string>
+  /** Resolved lines by id; a line in error is absent and listed in lineErrors. */
+  readonly lines: Map<string, ResolvedLine>
+  readonly lineErrors: Map<string, string>
   readonly slotValues: SketchResolution['slotValues']
+  /** Bounded regions enclosed by the resolved non-construction lines. */
+  readonly regions: SketchRegion[]
 }
 
 export interface ExtrudeResult {
   readonly kind: 'extrude'
   readonly bodyId: string
+  readonly sketchId: string
   readonly plane: ResolvedPlane
   readonly distance: number
-  readonly boxes: Map<string, Box>
-  readonly rects: Map<string, Rect2>
+  readonly regions: Map<string, ExtrudedRegion>
 }
 
 export interface FeatureError {
@@ -73,10 +75,11 @@ export function evaluate(doc: Document): EvalResult {
         face: plane.face,
         noFaceReason: plane.face ? undefined : `${f.name} is on a principal plane and has no face`,
       })
-      results.set(f.id, { ...sketchResult(plane.value, bodies), face: plane.face, rects: res.rects, rectErrors: res.errors, slotValues: res.slotValues })
-      for (const [rid, msg] of res.errors) {
-        const r = f.rects.find((x) => x.id === rid)
-        errors.push({ featureId: f.id, message: `${r?.handle ?? rid}: ${msg}` })
+      const regions = computeRegions([...res.lines.values()].filter((l) => !l.construction))
+      results.set(f.id, { ...sketchResult(plane.value, bodies), face: plane.face, lines: res.lines, lineErrors: res.errors, slotValues: res.slotValues, regions })
+      for (const [lid, msg] of res.errors) {
+        const l = f.lines.find((x) => x.id === lid)
+        errors.push({ featureId: f.id, message: `${l?.handle ?? lid}: ${msg}` })
       }
     } else {
       const sketch = doc.features.find((x): x is SketchFeature => x.kind === 'sketch' && x.id === f.sketchId)
@@ -94,7 +97,7 @@ export function evaluate(doc: Document): EvalResult {
         fail(f.id, `Distance: ${distance.error}`)
         continue
       }
-      const applied = applyExtrude(f, sketch, sr.plane, sr.rects, sr.rectErrors, distance.value, bodies)
+      const applied = applyExtrude(f, sketch, sr.plane, sr.regions, sr.lineErrors, distance.value, bodies)
       if (!applied.ok) {
         fail(f.id, applied.error)
         continue
@@ -103,10 +106,10 @@ export function evaluate(doc: Document): EvalResult {
       results.set(f.id, {
         kind: 'extrude',
         bodyId: applied.value.bodyId,
+        sketchId: f.sketchId,
         plane: sr.plane,
         distance: distance.value,
-        boxes: applied.value.boxes,
-        rects: applied.value.rects,
+        regions: applied.value.regions,
       })
     }
   }
@@ -119,7 +122,7 @@ export type LenResult = { ok: true; value: Sixteenths } | { ok: false; error: st
 export function resolveLen(v: Len, params: ReadonlyMap<string, Value>): LenResult {
   if (!isExpr(v)) return { ok: true, value: v as Sixteenths }
   try {
-    const out = evaluateExpr(v, { params, rects: new Map() })
+    const out = evaluateExpr(v, { params, lines: new Map() })
     if (out.kind !== 'length') return { ok: false, error: `"${v}" is a position; expected a length` }
     return { ok: true, value: out.value as Sixteenths }
   } catch (e) {
@@ -127,7 +130,7 @@ export function resolveLen(v: Len, params: ReadonlyMap<string, Value>): LenResul
   }
 }
 
-function sketchResult(plane: ResolvedPlane, bodies: ReadonlyMap<string, Body>): Omit<SketchResult, 'rects' | 'rectErrors' | 'slotValues'> {
+function sketchResult(plane: ResolvedPlane, bodies: ReadonlyMap<string, Body>): Omit<SketchResult, 'lines' | 'lineErrors' | 'slotValues' | 'regions'> {
   const n = FRAMES[plane.plane].n
   const coplanarFaces: Face[] = []
   const outlines: Rect2[] = []
@@ -158,7 +161,7 @@ export function resolvePlane(
   return resolveFaceRef(def, results, bodies)
 }
 
-/** Resolves a face reference against the extrude's current result and checks the face still exists. */
+/** Resolves a face reference against the extrude's current result and checks the face still exists on the body. */
 export function resolveFaceRef(
   ref: FaceRef,
   results: ReadonlyMap<string, FeatureResult>,
@@ -168,20 +171,42 @@ export function resolveFaceRef(
   if (!r) return { ok: false, error: `Referenced feature ${ref.featureId} does not exist before this sketch` }
   if (r.kind === 'error') return { ok: false, error: `Referenced feature ${ref.featureId} failed`, dependsOn: ref.featureId }
   if (r.kind !== 'extrude') return { ok: false, error: `Referenced feature ${ref.featureId} is not an extrude` }
-  const rectId = ref.rectId ?? r.rects.keys().next().value
-  const rect = rectId !== undefined ? r.rects.get(rectId) : undefined
-  const box = rectId !== undefined ? r.boxes.get(rectId) : undefined
-  if (!rect || !box) return { ok: false, error: `Rectangle ${String(rectId)} is no longer part of ${ref.featureId}` }
-  const plane = facePlaneOfExtrusion(r.plane, rect, r.distance as Sixteenths, ref.face)
+  const e = r.regions.get(regionKey(ref.region))
+  if (!e) return { ok: false, error: `The referenced region is no longer part of ${ref.featureId}` }
+  const distance = r.distance as Sixteenths
   const body = bodies.get(r.bodyId)
   if (!body) return { ok: false, error: `Body ${r.bodyId} no longer exists` }
-  const want = boxToPlaneRect(plane, box)
+  let plane: ResolvedPlane
+  let wants: Rect2[]
+  let label: string
+  if (ref.face === 'side') {
+    const edges = e.region.boundary.filter((b) => b.lineId === ref.lineId && b.outward === ref.outward)
+    if (edges.length === 0) {
+      const sr = results.get(r.sketchId)
+      const handle = sr?.kind === 'sketch' ? (sr.lines.get(ref.lineId)?.handle ?? ref.lineId) : ref.lineId
+      return { ok: false, error: `${handle} no longer bounds the region on that side of ${ref.featureId}` }
+    }
+    const first = edges[0]!
+    plane = sidePlane(r.plane, first.dir, first.at, first.outward)
+    wants = edges.map((b) => boxToPlaneRect(plane, sideBox(r.plane, b.dir, b.at, b.from, b.to, distance)))
+    label = `side ${ref.lineId}`
+  } else {
+    plane = capPlane(r.plane, distance, ref.face)
+    wants = e.region.rects
+    label = ref.face
+  }
   const n = FRAMES[plane.plane].n
   const present = faces(body).some(
-    (f) => f.axis === n && f.dir === plane.normal && f.coord === plane.offset && f.rects.some((fr) => rectsOverlap(fr, want)),
+    (f) => f.axis === n && f.dir === plane.normal && f.coord === plane.offset && f.rects.some((fr) => wants.some((w) => rectsOverlap(fr, w))),
   )
-  if (!present) return { ok: false, error: `The ${ref.face} face of ${ref.featureId} has been removed` }
-  return { ok: true, value: plane, face: want }
+  if (!present) return { ok: false, error: `The ${label} face of ${ref.featureId} has been removed` }
+  const face: Rect2 = {
+    u0: Math.min(...wants.map((w) => w.u0)),
+    u1: Math.max(...wants.map((w) => w.u1)),
+    v0: Math.min(...wants.map((w) => w.v0)),
+    v1: Math.max(...wants.map((w) => w.v1)),
+  }
+  return { ok: true, value: plane, face }
 }
 
 export function extrudeOf(result: EvalResult, id: string): ExtrudeResult | undefined {

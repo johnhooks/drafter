@@ -1,5 +1,6 @@
 import { type Value, evaluateExpr, length } from '../expr/evaluate'
 import { tokenize } from '../expr/lexer'
+import { rewriteNames } from '../expr/rewrite'
 import type { Document, Feature, Len, Param } from './types'
 import { isExpr } from './types'
 
@@ -21,7 +22,7 @@ export function evaluateParams(params: readonly Param[]): ParamResult {
       continue
     }
     try {
-      const v = evaluateExpr(p.value, { params: values, rects: new Map() })
+      const v = evaluateExpr(p.value, { params: values, lines: new Map() })
       if (v.kind !== 'length') throw new Error('A parameter must be a length')
       values.set(p.name, v)
     } catch (e) {
@@ -53,21 +54,7 @@ function mentions(expr: string, name: string): boolean {
 }
 
 function rewrite(expr: string, from: string, to: string): string {
-  let toks
-  try {
-    toks = tokenize(expr)
-  } catch {
-    return expr
-  }
-  let out = ''
-  let last = 0
-  for (const t of toks) {
-    if (t.kind === 'name' && t.path.length === 1 && t.path[0] === from) {
-      out += expr.slice(last, t.pos) + to
-      last = t.pos + t.text.length
-    }
-  }
-  return out + expr.slice(last)
+  return rewriteNames(expr, (path) => (path.length === 1 && path[0] === from ? to : undefined))
 }
 
 /** Every expression in the document with a callback that can replace it. */
@@ -84,17 +71,22 @@ function forEachExpr(doc: Document, fn: (expr: string, where: string) => string 
   const features: Feature[] = doc.features.map((f) => {
     if (f.kind === 'extrude') return { ...f, distance: visit(f.distance, `${f.name} distance`) }
     const plane = f.plane.kind === 'principal' ? { ...f.plane, offset: visit(f.plane.offset, `${f.name} plane offset`) } : f.plane
-    const rects = f.rects.map((r) => {
-      const axis = (a: typeof r.u, label: string) => ({
-        ...(a.min !== undefined ? { min: visit(a.min, `${r.handle} ${label} min in ${f.name}`) } : {}),
-        ...(a.max !== undefined ? { max: visit(a.max, `${r.handle} ${label} max in ${f.name}`) } : {}),
-        ...(a.size !== undefined ? { size: visit(a.size, `${r.handle} ${label} size in ${f.name}`) } : {}),
-      })
-      return { ...r, u: axis(r.u, 'u'), v: axis(r.v, 'v') }
+    const lines = f.lines.map((l) => {
+      const run = {
+        ...(l.run.min !== undefined ? { min: visit(l.run.min, `${l.handle} min in ${f.name}`) } : {}),
+        ...(l.run.max !== undefined ? { max: visit(l.run.max, `${l.handle} max in ${f.name}`) } : {}),
+        ...(l.run.size !== undefined ? { size: visit(l.run.size, `${l.handle} size in ${f.name}`) } : {}),
+      }
+      return { ...l, at: visit(l.at, `${l.handle} at in ${f.name}`), run }
     })
-    return { ...f, plane, rects }
+    return { ...f, plane, lines }
   })
   return changed ? { ...doc, params, features } : doc
+}
+
+/** Applies a path rewrite to every expression in the document. */
+export function rewriteAllExprs(doc: Document, fn: (path: readonly string[]) => string | undefined): Document {
+  return forEachExpr(doc, (expr) => rewriteNames(expr, fn))
 }
 
 export function usesOf(doc: Document, name: string): ParamUse[] {

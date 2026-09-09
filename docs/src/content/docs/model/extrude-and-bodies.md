@@ -1,11 +1,17 @@
 ---
 title: Extrude and Bodies
-description: How rectangles become boxes, how boxes become bodies, and what join and cut do.
+description: How regions become boxes, how boxes become bodies, and what join and cut do.
 sidebar:
   order: 2
 ---
 
-An extrude takes one or more rectangles from a sketch and sweeps each along the sketch plane's normal by a distance. Each rectangle becomes a box. What happens to the box depends on the operation.
+An extrude takes one or more regions from a sketch and sweeps each along the sketch plane's normal by a distance. A rectangular region becomes one box; an L-shaped one becomes the boxes that make it up. What happens to the boxes depends on the operation.
+
+In the sketch editor, **Extrude** takes the selected regions, or every region when none is selected. Click inside a region with the Select tool to select it; shift-click adds another. Regions extruded together form one operation.
+
+:::note[A split keeps the corner]
+An extrude remembers each region by the two lines at its lower-left corner. If you later draw a line across that region, the extrude keeps the part that still touches that corner and the other part is not extruded until you add it. Delete a bounding line so the outline no longer closes and the extrude reports that no region is enclosed there.
+:::
 
 ## Distance and direction
 
@@ -15,7 +21,7 @@ Distance accepts an expression over parameters, such as `ply`. See [Parameters](
 
 ## Operations
 
-- **New body** creates a body from the boxes. Overlapping rectangles in one extrude merge into one body. The body takes the extrude's name.
+- **New body** creates a body from the boxes. Regions in one extrude that touch or overlap merge into one body. The body takes the extrude's name.
 - **Join** adds the boxes to a target body.
 - **Cut** removes the boxes from a target body. A cut through a body leaves a hole; a cut that removes everything deletes the body.
 

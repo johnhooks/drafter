@@ -4,6 +4,8 @@ export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
   retries: 0,
+  // every test renders through software GL; parallel browsers contend for it and the slow ones time out
+  workers: 1,
   use: {
     baseURL: 'http://localhost:5199',
     viewport: { width: 1400, height: 900 },

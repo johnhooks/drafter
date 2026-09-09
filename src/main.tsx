@@ -18,6 +18,9 @@ if (import.meta.env.DEV) {
       tool: s.tool,
       selection: s.selection,
       features: s.doc.features,
+      regions: Object.fromEntries(
+        [...s.eval.results.entries()].flatMap(([id, r]) => (r.kind === 'sketch' ? [[id, r.regions.map((x) => ({ ref: x.ref, bounds: x.bounds, area: x.area }))]] : [])),
+      ),
       errors: s.eval.errors,
       bodies: [...s.eval.bodies.values()].map((b) => ({ id: b.id, volume: bodyVolume(b) / 4096, bounds: bodyBounds(b) })),
       notices: s.notices.map((n) => n.text),

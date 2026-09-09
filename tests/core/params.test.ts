@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { evaluateParams, renameParam, usesOf, validateParamName } from '../../src/core/model/params'
-import { rectFromCorners } from '../../src/core/model/sketch'
 import { DEFAULT_PLANE, type Document, newDocument } from '../../src/core/model/types'
 import { nextHandle } from '../../src/core/model/names'
+import { hline, vline } from './fixtures'
 
 describe('parameters', () => {
   it('evaluate in order, parameter from parameter', () => {
@@ -40,13 +40,13 @@ describe('parameters', () => {
         handle: 's1',
         name: 'Sketch 1',
         plane: { ...DEFAULT_PLANE, offset: 'ply' },
-        rects: [{ ...rectFromCorners('r1', 'r1', 0, 0, 16, 16), u: { min: 0, size: 'ply * 2' } }, rectFromCorners('r2', 'r2', 0, 0, 8, 8)],
+        lines: [{ ...hline('a', 'l1', 0, 0, 16), run: { min: 0, size: 'ply * 2' } }, vline('b', 'l2', 0, 0, 8)],
       },
-      { kind: 'extrude', id: 'e1', name: 'Extrude 1', sketchId: 's1', rectIds: ['r1'], distance: '-(ply)', op: 'new' },
+      { kind: 'extrude', id: 'e1', name: 'Extrude 1', sketchId: 's1', regions: [{ vertical: 'b', horizontal: 'a' }], distance: '-(ply)', op: 'new' },
     ],
   }
   it('usesOf lists every place', () => {
-    expect(usesOf(doc, 'ply').map((u) => u.where)).toEqual(['parameter dado', 'Sketch 1 plane offset', 'r1 u size in Sketch 1', 'Extrude 1 distance'])
+    expect(usesOf(doc, 'ply').map((u) => u.where)).toEqual(['parameter dado', 'Sketch 1 plane offset', 'l1 size in Sketch 1', 'Extrude 1 distance'])
     expect(usesOf(doc, 'nothing')).toEqual([])
   })
   it('rename rewrites exactly the references', () => {
@@ -57,7 +57,7 @@ describe('parameters', () => {
     ])
     const s = out.features[0]!
     expect(s.kind === 'sketch' && s.plane.kind === 'principal' && s.plane.offset).toBe('stock')
-    expect(s.kind === 'sketch' && s.rects[0]!.u.size).toBe('stock * 2')
+    expect(s.kind === 'sketch' && s.lines[0]!.run.size).toBe('stock * 2')
     expect(out.features[1]).toMatchObject({ distance: '-(stock)' })
     // untouched expression strings are the same objects
     expect(renameParam(doc, 'zzz', 'y')).toBe(doc)

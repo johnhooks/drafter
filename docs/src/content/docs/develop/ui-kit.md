@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-`packages/kit` is the project's component library. It is built on React Aria Components, which supply behaviour, accessibility, and keyboard handling; every visual decision is the kit's own and comes from one set of tokens.
+`packages/kit` is the project's component library. It is built on React Aria Components, which supply behaviour, accessibility, and keyboard handling; every visual decision is the kit's own and comes from one set of tokens. The rules and idioms below are kept current in `packages/kit/AGENTS.md`, which is the file to read before changing the kit.
 
 ```shell
 pnpm kit:storybook   # browse components at http://localhost:6006
@@ -38,7 +38,7 @@ Icons come from Lucide, rendered at 14 px with a 1.5 px stroke in `currentColor`
 | `TextField` | Names and lengths. Commits on Enter or blur, reverts on Escape, takes a `validate` function so the application's own parser decides what is valid |
 | `NumberField` | Plain numbers with steppers |
 | `Select`, `Checkbox` | Options and flags |
-| `ListBox` | Selectable rows with a detail slot and trailing actions: timeline, rectangles, constraints |
+| `ListBox` | Selectable rows with a detail slot and trailing actions: timeline, lines, regions, constraints |
 | `Menu` | Popup actions |
 | `Dialog`, `ConfirmDialog` | Modal questions |
 | `ToastRegion`, `toast()` | Notices |

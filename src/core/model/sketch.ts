@@ -1,34 +1,46 @@
-import type { Rect2 } from '../geom/rect2d'
 import type { Sixteenths } from '../units'
-import type { SketchRect } from './types'
+import type { LineDir, SketchLine } from './types'
 
-/** A rectangle from two corners as plain numbers, the shape the rectangle tool produces. */
-export function rectFromCorners(id: string, handle: string, u1: number, v1: number, u2: number, v2: number): SketchRect {
-  return {
-    id,
-    handle,
-    u: { min: Math.min(u1, u2) as Sixteenths, max: Math.max(u1, u2) as Sixteenths },
-    v: { min: Math.min(v1, v2) as Sixteenths, max: Math.max(v1, v2) as Sixteenths },
-  }
+/** A horizontal or vertical line between two points as plain numbers; null when the points do not share an axis or coincide. */
+export function lineFromPoints(id: string, handle: string, u0: number, v0: number, u1: number, v1: number): SketchLine | null {
+  if (u0 === u1 && v0 === v1) return null
+  if (v0 === v1) return { id, handle, dir: 'h', at: v0 as Sixteenths, run: { min: Math.min(u0, u1) as Sixteenths, max: Math.max(u0, u1) as Sixteenths } }
+  if (u0 === u1) return { id, handle, dir: 'v', at: u0 as Sixteenths, run: { min: Math.min(v0, v1) as Sixteenths, max: Math.max(v0, v1) as Sixteenths } }
+  return null
 }
 
-/** True when every driven slot is a plain number, so the rectangle can be read without evaluation. */
-export function isPlainRect(r: SketchRect): boolean {
-  return [r.u.min, r.u.max, r.u.size, r.v.min, r.v.max, r.v.size].every((x) => x === undefined || typeof x === 'number')
+/** Projects an end point onto the axis the pointer moved farther along, so a drawn line is always axis-aligned. */
+export function projectEnd(start: readonly [number, number], end: readonly [number, number]): { dir: LineDir; end: [number, number] } {
+  const du = Math.abs(end[0] - start[0])
+  const dv = Math.abs(end[1] - start[1])
+  return du >= dv ? { dir: 'h', end: [end[0], start[1]] } : { dir: 'v', end: [start[0], end[1]] }
 }
 
-/** Resolves a plain rectangle without a scope. Throws for expressions; use resolveSketch for those. */
-export function plainRect(r: SketchRect): Rect2 {
-  if (!isPlainRect(r)) throw new Error(`${r.handle} has expressions and needs a scope`)
-  const axis = (a: SketchRect['u']) => {
-    const min = a.min as number | undefined
-    const max = a.max as number | undefined
-    const size = a.size as number | undefined
-    if (min !== undefined && max !== undefined) return [min, max]
-    if (min !== undefined && size !== undefined) return [min, min + size]
-    return [(max as number) - (size as number), max as number]
-  }
-  const [u0, u1] = axis(r.u)
-  const [v0, v1] = axis(r.v)
-  return { u0: u0!, u1: u1!, v0: v0!, v1: v1! }
+/**
+ * Four lines enclosing a rectangle, attached at their endpoints: each run end is a bare reference to the
+ * position of the perpendicular line it meets, so moving one side keeps the loop closed.
+ * Order is left, bottom, right, top; ids and handles are given in the same order.
+ */
+export function rectangleLines(ids: readonly [string, string, string, string], handles: readonly [string, string, string, string], u0: number, u1: number, v0: number, v1: number): SketchLine[] {
+  const [left, bottom, right, top] = handles
+  const uMin = Math.min(u0, u1) as Sixteenths
+  const uMax = Math.max(u0, u1) as Sixteenths
+  const vMin = Math.min(v0, v1) as Sixteenths
+  const vMax = Math.max(v0, v1) as Sixteenths
+  return [
+    { id: ids[0], handle: left, dir: 'v', at: uMin, run: { min: `${bottom}.at`, max: `${top}.at` } },
+    { id: ids[1], handle: bottom, dir: 'h', at: vMin, run: { min: `${left}.at`, max: `${right}.at` } },
+    { id: ids[2], handle: right, dir: 'v', at: uMax, run: { min: `${bottom}.at`, max: `${top}.at` } },
+    { id: ids[3], handle: top, dir: 'h', at: vMax, run: { min: `${left}.at`, max: `${right}.at` } },
+  ]
+}
+
+/** True when every driven slot is a plain number, so the line can be read without evaluation. */
+export function isPlainLine(l: SketchLine): boolean {
+  return [l.at, l.run.min, l.run.max, l.run.size].every((x) => x === undefined || typeof x === 'number')
+}
+
+/** Expression properties a line of this direction has, for error messages and validation. */
+export function lineProperties(dir: LineDir): readonly string[] {
+  return dir === 'h' ? ['left', 'right', 'mid', 'length', 'at'] : ['bottom', 'top', 'mid', 'length', 'at']
 }

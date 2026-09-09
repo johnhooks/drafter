@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, faceView, isoPoint, makeCube, px, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, faceView, isoPoint, linesOf, makeCube, px, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -32,10 +32,12 @@ test('dimensions can be dragged, flipped, relabelled, undone, and kept', async (
   await page.locator('input.inline-edit').fill('2')
   await page.locator('input.inline-edit').press('Enter')
   let d = await dbg(page)
-  const rect = () => d.features[2]!.rects[0]
-  expect(rect().layout).toBeUndefined()
+  const left = () => linesOf(d, 2)[0]!
+  const leftId = left().id
+  const dim = `[data-dim-slot="L:${leftId}:at"]`
+  expect(left().layout).toBeUndefined()
 
-  // the automatic dimension sits 22 px above the top edge (v = -4)
+  // the automatic dimension sits 22 px above the top end of the left line (v = -4)
   const stepIn = 22 / view.scale
   const lineV = -4 + stepIn
   await tool(page, 'Select')
@@ -43,34 +45,34 @@ test('dimensions can be dragged, flipped, relabelled, undone, and kept', async (
   await test.step('click without moving selects, no placement stored', async () => {
     await clickInches(page, view, 1, lineV)
     d = await dbg(page)
-    expect(d.selection.constraint).toMatchObject({ axis: 'u', slot: 'min' })
-    expect(rect().layout).toBeUndefined()
+    expect(d.selection.constraint).toMatchObject({ lineId: leftId, slot: 'at' })
+    expect(left().layout).toBeUndefined()
   })
 
   await test.step('drag the line up by 2"', async () => {
     await dragInches(page, view, [1, lineV], [1, lineV + 2])
     d = await dbg(page)
-    const offset = rect().layout.u.min.offset
+    const offset = left().layout.at.offset
     expect(offset).toBeGreaterThanOrEqual(Math.round(stepIn * 16) + 32 - 1)
     expect(offset).toBeLessThanOrEqual(Math.round(stepIn * 16) + 32 + 1)
   })
 
   await test.step('drag across the rectangle flips it below', async () => {
     d = await dbg(page)
-    const cur = -4 + rect().layout.u.min.offset / 16
+    const cur = -4 + left().layout.at.offset / 16
     await dragInches(page, view, [1, cur], [1, -22])
     d = await dbg(page)
-    expect(rect().layout.u.min.offset).toBeLessThan(0)
-    // drawn below the bottom edge now
-    const labelY = await page.locator('[data-dim-slot$=":min"] text').boundingBox()
+    expect(left().layout.at.offset).toBeLessThan(0)
+    // drawn below the bottom end now
+    const labelY = await page.locator(`${dim} text`).boundingBox()
     const bottomY = (await page.locator('.sketch svg').boundingBox())!.y
     expect(labelY!.y).toBeGreaterThan(bottomY)
   })
 
   await test.step('drag the label to the driven end', async () => {
     d = await dbg(page)
-    const at = -20 + rect().layout.u.min.offset / 16
-    const label = page.locator('[data-dim-slot$=":min"] text')
+    const at = -20 + left().layout.at.offset / 16
+    const label = page.locator(`${dim} text`)
     const lb = (await label.boundingBox())!
     await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2)
     await page.mouse.down()
@@ -79,11 +81,11 @@ test('dimensions can be dragged, flipped, relabelled, undone, and kept', async (
     await page.mouse.move(box.x + box.width / 2 + target[0], box.y + box.height / 2 + target[1], { steps: 6 })
     await page.mouse.up()
     d = await dbg(page)
-    expect(rect().layout.u.min.label).toBeGreaterThan(0.9)
+    expect(left().layout.at.label).toBeGreaterThan(0.9)
   })
 
   await test.step('a press on the label without moving still opens the editor', async () => {
-    await page.click('[data-dim-slot$=":min"] text')
+    await page.click(`${dim} text`)
     await expect(page.locator('input.inline-edit')).toHaveCount(1)
     await page.locator('input.inline-edit').press('Escape')
   })
@@ -92,25 +94,26 @@ test('dimensions can be dragged, flipped, relabelled, undone, and kept', async (
     await page.mouse.click(400, 800)
     await page.keyboard.press('ControlOrMeta+z')
     d = await dbg(page)
-    expect(rect().layout.u.min.label).toBeUndefined()
-    expect(rect().layout.u.min.offset).toBeLessThan(0)
+    expect(left().layout.at.label).toBeUndefined()
+    expect(left().layout.at.offset).toBeLessThan(0)
     await page.reload()
     await page.waitForSelector('.timeline')
     d = await dbg(page)
-    expect(rect().layout.u.min.offset).toBeLessThan(0)
+    expect(left().layout.at.offset).toBeLessThan(0)
     // the file remembers the open sketch, so the reload lands back in it
     expect(d.mode).toEqual({ kind: 'sketch', sketchId: d.features[2]!.id })
     await tool(page, 'Select')
   })
 
-  await test.step('size labels move too', async () => {
+  await test.step('region width labels move too and are stored by the region corner', async () => {
     const before = (await page.locator('text[data-dim="w"]').boundingBox())!
     await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
     await page.mouse.down()
     await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2 + 40, { steps: 5 })
     await page.mouse.up()
     d = await dbg(page)
-    expect(rect().layout.u.size.offset).toBeGreaterThan(Math.round(14 / (view.scale / 16)))
+    const key = `${leftId}|${linesOf(d, 2)[1]!.id}`
+    expect(d.features[2]!.regionLabels[key].width.offset).toBeGreaterThan(Math.round(14 / (view.scale / 16)))
     const after = (await page.locator('text[data-dim="w"]').boundingBox())!
     expect(after.y - before.y).toBeGreaterThan(30)
   })

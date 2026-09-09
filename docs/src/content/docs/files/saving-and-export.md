@@ -19,4 +19,4 @@ The file holds the model and the view. Bodies are recomputed when the file opens
 
 ## SVG and PNG
 
-While editing a sketch, **Export SVG** downloads the sketch view as a standalone file with its rectangles, dimensions, and reference faces. In the model view, **Export PNG** downloads the current 3D rendering at screen size.
+While editing a sketch, **Export SVG** downloads the sketch view as a standalone file with its lines, regions, dimensions, and reference faces. In the model view, **Export PNG** downloads the current 3D rendering at screen size.

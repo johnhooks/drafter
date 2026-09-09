@@ -21,16 +21,25 @@ export interface RectProps {
   readonly vmid: Value
 }
 
+/**
+ * A line's properties, filled in as its slots resolve: `at` first, then the run. A horizontal line has
+ * left, right, mid, length; a vertical one bottom, top, mid, length. Both have at.
+ */
+export interface LineProps {
+  readonly dir: 'h' | 'v'
+  readonly values: Record<string, Value>
+}
+
 /** Explicit resolution scope; later changes add entries (earlier sketches) without touching the grammar. */
 export interface Scope {
   readonly params: ReadonlyMap<string, Value>
-  readonly rects: ReadonlyMap<string, RectProps>
+  readonly lines: ReadonlyMap<string, LineProps>
   readonly face?: RectProps
   /** Set when the sketch is on a principal plane so `face` can be explained rather than "unknown". */
   readonly noFaceReason?: string
 }
 
-export const EMPTY_SCOPE: Scope = { params: new Map(), rects: new Map() }
+export const EMPTY_SCOPE: Scope = { params: new Map(), lines: new Map() }
 
 export function rectProps(r: { u0: number; u1: number; v0: number; v1: number }, uAxis: Axis, vAxis: Axis): RectProps {
   return {
@@ -45,27 +54,47 @@ export function rectProps(r: { u0: number; u1: number; v0: number; v1: number },
   }
 }
 
+export const LINE_PROPS: Record<'h' | 'v', readonly string[]> = {
+  h: ['left', 'right', 'mid', 'length', 'at'],
+  v: ['bottom', 'top', 'mid', 'length', 'at'],
+}
+
+/** Run properties of a line once its endpoints are known; `at` is set separately when the position resolves. */
+export function lineRunProps(dir: 'h' | 'v', min: number, max: number, runAxis: Axis): Record<string, Value> {
+  const [lo, hi] = dir === 'h' ? ['left', 'right'] : ['bottom', 'top']
+  return { [lo]: position(min, runAxis), [hi]: position(max, runAxis), mid: position((min + max) / 2, runAxis), length: length(max - min) }
+}
+
 export function describe(v: Value): string {
   return v.kind === 'length' ? `a length (${formatLength(Math.round(v.value) as Sixteenths)})` : `a ${v.axis.toUpperCase()} position`
 }
 
 function resolveRef(path: string[], scope: Scope): Value {
   const name = path.join('.')
+  const noFace = () => new ExprError(scope.noFaceReason ?? 'This sketch has no face; face.* is only available on a sketch attached to a face', 0)
   if (path.length === 1) {
     const p = scope.params.get(path[0]!)
     if (p) return p
-    if (path[0] === 'face') throw new ExprError(scope.noFaceReason ?? 'This sketch has no face; face.* is only available on a sketch attached to a face', 0)
+    if (path[0] === 'face') throw noFace()
     throw new ExprError(`Unknown name ${name}`, 0)
   }
   if (path.length !== 2) throw new ExprError(`Unknown name ${name}`, 0)
   const [obj, prop] = path as [string, string]
-  const props = obj === 'face' ? scope.face : scope.rects.get(obj)
-  if (!props) {
-    if (obj === 'face') throw new ExprError(scope.noFaceReason ?? 'This sketch has no face; face.* is only available on a sketch attached to a face', 0)
-    throw new ExprError(`Unknown name ${obj}`, 0)
+  if (obj === 'face') {
+    if (!scope.face) throw noFace()
+    const v = scope.face[prop as keyof RectProps]
+    if (!v) throw new ExprError(`face has no property ${prop}; use left, right, bottom, top, width, height, umid, or vmid`, 0)
+    return v
   }
-  const v = props[prop as keyof RectProps]
-  if (!v) throw new ExprError(`${obj} has no property ${prop}; use left, right, bottom, top, width, height, umid, or vmid`, 0)
+  const line = scope.lines.get(obj)
+  if (!line) throw new ExprError(`Unknown name ${obj}`, 0)
+  const valid = LINE_PROPS[line.dir]
+  if (!valid.includes(prop)) {
+    const kind = line.dir === 'h' ? 'horizontal' : 'vertical'
+    throw new ExprError(`${obj} is a ${kind} line and has ${valid.join(', ')}; it has no ${prop}`, 0)
+  }
+  const v = line.values[prop]
+  if (!v) throw new ExprError(`${name} is not resolved`, 0)
   return v
 }
 

@@ -14,7 +14,7 @@ The code splits into a core with no user interface dependency and a user interfa
 - **Units.** Lengths are integers in sixteenths of an inch. Parsing and formatting live in one place.
 - **Geometry.** A body is a set of disjoint axis-aligned boxes. Join and cut are box subtraction, exact by construction. Faces are derived from the boxes: each box face minus the faces of touching boxes, merged into connected regions with outlines.
 - **Model.** The document is a list of features. Planes map (u, v) to model coordinates. Rectangles are two driven slots per axis.
-- **Expressions.** A tokenizer, a parser to a small tree, and an evaluator over an explicit scope of parameters, rectangles, and the face. Values are lengths or axis-tagged positions.
+- **Expressions.** A tokenizer, a parser to a small tree, and an evaluator over an explicit scope of parameters, lines, and the face. Values are lengths or axis-tagged positions.
 - **Evaluation.** One pure function runs the timeline and returns bodies plus a result or error per feature. Every edit re-runs it.
 
 Everything relies on geometry being axis-aligned. That is a deliberate constraint, not an accident.

@@ -9,13 +9,13 @@ The timeline on the left lists every feature in the order it was added: sketches
 
 ## Evaluation
 
-Every edit re-runs the timeline. A sketch resolves its plane and its rectangles from the model as it stands at that point, then an extrude applies its boxes. Changing an early feature therefore changes everything that references it, directly or through a face.
+Every edit re-runs the timeline. A sketch resolves its plane and its lines from the model as it stands at that point and finds the regions they enclose, then an extrude applies its boxes. Changing an early feature therefore changes everything that references it, directly or through a face.
 
 Sketches and extrudes get automatic names, Sketch 1, Extrude 1, and so on, which you can rename. Each sketch also has a handle such as `s1` that stays fixed when you rename it.
 
 ## Errors
 
-A feature that cannot evaluate is marked in the timeline and listed under the view. Reasons include a sketch whose face has been cut away, an extrude whose target body does not exist yet, a rectangle whose expression fails, or a distance that is zero. The failed feature is skipped and features that depend on it fail with a message naming it. Everything independent still evaluates, so one mistake does not blank the model.
+A feature that cannot evaluate is marked in the timeline and listed under the view. Reasons include a sketch whose face has been cut away, an extrude whose target body does not exist yet, a line whose expression fails, an extrude whose region is no longer enclosed, or a distance that is zero. The failed feature is skipped and features that depend on it fail with a message naming it. Everything independent still evaluates, so one mistake does not blank the model.
 
 ## Deleting
 

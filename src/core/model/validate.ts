@@ -9,7 +9,7 @@ export interface ValidationError {
 
 const OPS = new Set(['new', 'join', 'cut'])
 const PLANES = new Set(['XZ', 'XY', 'YZ'])
-const ROLES = new Set(['cap', 'base', 'uMin', 'uMax', 'vMin', 'vMax'])
+const LINE_SLOTS = ['at', 'min', 'max', 'size'] as const
 
 const isInt = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n)
 
@@ -32,13 +32,20 @@ function checkLen(v: unknown, path: string, err: Err, opts: { nonZero?: boolean 
   err(path, 'Must be whole sixteenths or an expression')
 }
 
-/** Structural validation of a version 3 file: a model and a view. */
+function checkLayout(d: unknown, path: string, err: Err) {
+  const l = d as Record<string, unknown>
+  if (typeof l !== 'object' || l === null) return err(path, 'Placement must be an object')
+  if (!isInt(l['offset'])) err(`${path}.offset`, 'Offset must be whole sixteenths')
+  if (l['label'] !== undefined && (typeof l['label'] !== 'number' || l['label'] < -0.5 || l['label'] > 1.5)) err(`${path}.label`, 'Label must be a fraction between -0.5 and 1.5')
+}
+
+/** Structural validation of a version 4 file: a model and a view. */
 export function validateFile(file: unknown): ValidationError[] {
   if (typeof file !== 'object' || file === null) return [{ path: '', message: 'File must be an object' }]
   const f = file as Record<string, unknown>
   const errors: ValidationError[] = []
   const err: Err = (path, message) => errors.push({ path, message })
-  if (f['version'] !== 3) err('version', 'Unsupported file version')
+  if (f['version'] !== 4) err('version', 'Unsupported file version')
   errors.push(...validateDocument(f['model']).map((e) => ({ ...e, path: `model.${e.path}`.replace(/\.$/, '') })))
   const v = f['view'] as Record<string, unknown> | undefined
   if (typeof v !== 'object' || v === null) err('view', 'View must be an object')
@@ -99,6 +106,33 @@ export function validateDocument(doc: unknown): ValidationError[] {
   return errors
 }
 
+/** Lines of a sketch by id with their direction, for checking references into it. */
+function lineDirs(sketch: Record<string, unknown> | undefined): Map<string, string> | undefined {
+  if (!sketch || !Array.isArray(sketch['lines'])) return undefined
+  const out = new Map<string, string>()
+  for (const raw of sketch['lines'] as unknown[]) {
+    const l = raw as Record<string, unknown>
+    if (typeof l?.['id'] === 'string') out.set(l['id'], String(l['dir']))
+  }
+  return out
+}
+
+function checkRegionRef(ref: unknown, path: string, dirs: Map<string, string> | undefined, err: Err) {
+  const r = ref as Record<string, unknown>
+  if (typeof r !== 'object' || r === null) return err(path, 'Region must name its two corner lines')
+  for (const [k, want] of [
+    ['vertical', 'v'],
+    ['horizontal', 'h'],
+  ] as const) {
+    const id = r[k]
+    if (typeof id !== 'string') return err(`${path}.${k}`, 'Must be a line id')
+    if (!dirs) continue
+    const dir = dirs.get(id)
+    if (dir === undefined) err(`${path}.${k}`, `Line ${id} is not in the sketch`)
+    else if (dir !== want) err(`${path}.${k}`, `Line ${id} is not ${want === 'v' ? 'vertical' : 'horizontal'}`)
+  }
+}
+
 function validateSketch(f: Record<string, unknown>, p: string, features: unknown[], seen: Map<string, number>, handles: Set<string>, err: Err) {
   if (typeof f['handle'] !== 'string' || !IDENT_RE.test(f['handle'])) err(`${p}.handle`, 'Sketch needs a handle')
   else if (handles.has(f['handle'])) err(`${p}.handle`, `Duplicate sketch handle ${f['handle']}`)
@@ -112,51 +146,71 @@ function validateSketch(f: Record<string, unknown>, p: string, features: unknown
   } else if (plane['kind'] === 'face') {
     const ref = plane['featureId']
     const j = typeof ref === 'string' ? seen.get(ref) : undefined
+    let extrude: Record<string, unknown> | undefined
     if (j === undefined) err(`${p}.plane.featureId`, `References unknown or later feature ${String(ref)}`)
-    else if ((features[j] as Record<string, unknown>)['kind'] !== 'extrude') err(`${p}.plane.featureId`, 'Face reference must point at an extrude')
-    if (!ROLES.has(plane['face'] as string)) err(`${p}.plane.face`, 'Unknown face role')
+    else {
+      extrude = features[j] as Record<string, unknown>
+      if (extrude['kind'] !== 'extrude') {
+        err(`${p}.plane.featureId`, 'Face reference must point at an extrude')
+        extrude = undefined
+      }
+    }
+    const sketchIdx = extrude && typeof extrude['sketchId'] === 'string' ? seen.get(extrude['sketchId']) : undefined
+    const dirs = lineDirs(sketchIdx !== undefined ? (features[sketchIdx] as Record<string, unknown>) : undefined)
+    checkRegionRef(plane['region'], `${p}.plane.region`, dirs, err)
+    if (plane['face'] === 'side') {
+      if (typeof plane['lineId'] !== 'string') err(`${p}.plane.lineId`, 'Side face needs its bounding line')
+      else if (dirs && !dirs.has(plane['lineId'])) err(`${p}.plane.lineId`, `Line ${plane['lineId']} is not in the sketch`)
+      if (plane['outward'] !== 1 && plane['outward'] !== -1) err(`${p}.plane.outward`, 'Outward must be 1 or -1')
+    } else if (plane['face'] !== 'cap' && plane['face'] !== 'base') err(`${p}.plane.face`, 'Face must be cap, base, or side')
   } else err(`${p}.plane.kind`, 'Plane must be principal or face')
-  if (!Array.isArray(f['rects'])) return err(`${p}.rects`, 'Rects must be a list')
-  const rectIds = new Set<string>()
-  const rectHandles = new Set<string>()
-  ;(f['rects'] as unknown[]).forEach((raw, k) => {
-    const rp = `${p}.rects[${k}]`
-    const r = raw as Record<string, unknown>
-    if (typeof r?.['id'] !== 'string') return err(rp, 'Rect needs an id')
-    if (rectIds.has(r['id'])) err(`${rp}.id`, `Duplicate rect id ${r['id']}`)
-    rectIds.add(r['id'])
-    if (typeof r['handle'] !== 'string' || !IDENT_RE.test(r['handle'])) err(`${rp}.handle`, 'Rect needs a handle')
-    else if (rectHandles.has(r['handle'])) err(`${rp}.handle`, `Duplicate rect handle ${r['handle']}`)
-    else rectHandles.add(r['handle'])
-    const layout = r['layout'] as Record<string, unknown> | undefined
+  if (!Array.isArray(f['lines'])) return err(`${p}.lines`, 'Lines must be a list')
+  const lineIds = new Set<string>()
+  const lineHandles = new Set<string>()
+  ;(f['lines'] as unknown[]).forEach((raw, k) => {
+    const lp = `${p}.lines[${k}]`
+    const l = raw as Record<string, unknown>
+    if (typeof l?.['id'] !== 'string') return err(lp, 'Line needs an id')
+    if (lineIds.has(l['id'])) err(`${lp}.id`, `Duplicate line id ${l['id']}`)
+    lineIds.add(l['id'])
+    if (typeof l['handle'] !== 'string' || !IDENT_RE.test(l['handle'])) err(`${lp}.handle`, 'Line needs a handle')
+    else if (lineHandles.has(l['handle'])) err(`${lp}.handle`, `Duplicate line handle ${l['handle']}`)
+    else lineHandles.add(l['handle'])
+    if (l['dir'] !== 'h' && l['dir'] !== 'v') err(`${lp}.dir`, 'Direction must be h or v')
+    checkLen(l['at'], `${lp}.at`, err)
+    if (l['construction'] !== undefined && typeof l['construction'] !== 'boolean') err(`${lp}.construction`, 'Construction must be true or false')
+    const layout = l['layout'] as Record<string, unknown> | undefined
     if (layout !== undefined) {
-      if (typeof layout !== 'object' || layout === null) err(`${rp}.layout`, 'Layout must be an object')
+      if (typeof layout !== 'object' || layout === null) err(`${lp}.layout`, 'Layout must be an object')
       else
-        for (const axis of ['u', 'v'] as const) {
-          const al = layout[axis] as Record<string, unknown> | undefined
-          if (al === undefined) continue
-          for (const s of ['min', 'max', 'size'] as const) {
-            const d = al[s] as Record<string, unknown> | undefined
-            if (d === undefined) continue
-            if (!isInt(d['offset'])) err(`${rp}.layout.${axis}.${s}.offset`, 'Offset must be whole sixteenths')
-            if (d['label'] !== undefined && (typeof d['label'] !== 'number' || d['label'] < -0.5 || d['label'] > 1.5))
-              err(`${rp}.layout.${axis}.${s}.label`, 'Label must be a fraction between -0.5 and 1.5')
-          }
+        for (const key of Object.keys(layout)) {
+          if (!(LINE_SLOTS as readonly string[]).includes(key)) err(`${lp}.layout.${key}`, 'Unknown dimension slot')
+          else checkLayout(layout[key], `${lp}.layout.${key}`, err)
         }
     }
-    for (const axis of ['u', 'v'] as const) {
-      const a = r[axis] as Record<string, unknown> | undefined
-      if (!a || typeof a !== 'object') {
-        err(`${rp}.${axis}`, 'Axis needs two driven slots')
-        continue
-      }
-      const present = (['min', 'max', 'size'] as const).filter((s) => a[s] !== undefined)
-      if (present.length !== 2) err(`${rp}.${axis}`, 'Axis must have exactly two of min, max, size')
-      for (const s of present) checkLen(a[s], `${rp}.${axis}.${s}`, err)
-      if (isInt(a['min']) && isInt(a['max']) && a['min'] === a['max']) err(rp, `Rect has zero ${axis === 'u' ? 'width' : 'height'}`)
-      if (isInt(a['size']) && a['size'] <= 0) err(rp, `Rect has zero ${axis === 'u' ? 'width' : 'height'}`)
-    }
+    const run = l['run'] as Record<string, unknown> | undefined
+    if (!run || typeof run !== 'object') return err(`${lp}.run`, 'Run needs two driven slots')
+    const present = (['min', 'max', 'size'] as const).filter((s) => run[s] !== undefined)
+    if (present.length !== 2) err(`${lp}.run`, 'Run must have exactly two of min, max, size')
+    for (const s of present) checkLen(run[s], `${lp}.run.${s}`, err)
+    if (isInt(run['min']) && isInt(run['max']) && run['min'] === run['max']) err(lp, 'Line has zero length')
+    if (isInt(run['size']) && run['size'] <= 0) err(lp, 'Line has zero length')
   })
+  const labels = f['regionLabels'] as Record<string, unknown> | undefined
+  if (labels !== undefined) {
+    if (typeof labels !== 'object' || labels === null) err(`${p}.regionLabels`, 'Region labels must be an object')
+    else
+      for (const [key, raw] of Object.entries(labels)) {
+        const parts = key.split('|')
+        if (parts.length !== 2 || !lineIds.has(parts[0]!) || !lineIds.has(parts[1]!)) err(`${p}.regionLabels.${key}`, 'Key must be two line ids joined by |')
+        const rl = raw as Record<string, unknown>
+        if (typeof rl !== 'object' || rl === null) {
+          err(`${p}.regionLabels.${key}`, 'Must be an object')
+          continue
+        }
+        for (const axis of ['width', 'height'] as const) if (rl[axis] !== undefined) checkLayout(rl[axis], `${p}.regionLabels.${key}.${axis}`, err)
+      }
+  }
 }
 
 function validateExtrude(f: Record<string, unknown>, i: number, p: string, features: unknown[], seen: Map<string, number>, err: Err) {
@@ -171,10 +225,10 @@ function validateExtrude(f: Record<string, unknown>, i: number, p: string, featu
       sketch = undefined
     }
   }
-  if (!Array.isArray(f['rectIds']) || f['rectIds'].length === 0) err(`${p}.rectIds`, 'Extrude needs at least one rect')
-  else if (sketch && Array.isArray(sketch['rects'])) {
-    const ids = new Set((sketch['rects'] as Array<Record<string, unknown>>).map((r) => r['id']))
-    for (const rid of f['rectIds'] as unknown[]) if (!ids.has(rid)) err(`${p}.rectIds`, `Rect ${String(rid)} is not in the sketch`)
+  if (!Array.isArray(f['regions']) || f['regions'].length === 0) err(`${p}.regions`, 'Extrude needs at least one region')
+  else {
+    const dirs = lineDirs(sketch)
+    ;(f['regions'] as unknown[]).forEach((ref, k) => checkRegionRef(ref, `${p}.regions[${k}]`, dirs, err))
   }
   checkLen(f['distance'], `${p}.distance`, err, { nonZero: true })
   if (!OPS.has(f['op'] as string)) err(`${p}.op`, 'Operation must be new, join, or cut')

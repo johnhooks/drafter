@@ -1,0 +1,283 @@
+{
+ "version": 2,
+ "title": "Untitled",
+ "features": [
+  {
+   "kind": "sketch",
+   "id": "s_mts7wp7n1",
+   "name": "Cabinets",
+   "plane": {
+    "kind": "principal",
+    "plane": "XZ",
+    "offset": 0,
+    "normal": -1
+   },
+   "rects": [
+    {
+     "id": "r_mts7wt6h2",
+     "handle": "r1",
+     "u": {
+      "min": 480,
+      "max": 712
+     },
+     "v": {
+      "min": 56,
+      "max": 576
+     }
+    },
+    {
+     "id": "r_mts8pq2o5",
+     "handle": "r2",
+     "u": {
+      "min": 0,
+      "max": 480
+     },
+     "v": {
+      "min": 826,
+      "max": 1087
+     }
+    },
+    {
+     "id": "r_mts8rmp67",
+     "handle": "r3",
+     "u": {
+      "min": 0,
+      "max": 480
+     },
+     "v": {
+      "min": 1087,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8rr1x8",
+     "handle": "r4",
+     "u": {
+      "min": 480,
+      "size": 232
+     },
+     "v": {
+      "min": 826,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8t9ou9",
+     "handle": "r5",
+     "u": {
+      "min": -164,
+      "max": 0
+     },
+     "v": {
+      "min": 826,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8thr7a",
+     "handle": "r6",
+     "u": {
+      "min": 712,
+      "max": 744
+     },
+     "v": {
+      "min": 0,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8u3v5b",
+     "handle": "r7",
+     "u": {
+      "min": 744,
+      "max": 1320
+     },
+     "v": {
+      "min": 0,
+      "max": 1152
+     }
+    },
+    {
+     "id": "r_mts8w2cmd",
+     "handle": "r8",
+     "u": {
+      "min": 744,
+      "max": 1320
+     },
+     "v": {
+      "min": 1152,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8w9die",
+     "handle": "r9",
+     "u": {
+      "min": 1320,
+      "max": 1352
+     },
+     "v": {
+      "min": 0,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8whd0f",
+     "handle": "r10",
+     "u": {
+      "min": 0,
+      "max": 480
+     },
+     "v": {
+      "min": 0,
+      "max": 576
+     }
+    },
+    {
+     "id": "r_mts8x2kgg",
+     "handle": "r11",
+     "u": {
+      "min": 1352,
+      "max": 1688
+     },
+     "v": {
+      "min": 826,
+      "max": 1335
+     }
+    },
+    {
+     "id": "r_mts8x7dwh",
+     "handle": "r12",
+     "u": {
+      "min": 1352,
+      "max": 1688
+     },
+     "v": {
+      "min": 56,
+      "max": 826
+     }
+    },
+    {
+     "id": "r_mtsa4qi91",
+     "handle": "r13",
+     "u": {
+      "min": "r4.left + 3",
+      "max": "r6.left - 2"
+     },
+     "v": {
+      "min": 826,
+      "max": "r4.top - 2"
+     },
+     "layout": {
+      "u": {
+       "max": {
+        "offset": 75
+       },
+       "min": {
+        "offset": 143
+       }
+      },
+      "v": {
+       "max": {
+        "offset": 83
+       }
+      }
+     }
+    }
+   ],
+   "handle": "s1"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mts7zas84",
+   "name": "Extrude 1",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts7wt6h2"
+   ],
+   "distance": 384,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mts8z6tji",
+   "name": "Extrude 2",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts8rr1x8"
+   ],
+   "distance": 192,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mts92kxdj",
+   "name": "Extrude 3",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts8thr7a",
+    "r_mts8w2cmd",
+    "r_mts8w9die"
+   ],
+   "distance": 400,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mts93g34l",
+   "name": "Extrude 4",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts8t9ou9",
+    "r_mts8rmp67"
+   ],
+   "distance": 192,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mts94gvin",
+   "name": "Extrude 5",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts8x2kgg"
+   ],
+   "distance": 384,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mts94oroo",
+   "name": "Extrude 6",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts8x7dwh"
+   ],
+   "distance": 384,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mtsqbp8a1",
+   "name": "Oven",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mts8whd0f"
+   ],
+   "distance": 384,
+   "op": "new"
+  },
+  {
+   "kind": "extrude",
+   "id": "e_mtszt21p1",
+   "name": "Extrude 7",
+   "sketchId": "s_mts7wp7n1",
+   "rectIds": [
+    "r_mtsa4qi91"
+   ],
+   "distance": 192,
+   "op": "cut"
+  }
+ ],
+ "params": []
+}

@@ -1,6 +1,6 @@
 ---
 title: Parameters
-description: Name a length once and use it in rectangles, extrude distances, and plane offsets.
+description: Name a length once and use it in line positions, extrude distances, and plane offsets.
 sidebar:
   order: 3
 ---
@@ -15,7 +15,7 @@ A value can be a length or an expression over parameters defined above it: `dado
 
 ## Use
 
-Type the name anywhere an expression is accepted: a rectangle slot (`ply * 2`), an extrude's distance (`ply`), or a principal plane's offset (`ply + 1/4`). Change the parameter and everything using it re-evaluates.
+Type the name anywhere an expression is accepted: a line's position or length (`l1.at + ply * 2`), an extrude's distance (`ply`), or a principal plane's offset (`ply + 1/4`). Change the parameter and everything using it re-evaluates.
 
 ## Rename and delete
 

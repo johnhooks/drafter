@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { bodyBounds } from '../../src/core/geom/body'
-import { rectFromCorners } from '../../src/core/model/sketch'
 import { DEFAULT_PLANE, newDocument } from '../../src/core/model/types'
 import { sx } from '../../src/core/units'
 import * as A from '../../src/ui/store/actions'
 
 const IN = (n: number) => sx(n * 16)
 
+const R = ['r_l', 'r_b', 'r_r', 'r_t'] as const
+const region = { vertical: 'r_l', horizontal: 'r_b' }
+const top = (featureId: string) => ({ kind: 'face' as const, featureId, region, face: 'side' as const, lineId: 'r_t', outward: 1 as const })
+
 function cube() {
   let s = A.initialState()
   s = A.addSketch(s, DEFAULT_PLANE, 's1')
-  s = A.addRect(s, 's1', rectFromCorners('r1', 'r1', IN(0), IN(0), IN(24), IN(24)))
+  s = A.addRectangle(s, 's1', IN(0), IN(24), IN(0), IN(24), R)
   s = A.addExtrude(s, 's1', [], IN(24), 'e1')
   return s
 }
@@ -46,9 +49,9 @@ describe('undo and redo', () => {
 
   it('a cascade delete is one entry', () => {
     let s = cube()
-    s = A.addSketch(s, { kind: 'face', featureId: 'e1', face: 'vMax' }, 's2')
-    s = A.addRect(s, 's2', rectFromCorners('r2', 'r1', IN(2), IN(-6), IN(6), IN(-2)))
-    s = A.addExtrude(s, 's2', ['r2'], IN(3), 'e2')
+    s = A.addSketch(s, top('e1'), 's2')
+    s = A.addRectangle(s, 's2', IN(2), IN(6), IN(-6), IN(-2), ['p_l', 'p_b', 'p_r', 'p_t'])
+    s = A.addExtrude(s, 's2', [{ vertical: 'p_l', horizontal: 'p_b' }], IN(3), 'e2')
     s = A.deleteFeature(s, 'e1')
     expect(s.doc.features.map((f) => f.id)).toEqual(['s1'])
     s = A.undo(s)
@@ -80,12 +83,12 @@ describe('undo and redo', () => {
 
   it('keeps the sketch editor open when the sketch survives, returns to model when it does not', () => {
     let s = cube()
-    s = A.addSketch(s, { kind: 'face', featureId: 'e1', face: 'vMax' }, 's2')
-    s = A.addRect(s, 's2', rectFromCorners('r2', 'r1', IN(2), IN(-6), IN(6), IN(-2)))
+    s = A.addSketch(s, top('e1'), 's2')
+    s = A.addRectangle(s, 's2', IN(2), IN(6), IN(-6), IN(-2))
     expect(s.mode).toEqual({ kind: 'sketch', sketchId: 's2' })
     s = A.undo(s)
     expect(s.mode).toEqual({ kind: 'sketch', sketchId: 's2' })
-    expect((s.doc.features[2] as unknown as { rects: unknown[] }).rects).toHaveLength(0)
+    expect((s.doc.features[2] as unknown as { lines: unknown[] }).lines).toHaveLength(0)
     s = A.undo(s)
     expect(s.mode).toEqual({ kind: 'model' })
     expect(s.selection.featureId).toBeUndefined()
@@ -117,16 +120,20 @@ describe('undo and redo', () => {
       ['updateExtrude', (s) => A.updateExtrude(s, 'e1', { distance: IN(30) })],
       ['renameFeature', (s) => A.renameFeature(s, 's1', 'Z')],
       ['setSketchPlaneOffset', (s) => A.setSketchPlaneOffset(s, 's1', IN(1))],
-      ['addRect', (s) => A.addRect(s, 's1', rectFromCorners('r9', '', 0, 0, 16, 16))],
-      ['updateRect', (s) => A.updateRect(s, 's1', rectFromCorners('r1', 'r1', 0, 0, 16, 16))],
-      ['setRectSlot', (s) => A.setRectSlot(s, 's1', 'r1', 'u', 'size', IN(10))],
-      ['removeRects', (s) => A.removeRects(s, 's1', ['r1'])],
+      ['addLine', (s) => A.addLine(s, 's1', { dir: 'h', at: IN(40), from: 0, to: 16 })],
+      ['addRectangle', (s) => A.addRectangle(s, 's1', IN(30), IN(40), 0, IN(10))],
+      ['setLineSlot', (s) => A.setLineSlot(s, 's1', 'r_r', 'at', IN(10))],
+      ['setConstruction', (s) => A.setConstruction(s, 's1', ['r_r'], true)],
+      ['setRegionSize', (s) => A.setRegionSize(s, 's1', region, 'u', IN(10))],
+      ['setDimLayout', (s) => A.setDimLayout(s, 's1', 'r_r', 'at', { offset: 10 })],
+      ['setRegionLabelLayout', (s) => A.setRegionLabelLayout(s, 's1', region, 'width', { offset: 10 })],
+      ['removeLines', (s) => A.removeLines(s, 's1', ['r_r'])],
       ['deleteFeature', (s) => A.deleteFeature(s, 'e1')],
       ['addParam', (s) => A.addParam(s, 'ply', '3/4')],
       ['setParamValue', (s) => A.setParamValue(A.addParam(s, 'ply', '3/4'), 'ply', '1/2')],
       ['renameParam', (s) => A.renameParam(A.addParam(s, 'ply', '3/4'), 'ply', 'stock')],
       ['deleteParam', (s) => A.deleteParam(A.addParam(s, 'ply', '3/4'), 'ply')],
-      ['removeConstraint', (s) => A.removeConstraint(A.setRectSlot(s, 's1', 'r1', 'u', 'size', '24'), { sketchId: 's1', rectId: 'r1', axis: 'u', slot: 'size' })],
+      ['removeConstraint', (s) => A.removeConstraint(A.setLineSlot(s, 's1', 'r_r', 'at', '24'), { sketchId: 's1', lineId: 'r_r', slot: 'at' })],
     ]
     for (const [name, run] of cases) {
       const out = run(base)
@@ -158,7 +165,7 @@ describe('file: model and view', () => {
   it('fileOf carries the model, camera, and open sketch', () => {
     let s = A.setMode(A.setCamera(cube(), { zoom: 9 }), { kind: 'model' })
     const file = A.fileOf(s)
-    expect(file.version).toBe(3)
+    expect(file.version).toBe(4)
     expect(file.model).toBe(s.doc)
     expect(file.view.camera.zoom).toBe(9)
     expect(file.view.sketchId).toBeUndefined()

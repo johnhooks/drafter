@@ -12,15 +12,21 @@ export interface PrincipalPlane {
   readonly normal: 1 | -1
 }
 
-/** Which face of an extruded box a sketch plane hangs off. cap is the far end of the extrusion. */
-export type FaceRole = 'cap' | 'base' | 'uMin' | 'uMax' | 'vMin' | 'vMax'
-
-export interface FaceRef {
-  readonly kind: 'face'
-  readonly featureId: string
-  readonly rectId?: string
-  readonly face: FaceRole
+/** The corner where a region's lower-left vertical and horizontal bounding lines meet; names the region just inside it. */
+export interface RegionRef {
+  readonly vertical: string
+  readonly horizontal: string
 }
+
+export const regionKey = (r: RegionRef): string => `${r.vertical}|${r.horizontal}`
+export const sameRegion = (a: RegionRef, b: RegionRef): boolean => a.vertical === b.vertical && a.horizontal === b.horizontal
+
+/** Which face of a region's extrusion a sketch plane hangs off. cap is the far end of the extrusion. */
+export type FaceRole = 'cap' | 'base' | 'side'
+
+export type FaceRef =
+  | { readonly kind: 'face'; readonly featureId: string; readonly region: RegionRef; readonly face: 'cap' | 'base' }
+  | { readonly kind: 'face'; readonly featureId: string; readonly region: RegionRef; readonly face: 'side'; readonly lineId: string; readonly outward: 1 | -1 }
 
 export type PlaneDef = PrincipalPlane | FaceRef
 
@@ -50,16 +56,34 @@ export interface DimLayout {
   readonly label?: number
 }
 
-export type AxisLayout = Partial<Record<Slot, DimLayout>>
+/** A line runs along u (horizontal) or along v (vertical). */
+export type LineDir = 'h' | 'v'
 
-export interface SketchRect {
+/** at is the position on the axis the line crosses; min, max, size are the run along the other axis. */
+export type LineSlot = 'at' | Slot
+export const LINE_SLOTS: readonly LineSlot[] = ['at', 'min', 'max', 'size']
+
+export type LineLayout = Partial<Record<LineSlot, DimLayout>>
+
+export interface SketchLine {
   readonly id: string
-  /** Stable name used in expressions: r1, r2, ... */
+  /** Stable name used in expressions: l1, l2, ... */
   readonly handle: string
-  readonly u: AxisSlots
-  readonly v: AxisSlots
-  /** Optional placements for this rectangle's dimensions; absent means automatic. */
-  readonly layout?: { readonly u?: AxisLayout; readonly v?: AxisLayout }
+  readonly dir: LineDir
+  /** v for a horizontal line, u for a vertical one. */
+  readonly at: Len
+  /** Exactly two of min, max, size along the axis the line runs on. */
+  readonly run: AxisSlots
+  /** Construction lines snap and take part in expressions but never bound a region. */
+  readonly construction?: boolean
+  /** Optional placements for this line's dimensions; absent means automatic. */
+  readonly layout?: LineLayout
+}
+
+/** Placement of a region's width and height labels, keyed in the sketch by the region's corner. */
+export interface RegionLabelLayout {
+  readonly width?: DimLayout
+  readonly height?: DimLayout
 }
 
 export const LABEL_MIN = -0.5
@@ -72,7 +96,8 @@ export interface SketchFeature {
   readonly handle: string
   readonly name: string
   readonly plane: PlaneDef
-  readonly rects: readonly SketchRect[]
+  readonly lines: readonly SketchLine[]
+  readonly regionLabels?: Readonly<Record<string, RegionLabelLayout>>
 }
 
 export type ExtrudeOp = 'new' | 'join' | 'cut'
@@ -82,7 +107,7 @@ export interface ExtrudeFeature {
   readonly id: string
   readonly name: string
   readonly sketchId: string
-  readonly rectIds: readonly string[]
+  readonly regions: readonly RegionRef[]
   /** Signed: positive along the sketch plane normal. May be an expression over parameters. */
   readonly distance: Len
   readonly op: ExtrudeOp
@@ -125,7 +150,7 @@ export interface ViewState {
 }
 
 export interface DocumentFile {
-  readonly version: 3
+  readonly version: 4
   readonly model: Model
   readonly view: ViewState
 }
@@ -141,7 +166,7 @@ export function newDocument(title = 'Untitled'): Model {
 }
 
 export function newFile(title = 'Untitled'): DocumentFile {
-  return { version: 3, model: newDocument(title), view: DEFAULT_VIEW }
+  return { version: 4, model: newDocument(title), view: DEFAULT_VIEW }
 }
 
 export function isExpr(v: Len): v is string {

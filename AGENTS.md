@@ -2,7 +2,7 @@
 
 ## Project
 
-Drawing is a small parametric modeller that runs in the browser. Sketch rectangles on a plane, extrude them into solids, and sketch on any face of what you built. Every length is an exact whole number of sixteenths of an inch. Nothing is sent to a server; documents live in browser storage and in JSON files the user downloads.
+Drawing is a small parametric modeller that runs in the browser. Sketch horizontal and vertical lines on a plane, extrude the regions they enclose into solids, and sketch on any face of what you built. Every length is an exact whole number of sixteenths of an inch. Nothing is sent to a server; documents live in browser storage and in JSON files the user downloads.
 
 The application is general purpose. Documentation and examples describe modelling in its own terms and do not assume a particular kind of object being modelled or compare the tool to other software.
 
@@ -32,7 +32,7 @@ Solids are sets of disjoint axis-aligned boxes. Join and cut are exact box subtr
 
 Evaluation is a pure function over the document. Every edit re-evaluates the whole timeline in order; nothing derived is stored in the document.
 
-Sketch tools are small state machines implementing the `Tool` interface in `src/ui/sketch/tools.ts`, with a `preview()` rendered by the same code as committed rectangles. Snapping is an ordered list of snappers in `src/core/snap.ts`; add a snapper rather than special-casing the pointer handler.
+A sketch holds axis-aligned lines; regions are the bounded faces of their arrangement, computed in `src/core/geom/regions.ts` on every evaluation and never stored. A region is referenced by the two lines at its lower-left corner. Sketch tools are small state machines implementing the `Tool` interface in `src/ui/sketch/tools.ts`, with previews rendered by the same code as committed lines. Snapping is an ordered list of snappers in `src/core/snap.ts`; add a snapper rather than special-casing the pointer handler.
 
 ## Workflow
 

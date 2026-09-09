@@ -41,7 +41,7 @@ test('orbit by right drag, snap near a canonical view, stay when far, keys and c
     await page.getByRole('button', { name: 'Pick face' }).click()
     await page.mouse.click(...(await isoPoint(page, 12, -12, 24)))
     const d = await dbg(page)
-    expect(d.features[2]).toMatchObject({ kind: 'sketch', plane: { face: 'vMax' } })
+    expect(d.features[2]).toMatchObject({ kind: 'sketch', plane: { face: 'side', outward: 1 } })
     await page.getByRole('button', { name: 'Finish' }).click()
   })
 
