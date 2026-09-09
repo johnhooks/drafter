@@ -1,4 +1,4 @@
-/* Layout and the drawing surfaces. Panel controls come from @drawing/kit. */
+/* Layout and the drawing surfaces. Panel controls come from @bitmachina/drafter-kit. */
 html, body, #root { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
 body { background: var(--kit-surface-frame); color: var(--kit-text); font-family: var(--kit-font); font-size: var(--kit-text-sm); }
 * { box-sizing: border-box; }

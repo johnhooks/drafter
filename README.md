@@ -1,4 +1,4 @@
-# Drawing
+# Drafter
 
 A small parametric modeller that runs in the browser. Sketch lines on a plane, extrude the regions they enclose into solids, and sketch on any face of what you built. Every length is an exact sixteenth of an inch.
 

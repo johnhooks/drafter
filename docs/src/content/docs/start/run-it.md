@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-Drawing is a static web app. It needs Node 22 or later and pnpm.
+Drafter is a static web app. It needs Node 22 or later and pnpm.
 
 ```shell
 pnpm install

@@ -11,7 +11,7 @@ export function downloadUrl(name: string, url: string) {
 }
 
 export function safeName(s: string): string {
-  return s.replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'drawing'
+  return s.replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'drafter'
 }
 
 export function readFile(file: File): Promise<string> {

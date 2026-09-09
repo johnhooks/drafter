@@ -1,4 +1,4 @@
-# @drawing/kit
+# @bitmachina/drafter-kit
 
 The component library the application's panels are built from. React Aria Components supply behaviour, accessibility, focus, and keyboard handling; every visual decision is ours and comes from one set of tokens.
 

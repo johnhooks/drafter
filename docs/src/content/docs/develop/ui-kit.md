@@ -23,7 +23,7 @@ The look is flat: panels a step lighter than the frame, controls a step lighter 
 
 A theme is a stylesheet that assigns the colour tokens under `[data-theme="name"]`. Two ship, `light` and `dark`. Put `data-theme` on the root element to theme the page, or on any element to theme a subtree. `ThemeProvider` and `useTheme` are conveniences for a switcher; they are not required. A test fails if a theme misses a token the other defines. Storybook's toolbar switches every story between themes.
 
-A consumer imports three stylesheets once: `@drawing/kit/tokens.css`, `@drawing/kit/base.css`, and a theme.
+A consumer imports three stylesheets once: `@bitmachina/drafter-kit/tokens.css`, `@bitmachina/drafter-kit/base.css`, and a theme.
 
 ## Icons
 

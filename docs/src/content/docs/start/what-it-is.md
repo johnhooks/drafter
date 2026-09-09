@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Drawing builds solid models from lines. You sketch horizontal and vertical lines on a plane, and wherever they close an outline they enclose a region. Extrude a region into a solid, then sketch on any face of that solid and extrude again to add or remove material. Every feature is recorded in a timeline, and editing an early feature re-evaluates everything after it, so a model keeps its intent when a dimension changes.
+Drafter builds solid models from lines. You sketch horizontal and vertical lines on a plane, and wherever they close an outline they enclose a region. Extrude a region into a solid, then sketch on any face of that solid and extrude again to add or remove material. Every feature is recorded in a timeline, and editing an early feature re-evaluates everything after it, so a model keeps its intent when a dimension changes.
 
 Three things set it apart from a drawing program:
 

@@ -1,5 +1,5 @@
 {
-  "name": "drawing",
+  "name": "@bitmachina/drafter",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,14 +11,14 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "test:e2e": "playwright test",
-    "docs:dev": "pnpm --filter drawing-docs dev",
-    "docs:build": "pnpm --filter drawing-docs build",
-    "kit:storybook": "pnpm --filter @drawing/kit storybook",
-    "kit:build": "pnpm --filter @drawing/kit build",
-    "kit:test": "pnpm --filter @drawing/kit test"
+    "docs:dev": "pnpm --filter @bitmachina/drafter-docs dev",
+    "docs:build": "pnpm --filter @bitmachina/drafter-docs build",
+    "kit:storybook": "pnpm --filter @bitmachina/drafter-kit storybook",
+    "kit:build": "pnpm --filter @bitmachina/drafter-kit build",
+    "kit:test": "pnpm --filter @bitmachina/drafter-kit test"
   },
   "dependencies": {
-    "@drawing/kit": "workspace:*",
+    "@bitmachina/drafter-kit": "workspace:*",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "react": "^19.2.8",

@@ -1,4 +1,4 @@
-import { ConfirmDialog, Hint, IconButton, ListBox, ListBoxItem } from '@drawing/kit'
+import { ConfirmDialog, Hint, IconButton, ListBox, ListBoxItem } from '@bitmachina/drafter-kit'
 import { useState } from 'react'
 import { dependentsOf } from '../core/model/deps'
 import { useStore } from './store/store'

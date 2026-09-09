@@ -287,7 +287,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('corrupt storage opens a new document with a notice', async () => {
-    await page.evaluate(() => localStorage.setItem('drawing.document.v1', '{not json'))
+    await page.evaluate(() => localStorage.setItem('drafter.document.v1', '{not json'))
     await page.reload()
     await page.waitForSelector('.timeline')
     await expect(page.locator('.kit-toast')).toContainText('could not be read')

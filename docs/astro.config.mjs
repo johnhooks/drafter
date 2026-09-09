@@ -5,7 +5,7 @@ import starlightThemeNova from 'starlight-theme-nova'
 export default defineConfig({
   integrations: [
     starlight({
-      title: 'Drawing',
+      title: 'Drafter',
       description: 'A small parametric modeller: sketch rectangles, extrude them, sketch on what you built.',
       customCss: ['./src/styles/custom.css'],
       plugins: [starlightThemeNova()],

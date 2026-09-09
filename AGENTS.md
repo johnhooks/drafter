@@ -2,7 +2,7 @@
 
 ## Project
 
-Drawing is a small parametric modeller that runs in the browser. Sketch horizontal and vertical lines on a plane, extrude the regions they enclose into solids, and sketch on any face of what you built. Every length is an exact whole number of sixteenths of an inch. Nothing is sent to a server; documents live in browser storage and in JSON files the user downloads.
+Drafter is a small parametric modeller that runs in the browser. Sketch horizontal and vertical lines on a plane, extrude the regions they enclose into solids, and sketch on any face of what you built. Every length is an exact whole number of sixteenths of an inch. Nothing is sent to a server; documents live in browser storage and in JSON files the user downloads.
 
 The application is general purpose. Documentation and examples describe modelling in its own terms and do not assume a particular kind of object being modelled or compare the tool to other software.
 

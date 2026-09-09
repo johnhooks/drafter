@@ -22,7 +22,7 @@ import {
   ToolbarSpacer,
   toast,
   toastQueue,
-} from '@drawing/kit'
+} from '@bitmachina/drafter-kit'
 import { useEffect, useRef, useState } from 'react'
 import { parseDocument, serializeDocument } from '../core/model/document'
 import type { PlaneKind, SketchFeature } from '../core/model/types'

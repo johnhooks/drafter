@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      '@drawing/kit':
+      '@bitmachina/drafter-kit':
         specifier: workspace:*
         version: link:packages/kit
       '@react-three/drei':

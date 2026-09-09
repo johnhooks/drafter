@@ -42,3 +42,18 @@ test('the view is saved with the model: zoom and pan survive a reload and the op
   // and the 3D view remounts at the stored camera
   await expect.poll(async () => (await dbg(page)).view.camera.zoom).toBe(before.zoom)
 })
+
+test('a document saved under the old storage key loads and is saved under the new one', async ({ page }) => {
+  await makeCube(page)
+  const saved = await page.evaluate(() => localStorage.getItem('drafter.document.v1'))
+  expect(saved).toBeTruthy()
+  await page.evaluate((text) => {
+    localStorage.clear()
+    localStorage.setItem('drawing.document.v1', text!)
+  }, saved)
+  await page.reload()
+  await page.waitForSelector('.timeline')
+  const d = await dbg(page)
+  expect(d.features).toHaveLength(2)
+  await expect.poll(async () => page.evaluate(() => localStorage.getItem('drafter.document.v1') !== null)).toBe(true)
+})

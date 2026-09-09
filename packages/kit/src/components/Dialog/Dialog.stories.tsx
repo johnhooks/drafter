@@ -26,7 +26,7 @@ export const Triggered: Story = {
   render: () => (
     <DialogTrigger>
       <Button>About</Button>
-      <Dialog title="Drawing">{(close) => <div>A small parametric modeller. <Button onPress={close}>Close</Button></div>}</Dialog>
+      <Dialog title="Drafter">{(close) => <div>A small parametric modeller. <Button onPress={close}>Close</Button></div>}</Dialog>
     </DialogTrigger>
   ),
 }
