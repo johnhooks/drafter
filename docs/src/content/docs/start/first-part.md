@@ -11,7 +11,7 @@ This walkthrough builds a block with a pocket in its top. It touches every core 
 
 1. Press **New sketch**. A small dialog offers the plane, an offset, and a flip. The default is XZ, the front plane, at offset 0. Press **Create**.
 2. The sketch editor opens with the Rectangle tool active. Drag from the origin up and to the right to draw a rectangle. The width and height show live while you drag, snapped to a sixteenth. The rectangle is four lines, and the area they enclose fills in lightly: that is a region, the thing an extrude takes.
-3. Click the width label under the region, type `24`, and press Enter. Do the same for the height. You now have a 24" square.
+3. Point at the region: its width appears under it and its height beside it. Click the width label, type `24`, and press Enter. Do the same for the height. You now have a 24" square.
 
 ## Extrude it
 

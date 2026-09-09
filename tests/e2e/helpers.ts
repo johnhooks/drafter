@@ -13,6 +13,8 @@ export interface Debug {
   params: Array<{ name: string; value: unknown }>
   history: { past: number; future: number }
   view: { camera: { azimuth: number; elevation: number; zoom: number; center: [number, number, number] }; sketchId?: string }
+  display: { grid: boolean; dims: boolean; handles: boolean; sizes: boolean }
+  exprFocus: boolean
 }
 
 export const dbg = (page: Page) => page.evaluate(() => (window as any).__debug() as Debug)
@@ -54,6 +56,13 @@ export async function lineInches(page: Page, view: View, points: Array<[number, 
   await tool(page, 'Line')
   for (const [u, v] of points) await clickInches(page, view, u, v)
   await page.keyboard.press('Escape')
+}
+
+/** Move the pointer to a point in plane inches without clicking, so hover labels appear. */
+export async function hoverInches(page: Page, view: View, u: number, v: number) {
+  const box = (await page.locator('.sketch svg').boundingBox())!
+  const [x, y] = px(view, u, v)
+  await page.mouse.move(box.x + box.width / 2 + x, box.y + box.height / 2 + y)
 }
 
 /** Click inside a region with the Select tool. */

@@ -23,3 +23,6 @@ body { background: var(--kit-surface-frame); color: var(--kit-text); font-family
 .inline-edit { position: absolute; width: 90px; padding: 2px 4px; font: inherit; font-size: var(--kit-text-md); z-index: 6; border: var(--kit-line-w) solid var(--kit-line-strong); border-radius: var(--kit-radius); background: var(--kit-surface-raised); color: var(--kit-text); }
 .inline-edit.invalid { border-color: var(--kit-danger); }
 .axis-indicator { position: absolute; left: 10px; bottom: 10px; font-size: var(--kit-text-xs); color: var(--kit-text-muted); background: var(--kit-surface-raised); padding: var(--kit-space) var(--kit-space-2); border-radius: var(--kit-radius); pointer-events: none; }
+
+/* the wrapper only tracks focus; it must not take part in row layout */
+.len-field { display: contents; }

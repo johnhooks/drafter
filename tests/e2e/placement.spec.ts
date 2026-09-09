@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, faceView, isoPoint, linesOf, makeCube, px, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, faceView, isoPoint, linesOf, makeCube, px, regionAt, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -106,6 +106,7 @@ test('dimensions can be dragged, flipped, relabelled, undone, and kept', async (
   })
 
   await test.step('region width labels move too and are stored by the region corner', async () => {
+    await regionAt(page, view, 12, -12)
     const before = (await page.locator('text[data-dim="w"]').boundingBox())!
     await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2)
     await page.mouse.down()

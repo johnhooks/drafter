@@ -26,6 +26,8 @@ if (import.meta.env.DEV) {
       notices: s.notices.map((n) => n.text),
       theme: s.theme,
       view: s.view,
+      display: s.display,
+      exprFocus: s.exprFocus,
       params: s.doc.params,
       history: { past: s.history.past.length, future: s.history.future.length },
     }

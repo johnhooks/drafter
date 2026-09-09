@@ -13,6 +13,7 @@ import { type DimHit, type FaceSide, type LineInfo, type LinkTarget, type Pointe
 import { type SketchView, axisLabels, mirrorSign, toPlaneInches, toScreen } from './view'
 
 const SNAP_PX = 6
+const HOVER_GRACE_MS = 150
 const FACE_SIDES: readonly FaceSide[] = ['left', 'right', 'bottom', 'top']
 
 type Editing =
@@ -35,7 +36,8 @@ export function SketchEditor({ sketch }: Props) {
   const toolName = useStore((s) => s.tool)
   const selection = useStore((s) => s.selection)
   const lastGood = useStore((s) => s.lastGood)
-  const showDims = useStore((s) => s.showDims)
+  const display = useStore((s) => s.display)
+  const exprFocus = useStore((s) => s.exprFocus)
   const dispatch = useStore((s) => s.dispatch)
   const result = ev.results.get(sketch.id)
   const sr = result?.kind === 'sketch' ? result : null
@@ -98,8 +100,8 @@ export function SketchEditor({ sketch }: Props) {
   }, [sketch.id])
 
   const dims = useMemo(
-    () => (sr && showDims ? dimensionsOf(sketch, sr, { pxPerSx, overrides }) : { dims: [] as DimSpec[], tags: [] }),
-    [sketch, sr, showDims, pxPerSx, overrides],
+    () => (sr && display.dims ? dimensionsOf(sketch, sr, { pxPerSx, overrides }) : { dims: [] as DimSpec[], tags: [] }),
+    [sketch, sr, display.dims, pxPerSx, overrides],
   )
   const labels = useMemo(() => (sr ? labelsOf(sketch, sr, { pxPerSx, overrides }) : ([] as LabelSpec[])), [sketch, sr, pxPerSx, overrides])
 
@@ -238,7 +240,23 @@ export function SketchEditor({ sketch }: Props) {
     }
   }, [tool])
 
+  // keys belong to the canvas whenever the pointer is over it: a toolbar toggle keeps focus after a click,
+  // and Space would press it again instead of panning. Text fields keep focus so typing is not interrupted.
+  const takeFocus = () => {
+    const active = document.activeElement
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return
+    svgRef.current?.focus({ preventScroll: true })
+  }
+
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearHoverSoon = (start: boolean) => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+    hoverTimer.current = start ? setTimeout(() => setHover({}), HOVER_GRACE_MS) : null
+  }
+  useEffect(() => () => clearHoverSoon(false), [])
+
   const onPointerDown = (e: React.PointerEvent) => {
+    takeFocus()
     if (editing || tool.prompt()) return
     if (e.button === 1 || (e.button === 0 && space.current)) {
       pan.current = { x: e.clientX, y: e.clientY, cu: view.cu, cv: view.cv }
@@ -259,8 +277,15 @@ export function SketchEditor({ sketch }: Props) {
     }
     const info = pointerInfo(e)
     setPointer(info.snapped)
-    const region = info.hitRegion ? regionKey(info.hitRegion) : undefined
-    if (info.hitLine !== hover.line || region !== hover.region) setHover({ line: info.hitLine, region })
+    // labels sit a few pixels outside the thing they measure, so hover clears after a short grace
+    // rather than the instant the pointer is over nothing; over something else it switches at once
+    const dim = info.hitDim?.target
+    const line = info.hitLine ?? (dim?.kind === 'line' ? dim.lineId : undefined)
+    const region = info.hitRegion ? regionKey(info.hitRegion) : dim?.kind === 'region' ? regionKey(dim.ref) : undefined
+    if (line || region) {
+      clearHoverSoon(false)
+      if (line !== hover.line || region !== hover.region) setHover({ line, region })
+    } else if (hover.line || hover.region) clearHoverSoon(true)
     tool.move(info)
   }
   const onPointerUp = (e: React.PointerEvent) => {
@@ -327,7 +352,7 @@ export function SketchEditor({ sketch }: Props) {
   const showQuarter = view.scale * 0.25 >= 8
   const gridLines: React.ReactNode[] = []
   const step = showQuarter ? 0.25 : 1
-  if ((uMax - uMin) / step < 2000) {
+  if (display.grid && (uMax - uMin) / step < 2000) {
     for (let u = Math.floor(uMin / step) * step; u <= uMax; u += step) {
       const major = Math.abs(u - Math.round(u)) < 1e-9
       const x = S(u * 16, 0)[0]
@@ -348,6 +373,23 @@ export function SketchEditor({ sketch }: Props) {
 
   const highlights = tool.highlights()
   const highlighted = (t: LinkTarget) => highlights.some((h) => (h.kind === 'line' && t.kind === 'line' ? h.lineId === t.lineId : h.kind === 'face' && t.kind === 'face' && h.side === t.side))
+
+  // nothing is labelled unasked: a label shows for what is hovered, selected, or being edited, or when its toggle is on.
+  // A hovered bounding line counts as hovering its regions, so crossing a line does not flash the labels off.
+  const hoveredRegions = new Set<string>()
+  if (hover.region) hoveredRegions.add(hover.region)
+  if (hover.line) for (const r of regions) if (r.boundary.some((e) => e.lineId === hover.line)) hoveredRegions.add(r.key)
+  const selectedRegions = new Set(selection.regions.map(regionKey))
+  const editingKey = editing?.kind === 'label' ? dimKey(editing.target) : null
+  const showLabel = (t: DimTarget) => {
+    if (display.sizes || dimKey(t) === editingKey) return true
+    if (t.kind === 'region') {
+      const k = regionKey(t.ref)
+      return hoveredRegions.has(k) || selectedRegions.has(k)
+    }
+    return hover.line === t.lineId || selection.lineIds.includes(t.lineId)
+  }
+  const showHandle = (id: string) => display.handles || exprFocus || hover.line === id || selection.lineIds.includes(id)
 
   // region fills, drawn under the lines so a click on a line wins
   const regionNodes = regions.map((r) => {
@@ -383,7 +425,7 @@ export function SketchEditor({ sketch }: Props) {
             {formatLength((shape.max - shape.min) as Sixteenths)}
           </text>
         )}
-        {line && (
+        {line && showHandle(line.id) && (
           <text
             x={mid[0] + (shape.dir === 'h' ? 0 : 5)}
             y={mid[1] + (shape.dir === 'h' ? -4 : 3)}
@@ -392,6 +434,7 @@ export function SketchEditor({ sketch }: Props) {
             fill={failed ? '#b3261e' : '#999'}
             fontFamily="ui-monospace, monospace"
             pointerEvents="none"
+            data-handle={line.handle}
           >
             {line.handle}
           </text>
@@ -434,7 +477,7 @@ export function SketchEditor({ sketch }: Props) {
   }
 
   // size labels are dimension-like: draggable along their edge and away from it
-  const labelNodes = labels.map((sl) => {
+  const labelNodes = labels.filter((sl) => showLabel(sl.target)).map((sl) => {
     const key = dimKey(sl.target)
     const along = sl.from + (sl.to - sl.from) * sl.labelAt
     const p = sl.axis === 'u' ? S(along, sl.at) : S(sl.at, along)
@@ -584,14 +627,20 @@ export function SketchEditor({ sketch }: Props) {
       <svg
         ref={svgRef}
         viewBox={`${-half.w} ${-half.h} ${size.w} ${size.h}`}
+        tabIndex={-1}
+        onPointerEnter={takeFocus}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerLeave={() => setHover({})}
+        onPointerLeave={() => {
+          // the inline input sits over the canvas, so opening it counts as leaving; keep the label under edit
+          clearHoverSoon(false)
+          if (!editing && !tool.prompt()) setHover({})
+        }}
         onContextMenu={(e) => e.preventDefault()}
-        style={{ cursor: toolName === 'rect' || toolName === 'line' ? 'crosshair' : 'default' }}
+        style={{ cursor: toolName === 'rect' || toolName === 'line' ? 'crosshair' : 'default', outline: 'none' }}
       >
-        <g>{gridLines}</g>
+        <g data-grid>{gridLines}</g>
         {sr?.outlines.map((o, i) => {
           const d = drawRect(o)
           return <rect key={`o${i}`} x={d.x} y={d.y} width={d.w} height={d.h} fill="none" stroke="#b9c7d6" strokeWidth={1} strokeDasharray="3 3" />

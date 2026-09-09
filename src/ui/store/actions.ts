@@ -77,9 +77,24 @@ export interface State {
   readonly theme: Theme
   /** Last successfully resolved shape per line id, so a failed line can still be drawn. */
   readonly lastGood: ReadonlyMap<string, LineShape>
-  readonly showDims: boolean
+  /** What the sketch view shows unasked. A browser preference, not file content. */
+  readonly display: Display
+  /** True while a field that accepts an expression has focus, so line handles show on the canvas. */
+  readonly exprFocus: boolean
   readonly history: History
 }
+
+export interface Display {
+  readonly grid: boolean
+  /** Driving dimensions. */
+  readonly dims: boolean
+  /** Line handles on every line. */
+  readonly handles: boolean
+  /** Size labels on every region and free line. */
+  readonly sizes: boolean
+}
+
+export const DEFAULT_DISPLAY: Display = { grid: true, dims: true, handles: false, sizes: false }
 
 export const EMPTY_SELECTION: Selection = { lineIds: [], regions: [] }
 export const HISTORY_LIMIT = 200
@@ -97,7 +112,8 @@ export function initialState(doc: Document = newDocument(), view: ViewState = DE
     notices: [],
     theme: 'light',
     lastGood: goodLines(ev, new Map()),
-    showDims: true,
+    display: DEFAULT_DISPLAY,
+    exprFocus: false,
     history: { past: [], future: [] },
   }
 }
@@ -599,17 +615,21 @@ export function setTool(s: State, tool: Tool): State {
   return { ...s, tool }
 }
 
-export function toggleDims(s: State): State {
-  return { ...s, showDims: !s.showDims }
+export function setDisplay(s: State, patch: Partial<Display>): State {
+  return { ...s, display: { ...s.display, ...patch } }
+}
+
+export function setExprFocus(s: State, exprFocus: boolean): State {
+  return exprFocus === s.exprFocus ? s : { ...s, exprFocus }
 }
 
 export function loadDocument(s: State, doc: Document): State {
-  return { ...initialState(doc), notices: s.notices, theme: s.theme }
+  return { ...initialState(doc), notices: s.notices, theme: s.theme, display: s.display }
 }
 
 /** Loads a whole file, restoring the camera and reopening the stored sketch if it still exists. */
 export function loadFile(s: State, file: DocumentFile): State {
-  const next = { ...initialState(file.model, { camera: file.view.camera }), notices: s.notices, theme: s.theme }
+  const next = { ...initialState(file.model, { camera: file.view.camera }), notices: s.notices, theme: s.theme, display: s.display }
   const id = file.view.sketchId
   if (id && file.model.features.some((f) => f.kind === 'sketch' && f.id === id)) return setMode(next, { kind: 'sketch', sketchId: id })
   return next

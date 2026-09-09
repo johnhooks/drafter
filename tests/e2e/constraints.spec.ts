@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { type View, choose, clickInches, dbg, drawInches, faceView, field, isoPoint, linesOf, makeCube, regionsOf, rowAction, tool } from './helpers'
+import { type View, choose, clickInches, dbg, drawInches, faceView, field, isoPoint, linesOf, makeCube, regionAt, regionsOf, rowAction, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -77,7 +77,9 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
   })
 
   await test.step('a width edit is refused when the far line is an expression', async () => {
-    await tool(page, 'Select')
+    // labels show for the selected region only
+    await expect(page.locator('text[data-dim="w"]')).toHaveCount(0)
+    await regionAt(page, view, 12, -12)
     await page.click('text[data-dim="w"]')
     const input = page.locator('input.inline-edit')
     await input.fill('10')
@@ -98,8 +100,9 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     d = await dbg(page)
     expect(d.errors).toEqual([])
     expect(d.bodies[0]!.volume).toBe(24 ** 3 - 20.5 * 16 * 1)
-    // widen Sketch 1's region to 30" through its width label
+    // widen Sketch 1's region to 30" through its width label, shown by the Sizes toggle
     await rowAction(page, /^Sketch 1/, 'Edit')
+    await page.getByRole('button', { name: 'Sizes' }).click()
     await page.click('text[data-dim="w"]')
     await page.locator('input.inline-edit').fill('30')
     await page.locator('input.inline-edit').press('Enter')
@@ -121,7 +124,7 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     d = await dbg(page)
     expect(linesOf(d, 2)[0]!.at).toBe(24)
     await expect(page.locator('[data-dim-slot^="L:"]:not([data-dim-slot$=":size"])')).toHaveCount(1)
-    await page.getByRole('button', { name: 'Dims' }).click()
+    await page.getByRole('button', { name: 'Dimensions' }).click()
     await expect(page.locator('[data-dim-slot^="L:"]:not([data-dim-slot$=":size"])')).toHaveCount(0)
     // remove the remaining link from the list: after widening, face.right is 30, so the line freezes at 28
     const list = page.getByRole('listbox', { name: 'Constraints' })

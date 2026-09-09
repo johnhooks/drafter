@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { type Page, expect, test } from '@playwright/test'
 
-import { choose, confirmDialog, dbg, dragSvg, field, isoPoint, linesOf, makeCube, menu, newSketch, regionAt, regionsOf, rowAction, tool } from './helpers'
+import { choose, confirmDialog, dbg, dragSvg, field, hoverInches, isoPoint, linesOf, makeCube, menu, newSketch, regionAt, regionsOf, rowAction, tool } from './helpers'
 
 /** Draw a rect in the current sketch by plane inches, given the view centre and scale the editor is using. */
 async function drawInches(page: Page, view: { cu: number; cv: number; scale: number; su: 1 | -1 }, a: [number, number], b: [number, number]) {
@@ -56,6 +56,12 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
   })
 
   await test.step('inline dimension editing', async () => {
+    // nothing is labelled until the region is hovered; the pointer is still over it from the drag
+    await page.mouse.move(5, 5)
+    await expect(page.locator('text[data-dim="w"]')).toHaveCount(0)
+    await expect(page.locator('[data-handle]')).toHaveCount(0)
+    await hoverInches(page, v1, 12, 12)
+    await expect(page.locator('text[data-dim="w"]')).toHaveCount(1)
     await page.click('text[data-dim="w"]')
     const input = page.locator('input.inline-edit')
     await expect(input).toHaveCount(1)

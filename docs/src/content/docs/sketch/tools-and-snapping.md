@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines when zoomed in, the origin, reference geometry from the model, the sketch's lines, and the regions they enclose as light fills.
+The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines when zoomed in, the origin, reference geometry from the model, the sketch's lines, the regions they enclose as light fills, and the dimensions you have placed. Nothing else is labelled until you point at it; see [Dimensions and editing](/sketch/dimensions/).
 
 ## Navigation
 
@@ -36,7 +36,20 @@ The view is orthographic from every angle, so parallel edges stay parallel. The 
 - **Rectangle.** Press, drag, release. The width and height show while you drag. A drag with zero width or height creates nothing. The result is four attached lines.
 - **Link.** Constrains one line's position to a parallel line or face edge. See [Link tool](/constraints/link-tool/).
 
-The four tools sit together in the toolbar; arrow keys move between them once one has focus. **Dims** shows and hides driving dimensions.
+The four tools sit together in the toolbar; arrow keys move between them once one has focus.
+
+## Display toggles
+
+Four icon toggles at the right end of the toolbar show a kind of thing everywhere at once. Hover one for its name.
+
+| Toggle | Default | Shows |
+| --- | --- | --- |
+| Grid | on | the inch and quarter-inch grid. Snapping to sixteenths does not depend on it |
+| Dimensions | on | driving dimensions, the relations you made with the Link tool or by typing |
+| Handles | off | every line's handle, `l1`, `l2`, and so on |
+| Sizes | off | every region's width and height and every free line's length |
+
+The toggles are remembered in the browser, not in the file. With Handles and Sizes off, the same labels still appear for whatever you hover or select, and every handle appears while you are typing in a length field, so the name you need is on the canvas when you need it.
 
 :::note[Construction lines]
 A construction line, toggled with **X** or the checkbox in its properties, is drawn dashed. It snaps and can be named in expressions like any line, but it never bounds a region: a construction line across a region leaves the region whole.

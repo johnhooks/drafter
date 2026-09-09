@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, faceView, field, isoPoint, lineInches, linesOf, makeCube, newSketch, regionAt, regionsOf, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, faceView, field, hoverInches, isoPoint, lineInches, linesOf, makeCube, newSketch, regionAt, regionsOf, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -66,8 +66,70 @@ test('a line across a rectangle attaches at both ends and splits it; a diagonal 
   expect(linesOf(d, 0)[5]).toMatchObject({ dir: 'h', at: 64, run: { min: 448, max: 576 } })
   // the diagonal click left the chain at (36, 4); escape ended it, so nothing else was added
   expect(linesOf(d, 0)).toHaveLength(6)
-  // a free line shows its length label
+  // a free line shows its length label when hovered
+  await tool(page, 'Select')
+  await expect(page.locator('text[data-dim="len"]')).toHaveCount(0)
+  await hoverInches(page, v1, 32, 4)
   await expect(page.locator('text[data-dim="len"]')).toHaveCount(1)
+})
+
+test('nothing is labelled unasked: hover, selection, expression focus, and the display toggles', async ({ page }) => {
+  await newSketch(page)
+  await drawInches(page, v1, [0, 0], [24, 16])
+  await tool(page, 'Select')
+  await expect(page.locator('[data-handle]')).toHaveCount(0)
+  await expect(page.locator('[data-dim]')).toHaveCount(0)
+
+  await test.step('hover shows the region sizes and keeps them across the gap to the label', async () => {
+    await hoverInches(page, v1, 12, 8)
+    await expect(page.locator('text[data-dim="w"]')).toHaveCount(1)
+    await expect(page.locator('text[data-dim="h"]')).toHaveCount(1)
+    await page.click('text[data-dim="w"]')
+    await expect(page.locator('input.inline-edit')).toHaveCount(1)
+    await page.locator('input.inline-edit').press('Escape')
+    // hovering a bounding line keeps the region's labels too
+    await hoverInches(page, v1, 24, 8)
+    await expect(page.locator('text[data-dim="w"]')).toHaveCount(1)
+    await page.mouse.move(5, 5)
+    await expect(page.locator('[data-dim]')).toHaveCount(0)
+  })
+
+  await test.step('a selected line shows its handle', async () => {
+    await clickInches(page, v1, 24, 8)
+    const d = await dbg(page)
+    expect(d.selection.lineIds).toHaveLength(1)
+    await page.mouse.move(5, 5)
+    await expect(page.locator('[data-handle]')).toHaveText(['l3'])
+    await page.getByRole('button', { name: /^Lines/ }).click()
+  })
+
+  await test.step('focusing a length field shows every handle', async () => {
+    await field(page, 'Position').focus()
+    await expect(page.locator('[data-handle]')).toHaveCount(4)
+    expect((await dbg(page)).exprFocus).toBe(true)
+    await page.getByRole('textbox', { name: 'Name' }).focus()
+    await expect(page.locator('[data-handle]')).toHaveText(['l3'])
+  })
+
+  await test.step('the toggles show everything and survive a reload; the grid can go', async () => {
+    await clickInches(page, v1, 40, 40)
+    await page.getByRole('button', { name: 'Sizes' }).click()
+    await page.getByRole('button', { name: 'Handles' }).click()
+    await page.mouse.move(5, 5)
+    await expect(page.locator('[data-dim]')).toHaveCount(2)
+    await expect(page.locator('[data-handle]')).toHaveCount(4)
+    expect((await page.locator('[data-grid] line').count()) > 0).toBe(true)
+    await page.getByRole('button', { name: 'Grid' }).click()
+    await expect(page.locator('[data-grid] line')).toHaveCount(0)
+    await tool(page, 'Rectangle')
+    await drawInches(page, v1, [30, 0], [40, 10.03])
+    const d = await dbg(page)
+    expect(regionsOf(d, 0)[1]!.bounds).toEqual({ u0: 480, u1: 640, v0: 0, v1: 160 })
+    await page.reload()
+    await page.waitForSelector('.timeline')
+    expect((await dbg(page)).display).toEqual({ grid: false, dims: true, handles: true, sizes: true })
+    await expect(page.locator('[data-handle]')).toHaveCount(8)
+  })
 })
 
 test('regions select alone or together, X makes a splitting line construction, the region list follows the view', async ({ page }) => {

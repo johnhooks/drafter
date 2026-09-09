@@ -20,7 +20,7 @@ Clicking a non-parallel line or edge, or the same line twice, shows a message an
 
 ## Driving dimensions
 
-Every simple link, a reference optionally plus or minus one number, is drawn as a dimension between the two lines with the distance as its label. Click the label to change the distance. **Dims** in the toolbar hides and shows them.
+Every simple link, a reference optionally plus or minus one number, is drawn as a dimension between the two lines with the distance as its label. Click the label to change the distance. The **Dimensions** toggle in the toolbar hides and shows them.
 
 A dimension across two vertical lines starts above the top end of the constrained line; one across two horizontal lines starts left of its left end. Two that overlap on the same edge stack outward. To put one somewhere else, drag its line with the Select tool; it moves perpendicular to itself and can run down along the line and out past its other end. Drag the label to slide it along the dimension, past the ends if the dimension is too short to hold it. A placement is kept with the document and undone with Cmd+Z like any edit; it disappears with its constraint.
 

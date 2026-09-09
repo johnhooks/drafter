@@ -5,7 +5,11 @@ sidebar:
   order: 2
 ---
 
-Every region shows its width under its bottom edge and its height beside its right edge, in blue. A line that bounds no region shows its length beside it instead. Labels can be moved: with the Select tool, drag one along its edge to slide it, or away from the edge to push it further out or to the other side. A short press without moving opens it for editing.
+Point at a region and its width appears under its bottom edge and its height beside its right edge, in blue. Point at a line that bounds no region and its length appears beside it. The labels stay while the pointer moves to them, and they stay for anything selected. To see every size at once, turn on **Sizes** in the toolbar. Labels can be moved: with the Select tool, drag one along its edge to slide it, or away from the edge to push it further out or to the other side. A short press without moving opens it for editing.
+
+:::note[Nothing is labelled unasked]
+A finished sketch shows lines, fills, and the dimensions you placed, and nothing else. Handles and sizes are there when you hover, select, or turn their toggle on. While a length field has focus every line shows its handle, so `l3` is on the canvas as you type it.
+:::
 
 ## Type a size on the sketch
 

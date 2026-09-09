@@ -16,6 +16,7 @@ import {
   ToastRegion,
   ToggleButton,
   ToggleButtonGroup,
+  ToggleIconButton,
   Toolbar,
   ToolbarSeparator,
   ToolbarSpacer,
@@ -30,7 +31,7 @@ import type { Sixteenths } from '../core/units'
 import { downloadText, downloadUrl, readFile, safeName } from './exportFile'
 import { parseLen } from './LenField'
 import { ModelView } from './model/ModelView'
-import { loadSaved, loadTheme, save, saveTheme } from './persist'
+import { loadDisplay, loadSaved, loadTheme, save, saveDisplay, saveTheme } from './persist'
 import { Properties } from './Properties'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
 import { DEFAULT_EXTRUDE } from './sketch/tools'
@@ -53,6 +54,7 @@ export function App() {
     if (!loaded.current) {
       loaded.current = true
       dispatch('setTheme', loadTheme())
+      dispatch('setDisplay', loadDisplay())
       const r = loadSaved()
       if (r.kind === 'loaded') dispatch('loadFile', r.file)
       else if (r.kind === 'corrupt') dispatch('notify', r.message, 'danger')
@@ -82,6 +84,8 @@ export function App() {
     document.documentElement.dataset['theme'] = theme
     saveTheme(theme)
   }, [theme])
+  const display = useStore((s) => s.display)
+  useEffect(() => saveDisplay(display), [display])
 
   // new store notices become toasts; closing a toast releases the notice so it can appear again later
   const shown = useRef(new Set<string>())
@@ -154,7 +158,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   const mode = useStore((s) => s.mode)
   const tool = useStore((s) => s.tool)
   const selection = useStore((s) => s.selection)
-  const showDims = useStore((s) => s.showDims)
+  const display = useStore((s) => s.display)
   const theme = useStore((s) => s.theme)
   const undoable = useStore(canUndo)
   const redoable = useStore(canRedo)
@@ -220,9 +224,6 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
             <ToggleButton id="rect">Rectangle</ToggleButton>
             <ToggleButton id="link">Link</ToggleButton>
           </ToggleButtonGroup>
-          <ToggleButton isSelected={showDims} onChange={() => dispatch('toggleDims')}>
-            Dims
-          </ToggleButton>
           <ToolbarSeparator />
           <Button
             variant="primary"
@@ -238,6 +239,12 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
             Extrude {selection.regions.length ? `(${selection.regions.length})` : '(all)'}
           </Button>
           <Button onPress={() => dispatch('setMode', { kind: 'model' })}>Finish</Button>
+          <ToolbarSpacer />
+          <ToggleIconButton icon="grid" aria-label="Grid" isSelected={display.grid} onChange={(on) => dispatch('setDisplay', { grid: on })} />
+          <ToggleIconButton icon="ruler" aria-label="Dimensions" isSelected={display.dims} onChange={(on) => dispatch('setDisplay', { dims: on })} />
+          <ToggleIconButton icon="tag" aria-label="Handles" isSelected={display.handles} onChange={(on) => dispatch('setDisplay', { handles: on })} />
+          <ToggleIconButton icon="sizes" aria-label="Sizes" isSelected={display.sizes} onChange={(on) => dispatch('setDisplay', { sizes: on })} />
+          <ToolbarSeparator />
         </>
       ) : (
         <>
@@ -247,7 +254,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
           </ToggleButton>
         </>
       )}
-      <ToolbarSpacer />
+      {!sketch && <ToolbarSpacer />}
       <MenuTrigger>
         <IconButton icon="ellipsis" aria-label="More" tooltip={false} />
         <Menu aria-label="More" placement="bottom end" onAction={onMenu}>

@@ -138,10 +138,6 @@ function featureName(id: string): string {
   return f?.name ?? id
 }
 
-function handleOf(sketch: SketchFeature, lineId: string): string {
-  return sketch.lines.find((l) => l.id === lineId)?.handle ?? lineId
-}
-
 const RUN_LABEL: Record<LineDir, Record<Slot, string>> = {
   h: { min: 'Left', max: 'Right', size: 'Length' },
   v: { min: 'Bottom', max: 'Top', size: 'Length' },

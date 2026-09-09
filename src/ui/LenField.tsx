@@ -3,6 +3,7 @@ import { parse } from '../core/expr/parser'
 import type { Len } from '../core/model/types'
 import { isExpr } from '../core/model/types'
 import { type Sixteenths, formatLength, parseLength } from '../core/units'
+import { useStore } from './store/store'
 
 interface Props {
   label: string
@@ -42,7 +43,11 @@ export function parseLen(text: string, allowZero = true): { ok: true; value: Len
 /** A kit text field that holds a length or an expression; the kit supplies commit, revert, and error display. */
 export function LenField({ label, value, resolved, error, derived, onCommit, autoFocus, allowZero = true }: Props) {
   const expr = isExpr(value)
+  const dispatch = useStore((s) => s.dispatch)
+  // while any length field has focus the sketch shows every line handle, so the name to type is on the canvas;
+  // focus events bubble in React, so the wrapper sees the input without touching the kit field's own blur
   return (
+    <div className="len-field" onFocus={() => dispatch('setExprFocus', true)} onBlur={() => dispatch('setExprFocus', false)}>
     <TextField<Len>
       label={label}
       value={lenText(value)}
@@ -54,5 +59,6 @@ export function LenField({ label, value, resolved, error, derived, onCommit, aut
       monospace={expr}
       autoFocus={autoFocus}
     />
+    </div>
   )
 }

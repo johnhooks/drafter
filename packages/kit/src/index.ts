@@ -9,6 +9,8 @@ export type { ButtonProps, ButtonTone, ButtonVariant } from './components/Button
 export { ToggleButton } from './components/ToggleButton/ToggleButton'
 export type { ToggleButtonProps } from './components/ToggleButton/ToggleButton'
 export { ToggleButtonGroup } from './components/ToggleButtonGroup/ToggleButtonGroup'
+export { ToggleIconButton } from './components/ToggleIconButton/ToggleIconButton'
+export type { ToggleIconButtonProps } from './components/ToggleIconButton/ToggleIconButton'
 export { Toolbar, ToolbarSeparator, ToolbarSpacer } from './components/Toolbar/Toolbar'
 export { TextField } from './components/TextField/TextField'
 export type { TextFieldProps, Validation } from './components/TextField/TextField'
