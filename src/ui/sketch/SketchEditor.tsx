@@ -529,9 +529,9 @@ export function SketchEditor({ sketch }: Props) {
         <circle cx={S(0, 0)[0]} cy={S(0, 0)[1]} r={3} fill="#999" />
         {drawn.map((d) => rectNodes(d.r, d.rect, false, d.failed))}
         {tool.preview().map((p) => rectNodes({ u0: Math.min(p.u0, p.u1), u1: Math.max(p.u0, p.u1), v0: Math.min(p.v0, p.v1), v1: Math.max(p.v0, p.v1) }, null, true))}
-        {sizeLabelNodes}
         {dimNodes}
         {tagNodes}
+        {sizeLabelNodes}
         {sr?.face && edgeLines('face', sr.face)}
         {drawn.filter((d) => !d.failed).map((d) => edgeLines(d.rect.id, d.r))}
         {highlights.map((h, i) => {
