@@ -9,7 +9,10 @@ export interface CanonicalView {
 
 const ISO = 35.264
 
-/** Six orthographic faces and four isometrics from above. Azimuth is degrees around Z from +X toward +Y. */
+/**
+ * Six orthographic faces and four isometrics from above: the views a drag snaps to.
+ * Azimuth is degrees around Z from +X toward +Y.
+ */
 export const CANONICAL_VIEWS: readonly CanonicalView[] = [
   { id: 'front', azimuth: -90, elevation: 0 },
   { id: 'back', azimuth: 90, elevation: 0 },
@@ -88,6 +91,15 @@ export function directionOf(v: { azimuth: number; elevation: number }): [number,
   const az = rad(v.azimuth)
   const el = rad(v.elevation)
   return [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)]
+}
+
+/**
+ * The exact view looking from a world direction: what a view cube click means. Faces give the
+ * six orthographic views, edges the twelve views straight at an edge, corners the eight isometrics.
+ */
+export function viewFromDirection(d: [number, number, number]): { azimuth: number; elevation: number } {
+  const s = sphericalOf(d[0], d[1], d[2])
+  return { azimuth: Math.round(s.azimuth * 1000) / 1000, elevation: Math.round(s.elevation * 1000) / 1000 }
 }
 
 /** The canonical view whose camera direction best matches a world direction. */

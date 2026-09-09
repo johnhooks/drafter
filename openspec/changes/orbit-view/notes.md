@@ -30,8 +30,9 @@ Verification: `pnpm test` (213), `pnpm test:e2e` (13, including `orbit.spec.ts`)
 - The ground grid does not write depth, so seen from below it stays behind the
   bodies instead of hatching through them.
 - The cube's edge and corner strips carry their direction as the mesh position,
-  not as a face normal; the click handler reads the position first. Edges and
-  corners below the equator resolve to the nearest orthographic view because the
-  canonical set has isometrics from above only, as specified.
+  not as a face normal; the click handler reads the position first. A cube click
+  goes to the clicked direction exactly, as drei's own gizmo and Fusion do, so
+  edges look straight at an edge and corners give isometrics above or below. The
+  ten canonical views remain the drag snap set.
 - Key and cube view changes jump exactly rather than easing, so a second press
   during an ease cannot start from a moving value.

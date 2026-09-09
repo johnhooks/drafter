@@ -25,7 +25,7 @@ The 3D view uses the same gestures for zoom and pan, and adds orbit:
 | Front, back, left, right, top, bottom | 1 to 6 |
 | Default isometric | Home |
 | Fit the model | F |
-| View cube | Bottom right corner; click a face for a straight view, an edge or corner for an isometric |
+| View cube | Bottom right corner; click a face for a straight view, an edge to look straight at that edge, a corner for an isometric from above or below |
 
 The view is orthographic from every angle, so parallel edges stay parallel. The six face views read to scale like a drawing. The camera is saved with the file and never undone.
 

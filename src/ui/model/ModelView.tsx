@@ -11,7 +11,7 @@ import type { CameraState } from '../../core/model/types'
 import { DEFAULT_CAMERA } from '../../core/model/types'
 import { useStore } from '../store/store'
 import { BodyMesh, planeOfFace } from './BodyMesh'
-import { CANONICAL_VIEWS, type CanonicalView, clampElevation, lerpView, snapTarget, sphericalOf, viewForDirection, wrapAzimuth } from './views'
+import { CANONICAL_VIEWS, type CanonicalView, clampElevation, lerpView, snapTarget, sphericalOf, viewFromDirection, wrapAzimuth } from './views'
 
 const ORBIT_DISTANCE = 200
 const EASE_MS = 150
@@ -206,12 +206,12 @@ export function ModelView() {
             onClick={(e: ThreeEvent<MouseEvent>) => {
               e.stopPropagation()
               // faces sit at the origin and carry their direction as the face normal; edge and corner strips
-              // are offset along the diagonal they stand for, so their position is the direction
+              // are offset along the diagonal they stand for, so their position is the direction. The camera
+              // goes to that direction exactly, as a view cube does: faces, the twelve edges, the eight corners.
               const p = e.object.position
               const n = e.face?.normal
-              const fromPosition = p.lengthSq() > 1e-6
-              const d: [number, number, number] = fromPosition ? [p.x, p.y, p.z] : n ? [n.x, n.y, n.z] : [0, 0, 1]
-              easeTo(viewForDirection(d))
+              const d: [number, number, number] = p.lengthSq() > 1e-6 ? [p.x, p.y, p.z] : n ? [n.x, n.y, n.z] : [0, 0, 1]
+              easeTo(viewFromDirection(d))
               return null
             }}
           />

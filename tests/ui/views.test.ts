@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CAMERA } from '../../src/core/model/types'
-import { CANONICAL_VIEWS, angularDistance, lerpView, nearestView, snapTarget, sphericalOf, wrapAzimuth } from '../../src/ui/model/views'
+import { CANONICAL_VIEWS, angularDistance, lerpView, nearestView, snapTarget, sphericalOf, viewFromDirection, wrapAzimuth } from '../../src/ui/model/views'
 
 describe('canonical views and snapping', () => {
   it('lists six orthographic and four isometric views', () => {
@@ -27,6 +27,14 @@ describe('canonical views and snapping', () => {
     expect(wrapAzimuth(-180)).toBe(180)
     const mid = lerpView({ ...DEFAULT_CAMERA, azimuth: 170, elevation: 0 }, { azimuth: -170, elevation: 0 }, 0.5)
     expect(mid.azimuth).toBe(180)
+  })
+  it('cube directions become exact views: faces, edges, corners', () => {
+    expect(viewFromDirection([0, -1, 0])).toEqual({ azimuth: -90, elevation: 0 })
+    expect(viewFromDirection([1, -1, 0])).toEqual({ azimuth: -45, elevation: 0 })
+    expect(viewFromDirection([0, -1, 1])).toEqual({ azimuth: -90, elevation: 45 })
+    expect(viewFromDirection([1, -1, 1]).elevation).toBeCloseTo(35.264, 2)
+    expect(viewFromDirection([-1, 1, -1])).toMatchObject({ azimuth: 135 })
+    expect(viewFromDirection([-1, 1, -1]).elevation).toBeCloseTo(-35.264, 2)
   })
   it('recovers spherical state from a position', () => {
     const s = sphericalOf(100, -100, 100 * Math.SQRT2 * Math.tan((35.264 * Math.PI) / 180))
