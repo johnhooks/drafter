@@ -1,9 +1,9 @@
 import { parseDocument, serializeDocument } from '../core/model/document'
-import type { Document } from '../core/model/types'
+import type { DocumentFile } from '../core/model/types'
 
 const KEY = 'drawing.document.v1'
 
-export type LoadResult = { kind: 'loaded'; doc: Document } | { kind: 'empty' } | { kind: 'corrupt'; message: string }
+export type LoadResult = { kind: 'loaded'; file: DocumentFile } | { kind: 'empty' } | { kind: 'corrupt'; message: string }
 
 export function loadSaved(): LoadResult {
   let text: string | null
@@ -15,13 +15,13 @@ export function loadSaved(): LoadResult {
   if (!text) return { kind: 'empty' }
   const r = parseDocument(text)
   if (!r.ok) return { kind: 'corrupt', message: `The saved drawing could not be read (${r.errors[0]?.message ?? 'invalid'}). Starting a new one.` }
-  return { kind: 'loaded', doc: r.doc }
+  return { kind: 'loaded', file: r.file }
 }
 
 /** Returns false if saving failed, so the caller can show a notice once. */
-export function save(doc: Document): boolean {
+export function save(file: DocumentFile): boolean {
   try {
-    localStorage.setItem(KEY, serializeDocument(doc))
+    localStorage.setItem(KEY, serializeDocument(file))
     return true
   } catch {
     return false

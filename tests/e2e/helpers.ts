@@ -10,6 +10,7 @@ export interface Debug {
   notices: string[]
   params: Array<{ name: string; value: unknown }>
   history: { past: number; future: number }
+  view: { camera: { azimuth: number; elevation: number; zoom: number; center: [number, number, number] }; sketchId?: string }
 }
 
 export const dbg = (page: Page) => page.evaluate(() => (window as any).__debug() as Debug)

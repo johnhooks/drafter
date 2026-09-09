@@ -34,7 +34,7 @@ import { loadSaved, loadTheme, save, saveTheme } from './persist'
 import { Properties } from './Properties'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
 import { DEFAULT_EXTRUDE } from './sketch/tools'
-import { type Tool, canRedo, canUndo } from './store/actions'
+import { type Tool, canRedo, canUndo, fileOf } from './store/actions'
 import { useStore } from './store/store'
 import { Timeline } from './Timeline'
 
@@ -54,18 +54,27 @@ export function App() {
       loaded.current = true
       dispatch('setTheme', loadTheme())
       const r = loadSaved()
-      if (r.kind === 'loaded') dispatch('loadDocument', r.doc)
+      if (r.kind === 'loaded') dispatch('loadFile', r.file)
       else if (r.kind === 'corrupt') dispatch('notify', r.message, 'danger')
     }
     let warned = false
-    const unsub = useStore.subscribe((s, prev) => {
-      if (s.doc === prev.doc) return
-      if (!save(s.doc) && !warned) {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const write = () => {
+      timer = null
+      if (!save(fileOf(useStore.getState())) && !warned) {
         warned = true
         dispatch('notify', 'Could not save to browser storage. Download the JSON to keep your work.', 'danger')
       }
+    }
+    const unsub = useStore.subscribe((s, prev) => {
+      if (s.doc !== prev.doc) return write()
+      // camera drags fire every frame; the view is saved at most a few times a second
+      if ((s.view !== prev.view || s.mode !== prev.mode) && !timer) timer = setTimeout(write, 250)
     })
-    return unsub
+    return () => {
+      unsub()
+      if (timer) clearTimeout(timer)
+    }
   }, [dispatch])
 
   // the theme attribute lives on the root so portalled popovers and dialogs are themed too
@@ -171,7 +180,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
       dispatch('notify', `Could not open ${file.name}: ${r.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`, 'danger')
       return
     }
-    dispatch('loadDocument', r.doc)
+    dispatch('loadFile', r.file)
     toastQueue.clear()
   }
   const onMenu = (key: React.Key) => {
@@ -181,7 +190,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
       case 'export-png':
         return exportPng()
       case 'download':
-        return downloadText(`${safeName(doc.title)}.json`, serializeDocument(doc), 'application/json')
+        return downloadText(`${safeName(doc.title)}.json`, serializeDocument(fileOf(useStore.getState())), 'application/json')
       case 'open':
         return fileInput.current?.click()
       case 'new':

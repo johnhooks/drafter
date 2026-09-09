@@ -5,8 +5,8 @@ import { defaultOp } from '../../core/model/extrude'
 import { newId, nextHandle, nextName } from '../../core/model/names'
 import { renameParam as renameParamInDoc, usesOf, validateParamName } from '../../core/model/params'
 import { setSlot } from '../../core/model/slots'
-import type { DimLayout, Document, ExtrudeFeature, Feature, Len, PlaneDef, SketchFeature, SketchRect, Slot } from '../../core/model/types'
-import { newDocument } from '../../core/model/types'
+import type { CameraState, DimLayout, Document, DocumentFile, ExtrudeFeature, Feature, Len, PlaneDef, SketchFeature, SketchRect, Slot, ViewState } from '../../core/model/types'
+import { DEFAULT_VIEW, newDocument } from '../../core/model/types'
 import type { Sixteenths } from '../../core/units'
 
 export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' } | { kind: 'pickBody'; extrudeId: string }
@@ -42,7 +42,10 @@ export interface Notice {
 }
 
 export interface State {
+  /** The model. Undo snapshots this and only this. */
   readonly doc: Document
+  /** Display state saved beside the model: camera and open sketch. Never on the undo stack. */
+  readonly view: ViewState
   readonly eval: EvalResult
   readonly mode: Mode
   readonly tool: Tool
@@ -59,10 +62,11 @@ export const EMPTY_SELECTION: Selection = { rectIds: [] }
 export const HISTORY_LIMIT = 200
 export const COALESCE_MS = 2000
 
-export function initialState(doc: Document = newDocument()): State {
+export function initialState(doc: Document = newDocument(), view: ViewState = DEFAULT_VIEW): State {
   const ev = evaluate(doc)
   return {
     doc,
+    view,
     eval: ev,
     mode: { kind: 'model' },
     tool: 'select',
@@ -77,6 +81,16 @@ export function initialState(doc: Document = newDocument()): State {
 
 export function setTheme(s: State, theme: Theme): State {
   return { ...s, theme }
+}
+
+/** Camera changes are display state: saved, never undone. */
+export function setCamera(s: State, camera: Partial<CameraState>): State {
+  return { ...s, view: { ...s.view, camera: { ...s.view.camera, ...camera } } }
+}
+
+export function fileOf(s: State): DocumentFile {
+  const sketchId = s.mode.kind === 'sketch' ? s.mode.sketchId : undefined
+  return { version: 3, model: s.doc, view: sketchId ? { ...s.view, sketchId } : { camera: s.view.camera } }
 }
 
 function goodRects(ev: EvalResult, prev: ReadonlyMap<string, Rect2>): Map<string, Rect2> {
@@ -331,6 +345,14 @@ export function toggleDims(s: State): State {
 
 export function loadDocument(s: State, doc: Document): State {
   return { ...initialState(doc), notices: s.notices, theme: s.theme }
+}
+
+/** Loads a whole file, restoring the camera and reopening the stored sketch if it still exists. */
+export function loadFile(s: State, file: DocumentFile): State {
+  const next = { ...initialState(file.model, { camera: file.view.camera }), notices: s.notices, theme: s.theme }
+  const id = file.view.sketchId
+  if (id && file.model.features.some((f) => f.kind === 'sketch' && f.id === id)) return setMode(next, { kind: 'sketch', sketchId: id })
+  return next
 }
 
 /** Refusals and failures default to a persistent warning; file and storage failures pass danger. */

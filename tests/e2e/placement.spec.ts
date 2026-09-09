@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, faceView, isoPoint, makeCube, px, rowAction, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, faceView, isoPoint, makeCube, px, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -98,8 +98,8 @@ test('dimensions can be dragged, flipped, relabelled, undone, and kept', async (
     await page.waitForSelector('.timeline')
     d = await dbg(page)
     expect(rect().layout.u.min.offset).toBeLessThan(0)
-    // a reload opens in the model view; reopen the sketch for the last step
-    await rowAction(page, /^Sketch 2/, 'Edit')
+    // the file remembers the open sketch, so the reload lands back in it
+    expect(d.mode).toEqual({ kind: 'sketch', sketchId: d.features[2]!.id })
     await tool(page, 'Select')
   })
 

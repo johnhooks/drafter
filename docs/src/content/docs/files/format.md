@@ -5,11 +5,12 @@ sidebar:
   order: 2
 ---
 
-A document is JSON with a version, a title, a list of parameters, and an ordered list of features. Every length is a whole number of sixteenths, or a string holding an expression.
+A file is JSON with a version and two parts. `model` is what you built: a title, parameters, and an ordered list of features. `view` is how you were looking at it: the camera and the sketch that was open, if any. Undo covers the model only; the view is saved but never undone. Every length is a whole number of sixteenths, or a string holding an expression.
 
 ```json title="document.json"
 {
-  "version": 2,
+  "version": 3,
+  "model": {
   "title": "Block",
   "params": [{ "name": "ply", "value": "3/4" }],
   "features": [
@@ -32,6 +33,11 @@ A document is JSON with a version, a title, a list of parameters, and an ordered
     },
     { "kind": "extrude", "id": "e_f6", "name": "Extrude 2", "sketchId": "s_d4", "rectIds": ["r_e5"], "distance": "-(ply)", "op": "cut", "targetBodyId": "e_c3" }
   ]
+  },
+  "view": {
+    "camera": { "azimuth": -45, "elevation": 35.264, "zoom": 6, "center": [0, 0, 0] },
+    "sketchId": "s_d4"
+  }
 }
 ```
 
@@ -43,4 +49,6 @@ A document is JSON with a version, a title, a list of parameters, and an ordered
 - **op** is `new`, `join`, or `cut`; `join` and `cut` carry `targetBodyId`, which is the id of the extrude that created the body.
 - Ids are opaque and unique; handles are the short names expressions use.
 
-Version 1 files, which stored rectangles as two corners, open and are rewritten as version 2 on save.
+- **view.camera** is the orbit azimuth and elevation in degrees, the orthographic zoom in pixels per inch, and the centre the camera looks at in sixteenths. **view.sketchId** names the sketch that was open, so the file reopens there.
+
+Version 1 files, which stored rectangles as two corners, and version 2 files, which had no view, open and are rewritten as version 3 on save.

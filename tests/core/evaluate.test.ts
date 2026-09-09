@@ -7,7 +7,7 @@ import { parseDocument, serializeDocument } from '../../src/core/model/document'
 import { defaultOp } from '../../src/core/model/extrude'
 import { nextName } from '../../src/core/model/names'
 import { rectFromCorners } from '../../src/core/model/sketch'
-import { DEFAULT_PLANE, type Document, type ExtrudeFeature, type SketchFeature, newDocument } from '../../src/core/model/types'
+import { DEFAULT_PLANE, DEFAULT_VIEW, type Document, type ExtrudeFeature, type SketchFeature, newDocument } from '../../src/core/model/types'
 import { validateDocument } from '../../src/core/model/validate'
 import { sx } from '../../src/core/units'
 
@@ -186,23 +186,22 @@ describe('defaults, names, dependencies', () => {
 describe('document format', () => {
   it('round trips', () => {
     const doc = cubeWithPocket()
-    const parsed = parseDocument(serializeDocument(doc))
+    const parsed = parseDocument(serializeDocument({ version: 3, model: doc, view: DEFAULT_VIEW }))
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
-      expect(parsed.doc).toEqual(doc)
-      expect(bodyVolume(evaluate(parsed.doc).bodies.get('e1')!)).toBe(bodyVolume(evaluate(doc).bodies.get('e1')!))
+      expect(parsed.file.model).toEqual(doc)
+      expect(bodyVolume(evaluate(parsed.file.model).bodies.get('e1')!)).toBe(bodyVolume(evaluate(doc).bodies.get('e1')!))
     }
   })
   it('rejects a dangling sketch reference', () => {
     const doc = cubeWithPocket()
-    const bad = { ...doc, features: doc.features.filter((f) => f.id !== 's2') }
+    const bad = { version: 3, model: { ...doc, features: doc.features.filter((f) => f.id !== 's2') }, view: DEFAULT_VIEW }
     const parsed = parseDocument(JSON.stringify(bad))
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) expect(parsed.errors.some((e) => e.path.includes('sketchId'))).toBe(true)
   })
   it('validation flags zero width, zero distance, missing rects; a missing target is left to evaluation', () => {
     const errs = validateDocument({
-      version: 2,
       title: 't',
       params: [],
       features: [

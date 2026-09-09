@@ -32,13 +32,36 @@ function checkLen(v: unknown, path: string, err: Err, opts: { nonZero?: boolean 
   err(path, 'Must be whole sixteenths or an expression')
 }
 
-/** Structural validation of a version 2 document, including one that came from untrusted JSON. */
+/** Structural validation of a version 3 file: a model and a view. */
+export function validateFile(file: unknown): ValidationError[] {
+  if (typeof file !== 'object' || file === null) return [{ path: '', message: 'File must be an object' }]
+  const f = file as Record<string, unknown>
+  const errors: ValidationError[] = []
+  const err: Err = (path, message) => errors.push({ path, message })
+  if (f['version'] !== 3) err('version', 'Unsupported file version')
+  errors.push(...validateDocument(f['model']).map((e) => ({ ...e, path: `model.${e.path}`.replace(/\.$/, '') })))
+  const v = f['view'] as Record<string, unknown> | undefined
+  if (typeof v !== 'object' || v === null) err('view', 'View must be an object')
+  else {
+    const c = v['camera'] as Record<string, unknown> | undefined
+    if (typeof c !== 'object' || c === null) err('view.camera', 'Camera must be an object')
+    else {
+      for (const k of ['azimuth', 'elevation', 'zoom']) if (typeof c[k] !== 'number' || !Number.isFinite(c[k])) err(`view.camera.${k}`, 'Must be a number')
+      if (typeof c['zoom'] === 'number' && c['zoom'] <= 0) err('view.camera.zoom', 'Zoom must be positive')
+      const ctr = c['center']
+      if (!Array.isArray(ctr) || ctr.length !== 3 || !ctr.every(isInt)) err('view.camera.center', 'Centre must be three whole sixteenths')
+    }
+    if (v['sketchId'] !== undefined && typeof v['sketchId'] !== 'string') err('view.sketchId', 'Sketch id must be a string')
+  }
+  return errors
+}
+
+/** Structural validation of a model, including one that came from untrusted JSON. */
 export function validateDocument(doc: unknown): ValidationError[] {
   const errors: ValidationError[] = []
   const err: Err = (path, message) => errors.push({ path, message })
-  if (typeof doc !== 'object' || doc === null) return [{ path: '', message: 'Document must be an object' }]
+  if (typeof doc !== 'object' || doc === null) return [{ path: '', message: 'Model must be an object' }]
   const d = doc as Record<string, unknown>
-  if (d['version'] !== 2) err('version', 'Unsupported document version')
   if (typeof d['title'] !== 'string') err('title', 'Title must be a string')
   if (!Array.isArray(d['params'])) err('params', 'Params must be a list')
   else {

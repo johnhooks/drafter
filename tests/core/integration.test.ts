@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { bodyBounds, bodyVolume } from '../../src/core/geom/body'
 import { evaluate } from '../../src/core/eval/evaluate'
 import { parseDocument, serializeDocument } from '../../src/core/model/document'
-import { DEFAULT_PLANE, type Document, newDocument } from '../../src/core/model/types'
+import { DEFAULT_PLANE, DEFAULT_VIEW, type Document, newDocument } from '../../src/core/model/types'
 
 const IN = (n: number) => n * 16
 
@@ -71,7 +71,7 @@ describe('integration: parametric base cabinet', () => {
 
   it('round trips through the file format', () => {
     const doc = carcass('30', '3/4')
-    const parsed = parseDocument(serializeDocument(doc))
-    expect(parsed.ok && parsed.doc).toEqual(doc)
+    const parsed = parseDocument(serializeDocument({ version: 3, model: doc, view: DEFAULT_VIEW }))
+    expect(parsed.ok && parsed.file.model).toEqual(doc)
   })
 })

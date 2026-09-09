@@ -143,3 +143,36 @@ describe('theme', () => {
     expect(s.theme).toBe('dark')
   })
 })
+
+describe('file: model and view', () => {
+  it('camera changes do not touch history and undo leaves the view alone', () => {
+    let s = cube()
+    const before = s.history.past.length
+    s = A.setCamera(s, { azimuth: 90 })
+    expect(s.history.past.length).toBe(before)
+    s = A.updateExtrude(s, 'e1', { distance: IN(30) })
+    s = A.undo(s)
+    expect(s.view.camera.azimuth).toBe(90)
+    expect(A.canRedo(s)).toBe(true)
+  })
+  it('fileOf carries the model, camera, and open sketch', () => {
+    let s = A.setMode(A.setCamera(cube(), { zoom: 9 }), { kind: 'model' })
+    const file = A.fileOf(s)
+    expect(file.version).toBe(3)
+    expect(file.model).toBe(s.doc)
+    expect(file.view.camera.zoom).toBe(9)
+    expect(file.view.sketchId).toBeUndefined()
+    s = A.setMode(s, { kind: 'sketch', sketchId: 's1' })
+    expect(A.fileOf(s).view.sketchId).toBe('s1')
+  })
+  it('loadFile restores the camera and reopens the sketch, or falls back to the model view', () => {
+    const base = cube()
+    const file = { ...A.fileOf(base), view: { camera: { ...base.view.camera, elevation: 10 }, sketchId: 's1' } }
+    let s = A.loadFile(A.initialState(), file)
+    expect(s.view.camera.elevation).toBe(10)
+    expect(s.mode).toEqual({ kind: 'sketch', sketchId: 's1' })
+    expect(A.canUndo(s)).toBe(false)
+    s = A.loadFile(A.initialState(), { ...file, view: { ...file.view, sketchId: 'gone' } })
+    expect(s.mode).toEqual({ kind: 'model' })
+  })
+})

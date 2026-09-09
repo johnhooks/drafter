@@ -1,4 +1,12 @@
-/** Version 1 stored rectangles as two corners and had no parameters or handles. */
+import { DEFAULT_VIEW } from './types'
+
+/** Version 2 was a bare model with a version field; version 3 wraps it beside a view. */
+export function migrateV2(raw: Record<string, unknown>): Record<string, unknown> {
+  const { version: _v, ...model } = raw
+  return { version: 3, model, view: DEFAULT_VIEW }
+}
+
+/** Version 1 stored rectangles as two corners and had no parameters or handles. Produces version 2. */
 export function migrateV1(raw: Record<string, unknown>): Record<string, unknown> {
   const features = Array.isArray(raw['features']) ? (raw['features'] as Array<Record<string, unknown>>) : []
   let sketchN = 0

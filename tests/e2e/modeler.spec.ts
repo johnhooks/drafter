@@ -223,8 +223,9 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const [dl] = await Promise.all([page.waitForEvent('download'), menu(page, 'Download JSON')])
     await dl.saveAs(jsonPath)
     const json = JSON.parse(readFileSync(jsonPath, 'utf8'))
-    expect(json.version).toBe(2)
-    expect(json.features).toHaveLength(6)
+    expect(json.version).toBe(3)
+    expect(json.model.features).toHaveLength(6)
+    expect(json.view.camera.zoom).toBeGreaterThan(0)
     const [png] = await Promise.all([page.waitForEvent('download'), menu(page, 'Export view as PNG')])
     const pngPath = testInfo.outputPath('model.png')
     await png.saveAs(pngPath)
@@ -242,7 +243,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
 
   await test.step('invalid json is refused, valid json replaces the document', async () => {
     const bad = testInfo.outputPath('bad.json')
-    writeFileSync(bad, JSON.stringify({ version: 2, title: 'x', params: [], features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', rectIds: ['r'], distance: 16, op: 'new' }] }))
+    writeFileSync(bad, JSON.stringify({ version: 3, model: { title: 'x', params: [], features: [{ kind: 'extrude', id: 'e', name: 'E', sketchId: 'nope', rectIds: ['r'], distance: 16, op: 'new' }] }, view: { camera: { azimuth: 0, elevation: 0, zoom: 6, center: [0, 0, 0] } } }))
     await page.setInputFiles('input[type=file]', bad)
     await expect(page.locator('.kit-toast')).toContainText('Could not open bad.json')
     d = await dbg(page)

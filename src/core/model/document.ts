@@ -1,14 +1,14 @@
-import { migrateV1 } from './migrate'
-import type { Document } from './types'
-import { type ValidationError, validateDocument } from './validate'
+import { migrateV1, migrateV2 } from './migrate'
+import type { Document, DocumentFile } from './types'
+import { type ValidationError, validateFile } from './validate'
 
-export function serializeDocument(doc: Document): string {
-  return JSON.stringify(doc, null, 2)
+export function serializeDocument(file: DocumentFile): string {
+  return JSON.stringify(file, null, 2)
 }
 
-export type ParseDocumentResult = { ok: true; doc: Document } | { ok: false; errors: ValidationError[] }
+export type ParseDocumentResult = { ok: true; file: DocumentFile } | { ok: false; errors: ValidationError[] }
 
-/** Accepts version 1 and 2 files; version 1 is migrated on read and always saved as 2. */
+/** Accepts versions 1 to 3; earlier versions are migrated on read and always saved as 3. */
 export function parseDocument(text: string): ParseDocumentResult {
   let raw: unknown
   try {
@@ -16,10 +16,17 @@ export function parseDocument(text: string): ParseDocumentResult {
   } catch (e) {
     return { ok: false, errors: [{ path: '', message: `Not valid JSON: ${(e as Error).message}` }] }
   }
-  if (typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>)['version'] === 1) {
-    raw = migrateV1(raw as Record<string, unknown>)
+  if (typeof raw === 'object' && raw !== null) {
+    const r = raw as Record<string, unknown>
+    if (r['version'] === 1) raw = migrateV2(migrateV1(r))
+    else if (r['version'] === 2) raw = migrateV2(r)
   }
-  const errors = validateDocument(raw)
+  const errors = validateFile(raw)
   if (errors.length) return { ok: false, errors }
-  return { ok: true, doc: raw as Document }
+  return { ok: true, file: raw as DocumentFile }
+}
+
+/** The model alone, for tests and tools that do not care about the view. */
+export function modelOf(file: DocumentFile): Document {
+  return file.model
 }
