@@ -29,5 +29,9 @@ Verification: `pnpm test` (213), `pnpm test:e2e` (13, including `orbit.spec.ts`)
   and the view locks.
 - The ground grid does not write depth, so seen from below it stays behind the
   bodies instead of hatching through them.
+- The cube's edge and corner strips carry their direction as the mesh position,
+  not as a face normal; the click handler reads the position first. Edges and
+  corners below the equator resolve to the nearest orthographic view because the
+  canonical set has isometrics from above only, as specified.
 - Key and cube view changes jump exactly rather than easing, so a second press
   during an ease cannot start from a moving value.

@@ -205,13 +205,13 @@ export function ModelView() {
             faces={['Right', 'Left', 'Back', 'Front', 'Top', 'Bottom']}
             onClick={(e: ThreeEvent<MouseEvent>) => {
               e.stopPropagation()
-              // the clicked face's outward normal, in the gizmo's own frame, is the direction to look from;
-              // the gizmo mirrors the world camera, so its frame is the world frame rotated to y-up
+              // faces sit at the origin and carry their direction as the face normal; edge and corner strips
+              // are offset along the diagonal they stand for, so their position is the direction
+              const p = e.object.position
               const n = e.face?.normal
-              if (!n) return null
-              // measured against all six faces: the gizmo's frame matches the world's z-up frame directly
-              const world: [number, number, number] = [n.x, n.y, n.z]
-              easeTo(viewForDirection(world))
+              const fromPosition = p.lengthSq() > 1e-6
+              const d: [number, number, number] = fromPosition ? [p.x, p.y, p.z] : n ? [n.x, n.y, n.z] : [0, 0, 1]
+              easeTo(viewForDirection(d))
               return null
             }}
           />
