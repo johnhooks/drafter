@@ -17,7 +17,7 @@ The model is axis-aligned throughout: sketch planes are the three principal plan
 
 ## What it is not
 
-There are no curves, angled planes, fillets, or assemblies. The 3D view has a fixed isometric angle. If you need any of those, this is the wrong tool.
+There are no curves, angled planes, fillets, or assemblies. The 3D view is orthographic only; there is no perspective. If you need any of those, this is the wrong tool.
 
 ## Where things live
 

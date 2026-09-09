@@ -16,7 +16,18 @@ The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines
 | Cancel a drag or a tool step | Escape |
 | Undo, redo | Cmd+Z and Cmd+Shift+Z on a Mac, Ctrl elsewhere. Inside a text field the field's own undo applies |
 
-The 3D view uses the same gestures. Its angle is fixed.
+The 3D view uses the same gestures for zoom and pan, and adds orbit:
+
+| Action | Mouse or key |
+| --- | --- |
+| Orbit | Right button drag, or Alt with the left button |
+| Snap to a view | Release within a few degrees of a face view or an isometric and the camera settles on it; further away it stays where you left it |
+| Front, back, left, right, top, bottom | 1 to 6 |
+| Default isometric | Home |
+| Fit the model | F |
+| View cube | Bottom right corner; click a face for a straight view, an edge or corner for an isometric |
+
+The view is orthographic from every angle, so parallel edges stay parallel. The six face views read to scale like a drawing. The camera is saved with the file and never undone.
 
 ## Tools
 

@@ -8,12 +8,10 @@ import type { ResolvedPlane } from '../../core/model/types'
 
 const IN = 1 / 16
 
-/** Top lightest, front medium, right side darkest; back faces darker still so cavities read. */
-function shade(f: Face): string {
-  if (f.axis === 'z') return f.dir > 0 ? '#ececea' : '#7c7c78'
-  if (f.axis === 'y') return f.dir < 0 ? '#c9c9c5' : '#8f8f8b'
-  return f.dir > 0 ? '#a9a9a5' : '#9a9a96'
-}
+/** Base tone; the camera-fixed light in the view supplies the per-face shading. */
+const BASE = '#d9d9d6'
+const SELECTED = '#a9bfe0'
+const HOVER = '#7fb2ee'
 
 function toXYZ(f: Face, u: number, v: number): [number, number, number] {
   const p = { x: 0, y: 0, z: 0 }
@@ -84,7 +82,7 @@ export function BodyMesh({ body, selected, pickable, onFace, onBody }: Props) {
               else onBody()
             }}
           >
-            <meshBasicMaterial color={hover === i && pickable ? '#7fb2ee' : selected ? tint(shade(p.face)) : shade(p.face)} />
+            <meshLambertMaterial color={hover === i && pickable ? HOVER : selected ? SELECTED : BASE} />
           </mesh>
           <lineSegments>
             <bufferGeometry>
@@ -98,10 +96,3 @@ export function BodyMesh({ body, selected, pickable, onFace, onBody }: Props) {
   )
 }
 
-function tint(hex: string): string {
-  const n = parseInt(hex.slice(1), 16)
-  const r = (n >> 16) & 255
-  const g = (n >> 8) & 255
-  const b = n & 255
-  return `rgb(${Math.round(r * 0.75)}, ${Math.round(g * 0.85)}, ${Math.min(255, Math.round(b * 1.05) + 30)})`
-}

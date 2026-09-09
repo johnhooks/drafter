@@ -55,14 +55,32 @@ export async function faceView(page: Page, face: { u0: number; u1: number; v0: n
   return { cu: (face.u0 + face.u1) / 2, cv: (face.v0 + face.v1) / 2, scale: Math.min((box.width * 0.7) / w, (box.height * 0.7) / h), su }
 }
 
-/** Screen position of a model point in the isometric view at zoom 6, camera at (200,-200,200) looking at the origin. */
+/**
+ * Screen position of a model point (inches) under the current stored camera: an orthographic
+ * projection from the spherical state the app itself renders from.
+ */
 export async function isoPoint(page: Page, x: number, y: number, z: number): Promise<[number, number]> {
   // the canvas starts at its default 300x150 until r3f's resize observer runs
   await expect.poll(async () => (await page.locator('.centre canvas').boundingBox())?.width ?? 0).toBeGreaterThan(400)
   const cb = (await page.locator('.centre canvas').boundingBox())!
-  const sx = (x + y) / Math.SQRT2
-  const sy = z * Math.sqrt(2 / 3) - (x - y) / Math.sqrt(6)
-  return [cb.x + cb.width / 2 + sx * 6, cb.y + cb.height / 2 - sy * 6]
+  const cam = (await dbg(page)).view.camera
+  const az = (cam.azimuth * Math.PI) / 180
+  const el = (cam.elevation * Math.PI) / 180
+  // camera basis: forward toward the centre, right = up x forward, up = right x forward (z up)
+  const f = [-Math.cos(el) * Math.cos(az), -Math.cos(el) * Math.sin(az), -Math.sin(el)]
+  const worldUp = [0, 0, 1]
+  const cross = (a: number[], b: number[]) => [a[1]! * b[2]! - a[2]! * b[1]!, a[2]! * b[0]! - a[0]! * b[2]!, a[0]! * b[1]! - a[1]! * b[0]!]
+  const norm = (a: number[]) => {
+    const l = Math.hypot(a[0]!, a[1]!, a[2]!) || 1
+    return [a[0]! / l, a[1]! / l, a[2]! / l]
+  }
+  const right = norm(cross(f, worldUp))
+  const up = norm(cross(right, f))
+  const [cx, cy, cz] = cam.center.map((v) => v / 16)
+  const d = [x - cx!, y - cy!, z - cz!]
+  const sx = d[0]! * right[0]! + d[1]! * right[1]! + d[2]! * right[2]!
+  const sy = d[0]! * up[0]! + d[1]! * up[1]! + d[2]! * up[2]!
+  return [cb.x + cb.width / 2 + sx * cam.zoom, cb.y + cb.height / 2 - sy * cam.zoom]
 }
 
 /** Opens the New sketch dialog and creates on the default plane. */
