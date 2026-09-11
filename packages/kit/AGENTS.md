@@ -9,7 +9,7 @@ Flat, dense, quiet. Panels a step lighter than the frame, controls a step lighte
 ## Rules
 
 - Style only through `--kit-*` tokens and React Aria data attributes (`[data-hovered]`, `[data-pressed]`, `[data-selected]`, `[data-focus-visible]`, `[data-disabled]`). A test fails on any literal colour in a component stylesheet.
-- Tokens are semantic, named for their role, declared in `src/tokens.css` with the light values as fallback. A theme is one rule under `[data-theme="name"]` in `src/themes/`. A test fails if a theme misses a colour token the root defines. Components never know which theme is active.
+- Colour tokens are two tiers in `src/tokens.css`: primitives, `--kit-color-<hue>-<weight>`, the only place a colour value is written; and roles, named for their purpose, each `var()` to a primitive, with the light assignment as fallback. A theme is one rule under `[data-theme="name"]` in `src/themes/` that reassigns roles to primitives. Tests fail on a colour value outside a primitive, a role or theme pointing at a primitive that does not exist, or a theme missing a role the root defines. Components never know which theme is active.
 - Every component is `src/components/Name/{Name.tsx,Name.css,Name.stories.tsx,Name.test.tsx}`, exported from `src/index.ts`: a story per meaningful state, a test for the keyboard behaviour.
 - Base styles in `base.css` use `:where()` so component classes always win.
 - Icons come from Lucide at 14 px, or the kit's own 12 px glyphs for the smallest cells; nothing outside the kit imports an icon library. An icon-only control is always an `IconButton` with an `aria-label`, which is also its tooltip. Text never stands in for an icon.

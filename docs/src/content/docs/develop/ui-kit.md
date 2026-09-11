@@ -17,6 +17,8 @@ pnpm kit:build       # static Storybook
 
 Components style themselves only through custom properties prefixed `--kit-`, named for their role: `--kit-surface-panel`, `--kit-line`, `--kit-text-muted`, `--kit-accent`, and so on, plus the type scale, a 4 px spacing unit, a 2 px radius, and control and row heights. A test fails if a component stylesheet contains a literal colour.
 
+Colours come in two tiers. Primitives, `--kit-color-grey-400`, `--kit-color-amber-500`, `--kit-color-violet-500`, are the only place a colour value is written, one per hue and weight. Roles point at a primitive: `--kit-accent: var(--kit-color-amber-400)`. A theme reassigns roles to other primitives and never writes a value, so a hue is defined once and can be reached for by name wherever a new role needs it.
+
 The sketch canvas has its own set, `--kit-canvas-*`: the surface, the grid's axis and major and minor lines, geometry and construction lines, handles, selection and hover, region fills, constraints, anchors, the link highlight, errors, and reference geometry. The canvas resolves them to values once per theme and writes those values into the SVG it draws, so an exported sketch carries real colours rather than references to a stylesheet. A test in the application checks that the canvas names every token the kit defines and no other.
 
 The look is flat: panels a step lighter than the frame, controls a step lighter than panels, one-pixel lines a step darker than the surface they sit on, no shadows or gradients. Text is 11 px, field values 12 px, section labels 10 px upper case and letter-spaced. Selection and the active tool use the one accent colour.

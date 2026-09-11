@@ -1,37 +1,37 @@
-/* Dark: the same relationships with the steps reversed; lines stay darker than their surface. */
+/* Dark: the same relationships with the steps reversed; lines stay darker than their surface; marks lifted to read on the dark canvas. */
 [data-theme='dark'] {
-  --kit-surface-frame: #161616;
-  --kit-surface-panel: #232323;
-  --kit-surface-control: #2e2e2e;
-  --kit-surface-raised: #393939;
-  --kit-line: #101010;
-  --kit-line-strong: #050505;
-  --kit-text: #e6e6e6;
-  --kit-text-muted: #9c9c9c;
-  --kit-accent: #f5a623;
-  --kit-on-accent: #1e1e1e;
-  --kit-danger: #ff6f5c;
-  --kit-warning: #ffb454;
-  --kit-focus: #6ea8ff;
-  --kit-overlay: rgba(0, 0, 0, 0.55);
-  /* Canvas: a surface a step lighter than the frame, grid a step lighter again, marks lifted to read on it. */
-  --kit-canvas-surface: #1c1c1c;
-  --kit-canvas-grid-axis: #6a6a6a;
-  --kit-canvas-grid-major: #2e2e2e;
-  --kit-canvas-grid-minor: #262626;
-  --kit-canvas-line: #e6e6e6;
-  --kit-canvas-construction: #6f7f92;
-  --kit-canvas-handle: #8c8c8c;
-  --kit-canvas-select: #5aa0f0;
-  --kit-canvas-hover: #7fb2ee;
-  --kit-canvas-region: rgba(255, 255, 255, 0.05);
-  --kit-canvas-region-hover: rgba(90, 160, 240, 0.14);
-  --kit-canvas-region-select: rgba(90, 160, 240, 0.28);
-  --kit-canvas-constraint: #d9a24a;
-  --kit-canvas-anchor: #a98bff;
-  --kit-canvas-link: #ffb454;
-  --kit-canvas-error: #ff6f5c;
-  --kit-canvas-reference: #6f8aa8;
-  --kit-canvas-reference-fill: rgba(120, 150, 190, 0.16);
-  --kit-canvas-outline: #4d5f73;
+  --kit-surface-frame: var(--kit-color-grey-950);
+  --kit-surface-panel: var(--kit-color-grey-900);
+  --kit-surface-control: var(--kit-color-grey-850);
+  --kit-surface-raised: var(--kit-color-grey-800);
+  --kit-line: var(--kit-color-grey-975);
+  --kit-line-strong: var(--kit-color-grey-1000);
+  --kit-text: var(--kit-color-grey-150);
+  --kit-text-muted: var(--kit-color-grey-500);
+  --kit-accent: var(--kit-color-amber-400);
+  --kit-on-accent: var(--kit-color-grey-925);
+  --kit-danger: var(--kit-color-red-300);
+  --kit-warning: var(--kit-color-amber-300);
+  --kit-focus: var(--kit-color-blue-300);
+  --kit-overlay: var(--kit-color-black-a55);
+
+  --kit-canvas-surface: var(--kit-color-grey-925);
+  --kit-canvas-grid-axis: var(--kit-color-grey-650);
+  --kit-canvas-grid-major: var(--kit-color-grey-850);
+  --kit-canvas-grid-minor: var(--kit-color-grey-900);
+  --kit-canvas-line: var(--kit-color-grey-150);
+  --kit-canvas-construction: var(--kit-color-slate-600);
+  --kit-canvas-handle: var(--kit-color-grey-550);
+  --kit-canvas-select: var(--kit-color-blue-400);
+  --kit-canvas-hover: var(--kit-color-blue-350);
+  --kit-canvas-region: var(--kit-color-white-a5);
+  --kit-canvas-region-hover: var(--kit-color-blue-400-a14);
+  --kit-canvas-region-select: var(--kit-color-blue-400-a28);
+  --kit-canvas-constraint: var(--kit-color-amber-350);
+  --kit-canvas-anchor: var(--kit-color-violet-300);
+  --kit-canvas-link: var(--kit-color-amber-300);
+  --kit-canvas-error: var(--kit-color-red-300);
+  --kit-canvas-reference: var(--kit-color-slate-500);
+  --kit-canvas-reference-fill: var(--kit-color-slate-a16);
+  --kit-canvas-outline: var(--kit-color-slate-700);
 }
