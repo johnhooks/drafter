@@ -15,7 +15,7 @@ The kit's tokens live in `packages/kit/src/tokens.css` with light fallbacks, and
 
 ## Decisions
 
-**Tokens are resolved to values, not referenced from attributes.** A `usePalette()` hook in `src/ui/sketch/palette.ts` reads each `--kit-canvas-*` token with `getComputedStyle` on the svg element, once on mount and again when the store's theme changes, and returns a frozen object keyed by role. The editor writes those values into attributes as it does today. Alternative: write `var(--kit-canvas-line)` into the attributes and let CSS resolve them. Rejected: the export serialises attributes verbatim, so a `var()` would leave the file depending on a stylesheet it does not carry, and SVG presentation attributes do not accept `var()` in every renderer.
+**Tokens are resolved to values, not referenced from attributes.** A `usePalette()` hook in `src/ui/sketch/palette.ts` reads each `--kit-canvas-*` token with `getComputedStyle` on the root element, where the tokens cascade from, once on mount and again whenever the root's `data-theme` attribute changes, observed with a `MutationObserver`. It returns an object keyed by role. The store's theme is not the trigger: the app stamps the attribute in its own effect, which runs after a child's, so a hook keyed on the store would read the outgoing theme's values. The editor writes those values into attributes as it does today. Alternative: write `var(--kit-canvas-line)` into the attributes and let CSS resolve them. Rejected: the export serialises attributes verbatim, so a `var()` would leave the file depending on a stylesheet it does not carry, and SVG presentation attributes do not accept `var()` in every renderer.
 
 **The token list is the palette's source of truth in one place.** `palette.ts` exports the array of role names; the hook maps each to `--kit-canvas-<role>`. A unit test reads the kit's `tokens.css` and asserts the set of `--kit-canvas-*` names equals that array, so adding a token without a reader, or a reader without a token, fails.
 
@@ -25,12 +25,12 @@ The kit's tokens live in `packages/kit/src/tokens.css` with light fallbacks, and
 
 **Theme test.** The colour-token name pattern in `tokens.test.ts` gains `canvas`, so both themes must assign every canvas token. The literal-colour scan is unchanged; canvas tokens are declared in `tokens.css` and the theme files, which it does not walk.
 
-**Export.** `sketchSvgForExport` inserts a full-size `rect` in the resolved `surface` colour as the first drawn element. The palette values are already literals in the attributes, so nothing else changes.
+**Export.** The surface is drawn as the svg's first child, a `rect` spanning the centred viewBox in the `surface` colour, rather than styled on the element. The export is then a plain clone: the palette values are already literals in the attributes and the background travels with them.
 
 **Inline error message.** The sketch's error popover moves its inline colour, background, and border to an `.inline-edit-error` class in `styles.css` using `--kit-danger` and `--kit-surface-raised`.
 
 ## Risks / Trade-offs
 
-- [The hook reads computed style before the theme stylesheet applies on first paint] → The effect runs after mount, when the theme attribute is already on the root; the store's theme is restored before the first render.
+- [The hook reads computed style before the theme attribute is on the root] → The page starts light and the app stamps the saved theme in a post-mount effect, so a reload into the dark theme draws the canvas's first frame light and re-renders dark one render after the panels. Stamping the attribute synchronously from a store subscription and initialising the store's theme from storage would remove the flash; left for a follow-up.
 - [A future colour added as a literal in the editor] → No test can scan JSX for hex strings without false positives; the kit's rule and this design note are the guard, and the palette object makes the right way the easy way.
 - [Dark values are guesses until seen] → They are one file to tune; the e2e checks only that the values change, not what they are.

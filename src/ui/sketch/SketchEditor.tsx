@@ -9,14 +9,13 @@ import { type Sixteenths, formatLength, parseLength } from '../../core/units'
 import type { ConstraintRef, LineShape } from '../store/actions'
 import { useStore } from '../store/store'
 import { useViewHooks } from '../useCommands'
+import { usePalette } from './palette'
 import { type DimSpec, type DimTarget, type LabelSpec, type TagSpec, type TickSpec, dimKey, dimensionsOf, labelsOf, parseDimKey } from './Dimensions'
 import { type DimHit, type FaceSide, type LineInfo, type LinkTarget, type PointerInfo, type PreviewLine, type Tool, lenLiteral, makeTool } from './tools'
 import { type SketchView, axisLabels, mirrorSign, toPlaneInches, toScreen } from './view'
 
 const SNAP_PX = 6
 const HOVER_GRACE_MS = 150
-/** Anchor edges light in a violet that no other mark in the sketch uses. */
-const ANCHOR_COLOR = '#8a5cf6'
 const FACE_SIDES: readonly FaceSide[] = ['left', 'right', 'bottom', 'top']
 
 type Editing =
@@ -40,6 +39,7 @@ export function SketchEditor({ sketch }: Props) {
   const selection = useStore((s) => s.selection)
   const lastGood = useStore((s) => s.lastGood)
   const display = useStore((s) => s.display)
+  const pal = usePalette()
   const exprFocus = useStore((s) => s.exprFocus)
   const dispatch = useStore((s) => s.dispatch)
   const result = ev.results.get(sketch.id)
@@ -360,12 +360,12 @@ export function SketchEditor({ sketch }: Props) {
     for (let u = Math.floor(uMin / step) * step; u <= uMax; u += step) {
       const major = Math.abs(u - Math.round(u)) < 1e-9
       const x = S(u * 16, 0)[0]
-      gridLines.push(<line key={`u${u}`} x1={x} x2={x} y1={-half.h} y2={half.h} stroke={u === 0 ? '#999' : major ? '#ddd' : '#eee'} strokeWidth={1} />)
+      gridLines.push(<line key={`u${u}`} x1={x} x2={x} y1={-half.h} y2={half.h} stroke={u === 0 ? pal['grid-axis'] : major ? pal['grid-major'] : pal['grid-minor']} strokeWidth={1} />)
     }
     for (let v = Math.floor(vMin / step) * step; v <= vMax; v += step) {
       const major = Math.abs(v - Math.round(v)) < 1e-9
       const y = S(0, v * 16)[1]
-      gridLines.push(<line key={`v${v}`} x1={-half.w} x2={half.w} y1={y} y2={y} stroke={v === 0 ? '#999' : major ? '#ddd' : '#eee'} strokeWidth={1} />)
+      gridLines.push(<line key={`v${v}`} x1={-half.w} x2={half.w} y1={y} y2={y} stroke={v === 0 ? pal['grid-axis'] : major ? pal['grid-major'] : pal['grid-minor']} strokeWidth={1} />)
     }
   }
 
@@ -405,7 +405,7 @@ export function SketchEditor({ sketch }: Props) {
   const regionNodes = regions.map((r) => {
     const selected = selection.regions.some((s) => sameRegion(s, r.ref))
     const hovered = hover.region === r.key
-    const fill = selected ? 'rgba(11,107,203,0.22)' : hovered ? 'rgba(11,107,203,0.10)' : 'rgba(0,0,0,0.04)'
+    const fill = selected ? pal['region-select'] : hovered ? pal['region-hover'] : pal.region
     const d = r.rects
       .map((x) => {
         const p = drawRect(x)
@@ -422,7 +422,7 @@ export function SketchEditor({ sketch }: Props) {
     const selected = id !== null && selection.lineIds.includes(id)
     const hovered = id !== null && hover.line === id && toolName !== 'rect'
     const construction = !!line?.construction
-    const stroke = failed ? '#b3261e' : preview || selected ? '#0b6bcb' : hovered ? '#3a86d6' : construction ? '#8a9bb0' : '#222'
+    const stroke = failed ? pal.error : preview || selected ? pal.select : hovered ? pal.hover : construction ? pal.construction : pal.line
     const width = selected || preview || hovered ? 2.5 : construction ? 1 : 1.5
     const dash = preview || failed ? '4 3' : construction ? '6 4' : undefined
     const mid = S((u0 + u1) / 2, (v0 + v1) / 2)
@@ -431,7 +431,7 @@ export function SketchEditor({ sketch }: Props) {
         {id && <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="transparent" strokeWidth={10} />}
         <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={stroke} strokeWidth={width} strokeDasharray={dash} strokeLinecap="square" />
         {preview && (
-          <text x={mid[0] + (shape.dir === 'h' ? 0 : 8)} y={mid[1] + (shape.dir === 'h' ? 14 : 4)} textAnchor={shape.dir === 'h' ? 'middle' : 'start'} fontSize={12} fill="#0b6bcb">
+          <text x={mid[0] + (shape.dir === 'h' ? 0 : 8)} y={mid[1] + (shape.dir === 'h' ? 14 : 4)} textAnchor={shape.dir === 'h' ? 'middle' : 'start'} fontSize={12} fill={pal.select}>
             {formatLength((shape.max - shape.min) as Sixteenths)}
           </text>
         )}
@@ -441,7 +441,7 @@ export function SketchEditor({ sketch }: Props) {
             y={mid[1] + (shape.dir === 'h' ? -4 : 3)}
             textAnchor={shape.dir === 'h' ? 'middle' : 'start'}
             fontSize={9}
-            fill={failed ? '#b3261e' : '#999'}
+            fill={failed ? pal.error : pal.handle}
             fontFamily="ui-monospace, monospace"
             pointerEvents="none"
             data-handle={line.handle}
@@ -458,11 +458,11 @@ export function SketchEditor({ sketch }: Props) {
     const d = drawRect(r)
     return (
       <g key={`pr${i}`}>
-        <rect x={d.x} y={d.y} width={d.w} height={d.h} fill="rgba(11,107,203,0.06)" stroke="#0b6bcb" strokeWidth={2} strokeDasharray="4 3" />
-        <text x={S((r.u0 + r.u1) / 2, r.v0)[0]} y={S(0, r.v0)[1] + 14} textAnchor="middle" fontSize={12} fill="#0b6bcb">
+        <rect x={d.x} y={d.y} width={d.w} height={d.h} fill={pal['region-hover']} stroke={pal.select} strokeWidth={2} strokeDasharray="4 3" />
+        <text x={S((r.u0 + r.u1) / 2, r.v0)[0]} y={S(0, r.v0)[1] + 14} textAnchor="middle" fontSize={12} fill={pal.select}>
           {formatLength((r.u1 - r.u0) as Sixteenths)}
         </text>
-        <text x={S(r.u1, 0)[0] + 6 * su} y={S(0, (r.v0 + r.v1) / 2)[1] + 4} textAnchor={su > 0 ? 'start' : 'end'} fontSize={12} fill="#0b6bcb">
+        <text x={S(r.u1, 0)[0] + 6 * su} y={S(0, (r.v0 + r.v1) / 2)[1] + 4} textAnchor={su > 0 ? 'start' : 'end'} fontSize={12} fill={pal.select}>
           {formatLength((r.v1 - r.v0) as Sixteenths)}
         </text>
       </g>
@@ -494,7 +494,7 @@ export function SketchEditor({ sketch }: Props) {
     const kind = sl.target.kind === 'region' ? (sl.axis === 'u' ? 'w' : 'h') : 'len'
     return (
       <g key={key} data-dim-slot={key}>
-        {labelNode(p[0], p[1] + 4, sl.axis === 'u' ? 'middle' : su > 0 ? 'start' : 'end', formatLength(sl.value as Sixteenths), '#0b6bcb', 12, { 'data-dim': kind })}
+        {labelNode(p[0], p[1] + 4, sl.axis === 'u' ? 'middle' : su > 0 ? 'start' : 'end', formatLength(sl.value as Sixteenths), pal.select, 12, { 'data-dim': kind })}
       </g>
     )
   })
@@ -503,7 +503,7 @@ export function SketchEditor({ sketch }: Props) {
     const key = dimKey(d.target)
     const level = emphasis(d.ref)
     const selected = level === 'selected'
-    const color = level ? '#0b6bcb' : '#8a5a00'
+    const color = level ? pal.select : pal.constraint
     const marks = { 'data-dim-highlight': level ? true : undefined, 'data-dim-selected': selected || undefined }
     const labelAlong = d.from + (d.to - d.from) * d.labelAt
     if (d.axis === 'u') {
@@ -547,7 +547,7 @@ export function SketchEditor({ sketch }: Props) {
   const tagNodes = dims.tags.filter((t) => showConstraint(t.ref)).map((t) => {
     const p = S(t.u, t.v)
     return (
-      <text key={`${t.ref.lineId}:${t.ref.slot}`} x={p[0] + 4} y={p[1] - 4} fontSize={10} fill="#8a5a00" fontFamily="ui-monospace, monospace">
+      <text key={`${t.ref.lineId}:${t.ref.slot}`} x={p[0] + 4} y={p[1] - 4} fontSize={10} fill={pal.constraint} fontFamily="ui-monospace, monospace">
         {t.text}
       </text>
     )
@@ -576,7 +576,7 @@ export function SketchEditor({ sketch }: Props) {
       }
     }
     return [...lit.entries()].map(([key, seg]) => (
-      <line key={key} data-anchor={key} x1={seg[0][0]} y1={seg[0][1]} x2={seg[1][0]} y2={seg[1][1]} stroke={ANCHOR_COLOR} strokeWidth={5} strokeOpacity={0.45} pointerEvents="none" />
+      <line key={key} data-anchor={key} x1={seg[0][0]} y1={seg[0][1]} x2={seg[1][0]} y2={seg[1][1]} stroke={pal.anchor} strokeWidth={5} strokeOpacity={0.45} pointerEvents="none" />
     ))
   })()
 
@@ -584,7 +584,7 @@ export function SketchEditor({ sketch }: Props) {
   const tickNodes = dims.ticks.filter((t) => !showConstraint(t.ref)).map((t) => {
     const [x, y] = S(t.u, t.v)
     const [dx, dy] = t.dir === 'h' ? [0, 3] : [3, 0]
-    return <line key={`${t.ref.lineId}:${t.ref.slot}`} data-tick={`${t.ref.lineId}:${t.ref.slot}`} x1={x - dx} y1={y - dy} x2={x + dx} y2={y + dy} stroke="#8a5a00" strokeWidth={1.5} pointerEvents="none" />
+    return <line key={`${t.ref.lineId}:${t.ref.slot}`} data-tick={`${t.ref.lineId}:${t.ref.slot}`} x1={x - dx} y1={y - dy} x2={x + dx} y2={y + dy} stroke={pal.constraint} strokeWidth={1.5} pointerEvents="none" />
   })
 
   // the reference face's edges are anchors for the link tool
@@ -605,7 +605,7 @@ export function SketchEditor({ sketch }: Props) {
           y1={p[1]}
           x2={q[0]}
           y2={q[1]}
-          stroke={hl ? '#e08a00' : 'transparent'}
+          stroke={hl ? pal.link : 'transparent'}
           strokeWidth={hl ? 4 : 10}
           style={{ cursor: toolName === 'link' ? 'pointer' : undefined }}
         />
@@ -630,8 +630,8 @@ export function SketchEditor({ sketch }: Props) {
     if (!p) return null
     return (
       <g key={`hl${i}`}>
-        {seg && <line x1={seg[0][0]} y1={seg[0][1]} x2={seg[1][0]} y2={seg[1][1]} stroke="#e08a00" strokeWidth={4} pointerEvents="none" />}
-        <text x={p[0] + 8} y={p[1] - 8} fontSize={11} fill="#e08a00" fontWeight={600} data-link-label>
+        {seg && <line x1={seg[0][0]} y1={seg[0][1]} x2={seg[1][0]} y2={seg[1][1]} stroke={pal.link} strokeWidth={4} pointerEvents="none" />}
+        <text x={p[0] + 8} y={p[1] - 8} fontSize={11} fill={pal.link} fontWeight={600} data-link-label>
           {i === 0 ? 'constrain' : 'anchor'}
         </text>
       </g>
@@ -686,22 +686,24 @@ export function SketchEditor({ sketch }: Props) {
         onContextMenu={(e) => e.preventDefault()}
         style={{ cursor: toolName === 'rect' || toolName === 'line' ? 'crosshair' : 'default', outline: 'none' }}
       >
+        {/* the surface is drawn, not styled, so the exported file carries it */}
+        <rect data-surface x={-half.w} y={-half.h} width={size.w} height={size.h} fill={pal.surface} />
         <g data-grid>{gridLines}</g>
         {sr?.outlines.map((o, i) => {
           const d = drawRect(o)
-          return <rect key={`o${i}`} x={d.x} y={d.y} width={d.w} height={d.h} fill="none" stroke="#b9c7d6" strokeWidth={1} strokeDasharray="3 3" />
+          return <rect key={`o${i}`} x={d.x} y={d.y} width={d.w} height={d.h} fill="none" stroke={pal.outline} strokeWidth={1} strokeDasharray="3 3" />
         })}
         {sr?.coplanarFaces.map((f, i) => (
           <path
             key={`f${i}`}
             d={f.loops.map((loop) => `M${loop.map((p) => S(p[0], p[1]).join(',')).join('L')}Z`).join(' ')}
-            fill="rgba(120,150,190,0.18)"
+            fill={pal['reference-fill']}
             fillRule="evenodd"
-            stroke="#8aa0bb"
+            stroke={pal.reference}
             strokeWidth={1}
           />
         ))}
-        <circle cx={S(0, 0)[0]} cy={S(0, 0)[1]} r={3} fill="#999" />
+        <circle cx={S(0, 0)[0]} cy={S(0, 0)[1]} r={3} fill={pal.handle} />
         {regionNodes}
         {sr?.face && faceEdgeNodes(sr.face)}
         {drawn.map((d) => lineNode(d.line.id, d.line, d.shape, false, d.failed))}
@@ -718,9 +720,9 @@ export function SketchEditor({ sketch }: Props) {
             {(() => {
               const p = S(pointer.u, pointer.v)
               return pointer.kind === 'corner' ? (
-                <rect x={p[0] - 5} y={p[1] - 5} width={10} height={10} fill="none" stroke="#e08a00" strokeWidth={2} />
+                <rect x={p[0] - 5} y={p[1] - 5} width={10} height={10} fill="none" stroke={pal.link} strokeWidth={2} />
               ) : (
-                <circle cx={p[0]} cy={p[1]} r={5} fill="none" stroke="#e08a00" strokeWidth={2} />
+                <circle cx={p[0]} cy={p[1]} r={5} fill="none" stroke={pal.link} strokeWidth={2} />
               )
             })()}
           </g>
@@ -749,7 +751,7 @@ export function SketchEditor({ sketch }: Props) {
         />
       )}
       {inputError && inputPos && (
-        <div className="inline-edit" style={{ ...inputPos, top: inputPos.top + 24, width: 240, color: '#b3261e', background: '#fff', border: '1px solid #b3261e' }}>
+        <div className="inline-edit invalid inline-edit-error" style={{ ...inputPos, top: inputPos.top + 24 }}>
           {inputError}
         </div>
       )}

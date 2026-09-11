@@ -36,4 +36,25 @@
   --kit-warning: #b26a00;
   --kit-focus: #2f6fd6;
   --kit-overlay: rgba(0, 0, 0, 0.35);
+
+  /* The sketch canvas: a drawing surface with its own marks, themed with the panels but never sharing their tokens. */
+  --kit-canvas-surface: #fbfbfa;
+  --kit-canvas-grid-axis: #999999;
+  --kit-canvas-grid-major: #dddddd;
+  --kit-canvas-grid-minor: #eeeeee;
+  --kit-canvas-line: #222222;
+  --kit-canvas-construction: #8a9bb0;
+  --kit-canvas-handle: #999999;
+  --kit-canvas-select: #0b6bcb;
+  --kit-canvas-hover: #3a86d6;
+  --kit-canvas-region: rgba(0, 0, 0, 0.04);
+  --kit-canvas-region-hover: rgba(11, 107, 203, 0.1);
+  --kit-canvas-region-select: rgba(11, 107, 203, 0.22);
+  --kit-canvas-constraint: #8a5a00;
+  --kit-canvas-anchor: #8a5cf6;
+  --kit-canvas-link: #e08a00;
+  --kit-canvas-error: #b3261e;
+  --kit-canvas-reference: #8aa0bb;
+  --kit-canvas-reference-fill: rgba(120, 150, 190, 0.18);
+  --kit-canvas-outline: #b9c7d6;
 }

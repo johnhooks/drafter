@@ -32,4 +32,4 @@ The `dist/` folder is a static site. Serve it from any web server or open it fro
 
 ## Theme
 
-The panels come in a light grey and a dark theme. Choose one from the menu at the right of the toolbar; the choice is remembered in the browser. The sketch and 3D surfaces keep their own colours.
+The panels and the sketch canvas come in a light grey and a dark theme. Choose one from the menu at the right of the toolbar; the choice is remembered in the browser. A sketch exported as SVG carries the colours it was drawn with. The 3D view keeps its own colours.

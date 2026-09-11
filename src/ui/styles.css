@@ -7,7 +7,7 @@ body { background: var(--kit-surface-frame); color: var(--kit-text); font-family
 .side { min-height: 0; }
 .centre { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .centre .view { flex: 1; position: relative; min-height: 0; }
-/* the drawing surfaces keep their own light colours in either theme */
+/* the model view keeps its own light colours in either theme; the sketch canvas draws its surface from the canvas tokens */
 .centre .view[data-model-view] { background: #f4f4f2; }
 .centre canvas { display: block; }
 .errors { border-top: var(--kit-line-w) solid var(--kit-line); background: var(--kit-surface-panel); max-height: 140px; overflow: auto; padding: var(--kit-space) var(--kit-space-2); font-size: var(--kit-text-xs); }
@@ -19,9 +19,10 @@ body { background: var(--kit-surface-frame); color: var(--kit-text); font-family
 .param-add { margin-top: var(--kit-space-2); display: flex; flex-direction: column; gap: var(--kit-space-2); align-items: flex-start; }
 .hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); background: var(--kit-surface-raised); padding: var(--kit-space) var(--kit-space-2); border-radius: var(--kit-radius); border: var(--kit-line-w) solid var(--kit-line); pointer-events: none; font-size: var(--kit-text-xs); }
 .sketch { width: 100%; height: 100%; touch-action: none; user-select: none; }
-.sketch svg { width: 100%; height: 100%; display: block; background: #fbfbfa; }
+.sketch svg { width: 100%; height: 100%; display: block; }
 .inline-edit { position: absolute; width: 90px; padding: 2px 4px; font: inherit; font-size: var(--kit-text-md); z-index: 6; border: var(--kit-line-w) solid var(--kit-line-strong); border-radius: var(--kit-radius); background: var(--kit-surface-raised); color: var(--kit-text); }
 .inline-edit.invalid { border-color: var(--kit-danger); }
+.inline-edit-error { width: 240px; color: var(--kit-danger); }
 .axis-indicator { position: absolute; left: 10px; bottom: 10px; font-size: var(--kit-text-xs); color: var(--kit-text-muted); background: var(--kit-surface-raised); padding: var(--kit-space) var(--kit-space-2); border-radius: var(--kit-radius); pointer-events: none; }
 
 /* the wrapper only tracks focus; it must not take part in row layout */

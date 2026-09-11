@@ -14,4 +14,24 @@
   --kit-warning: #ffb454;
   --kit-focus: #6ea8ff;
   --kit-overlay: rgba(0, 0, 0, 0.55);
+  /* Canvas: a surface a step lighter than the frame, grid a step lighter again, marks lifted to read on it. */
+  --kit-canvas-surface: #1c1c1c;
+  --kit-canvas-grid-axis: #6a6a6a;
+  --kit-canvas-grid-major: #2e2e2e;
+  --kit-canvas-grid-minor: #262626;
+  --kit-canvas-line: #e6e6e6;
+  --kit-canvas-construction: #6f7f92;
+  --kit-canvas-handle: #8c8c8c;
+  --kit-canvas-select: #5aa0f0;
+  --kit-canvas-hover: #7fb2ee;
+  --kit-canvas-region: rgba(255, 255, 255, 0.05);
+  --kit-canvas-region-hover: rgba(90, 160, 240, 0.14);
+  --kit-canvas-region-select: rgba(90, 160, 240, 0.28);
+  --kit-canvas-constraint: #d9a24a;
+  --kit-canvas-anchor: #a98bff;
+  --kit-canvas-link: #ffb454;
+  --kit-canvas-error: #ff6f5c;
+  --kit-canvas-reference: #6f8aa8;
+  --kit-canvas-reference-fill: rgba(120, 150, 190, 0.16);
+  --kit-canvas-outline: #4d5f73;
 }
