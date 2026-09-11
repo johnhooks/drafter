@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type LineSeg, computeRegions, regionAt, regionByRef } from '../../src/core/geom/regions'
+import { type LineSeg, computeRegions, regionAt, regionByRef, regionIsRectangle } from '../../src/core/geom/regions'
 
 const IN = (n: number) => n * 16
 const h = (id: string, at: number, min: number, max: number): LineSeg => ({ id, dir: 'h', at, min, max })
@@ -72,5 +72,23 @@ describe('computeRegions', () => {
     expect(regionByRef(r, { vertical: 'l3', horizontal: 'l2' })).toBeUndefined()
     expect(regionAt(r, IN(20), IN(5))?.ref.vertical).toBe('l5')
     expect(regionAt(r, IN(30), IN(5))).toBeUndefined()
+  })
+})
+
+describe('regionIsRectangle', () => {
+  it('names each of two adjacent rectangles although they share a corner line', () => {
+    // r1 at u 0..24, r2 beside it at u 24..36, both v 0..16; r2's left line coincides with r1's right line
+    const r1 = [v('a_l', 0, 0, IN(16)), h('a_b', 0, 0, IN(24)), v('a_r', IN(24), 0, IN(16)), h('a_t', IN(16), 0, IN(24))]
+    const r2 = [v('b_l', IN(24), 0, IN(16)), h('b_b', 0, IN(24), IN(36)), v('b_r', IN(36), 0, IN(16)), h('b_t', IN(16), IN(24), IN(36))]
+    const at = new Map([...r1, ...r2].map((l) => [l.id, l.at]))
+    const regions = computeRegions([...r1, ...r2])
+    expect(regions).toHaveLength(2)
+    expect(regions[1]!.ref).toEqual({ vertical: 'a_r', horizontal: 'b_b' })
+    expect(regionIsRectangle(regions[0]!, ['a_l', 'a_b', 'a_r', 'a_t'], (id) => at.get(id))).toBe(true)
+    expect(regionIsRectangle(regions[1]!, ['b_l', 'b_b', 'b_r', 'b_t'], (id) => at.get(id))).toBe(true)
+    expect(regionIsRectangle(regions[1]!, ['a_l', 'a_b', 'a_r', 'a_t'], (id) => at.get(id))).toBe(false)
+    // a rectangle split by a line is no longer exactly one region
+    const split = computeRegions([...r1, v('m', IN(10), 0, IN(16))])
+    expect(regionIsRectangle(split[0]!, ['a_l', 'a_b', 'a_r', 'a_t'], (id) => at.get(id) ?? (id === 'm' ? IN(10) : undefined))).toBe(false)
   })
 })

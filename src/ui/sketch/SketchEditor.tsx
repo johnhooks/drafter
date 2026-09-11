@@ -8,12 +8,15 @@ import { type SnapContext, snap } from '../../core/snap'
 import { type Sixteenths, formatLength, parseLength } from '../../core/units'
 import type { ConstraintRef, LineShape } from '../store/actions'
 import { useStore } from '../store/store'
-import { type DimSpec, type DimTarget, type LabelSpec, dimKey, dimensionsOf, labelsOf, parseDimKey } from './Dimensions'
+import { useViewHooks } from '../useCommands'
+import { type DimSpec, type DimTarget, type LabelSpec, type TagSpec, type TickSpec, dimKey, dimensionsOf, labelsOf, parseDimKey } from './Dimensions'
 import { type DimHit, type FaceSide, type LineInfo, type LinkTarget, type PointerInfo, type PreviewLine, type Tool, lenLiteral, makeTool } from './tools'
 import { type SketchView, axisLabels, mirrorSign, toPlaneInches, toScreen } from './view'
 
 const SNAP_PX = 6
 const HOVER_GRACE_MS = 150
+/** Anchor edges light in a violet that no other mark in the sketch uses. */
+const ANCHOR_COLOR = '#8a5cf6'
 const FACE_SIDES: readonly FaceSide[] = ['left', 'right', 'bottom', 'top']
 
 type Editing =
@@ -53,6 +56,8 @@ export function SketchEditor({ sketch }: Props) {
   const [hover, setHover] = useState<{ line?: string; region?: string }>({})
   const [, bump] = useReducer((x: number) => x + 1, 0)
   const pan = useRef<{ x: number; y: number; cu: number; cv: number } | null>(null)
+  // pointer capture retargets moves to the svg during a press, so hover must not clear until release
+  const pressed = useRef(false)
   const space = useRef(false)
   const pxPerSx = view.scale / 16
 
@@ -99,10 +104,8 @@ export function SketchEditor({ sketch }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sketch.id])
 
-  const dims = useMemo(
-    () => (sr && display.dims ? dimensionsOf(sketch, sr, { pxPerSx, overrides }) : { dims: [] as DimSpec[], tags: [] }),
-    [sketch, sr, display.dims, pxPerSx, overrides],
-  )
+  // every constraint is computed so automatic stacking is stable; whether one is drawn is decided below
+  const dims = useMemo(() => (sr ? dimensionsOf(sketch, sr, { pxPerSx, overrides }) : { dims: [] as DimSpec[], tags: [] as TagSpec[], ticks: [] as TickSpec[] }), [sketch, sr, pxPerSx, overrides])
   const labels = useMemo(() => (sr ? labelsOf(sketch, sr, { pxPerSx, overrides }) : ([] as LabelSpec[])), [sketch, sr, pxPerSx, overrides])
 
   // the tool must survive re-renders during a drag, so its host reads the latest values through a ref
@@ -137,11 +140,6 @@ export function SketchEditor({ sketch }: Props) {
         toggleLine: (id, additive) => dispatch('toggleLine', id, additive),
         toggleRegion: (ref, additive) => dispatch('toggleRegion', ref, additive),
         clearSelection: () => dispatch('select', { featureId: sketch.id }),
-        deleteSelection: () => dispatch('deleteSelection', sketch.id),
-        toggleConstruction: () => {
-          const ids = useStore.getState().selection.lineIds
-          if (ids.length) dispatch('toggleConstruction', sketch.id, ids)
-        },
         lineInfo,
         faceCoord,
         setLineAt: (lineId, expr) => dispatch('setLineSlot', sketch.id, lineId, 'at', expr),
@@ -219,15 +217,19 @@ export function SketchEditor({ sketch }: Props) {
     return { snapped, raw, px: [px, py], shift: e.shiftKey, hitLine, hitRegion, hitFaceEdge, hitDim }
   }
 
+  // the app's key handler asks the tool about Escape and Enter first; cancelTool serves tool switches and the cancel command
+  const toolRef = useRef(tool)
+  toolRef.current = tool
+  useViewHooks({ cancelTool: () => toolRef.current.cancel(), toolConsumes: (key) => toolRef.current.key(key) })
+
+  // Space is a drag modifier, not a chord
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
       if (e.code === 'Space') {
         space.current = true
         e.preventDefault()
-        return
       }
-      if (tool.key(e.key)) e.preventDefault()
     }
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') space.current = false
@@ -238,7 +240,7 @@ export function SketchEditor({ sketch }: Props) {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
     }
-  }, [tool])
+  }, [])
 
   // keys belong to the canvas whenever the pointer is over it: a toolbar toggle keeps focus after a click,
   // and Space would press it again instead of panning. Text fields keep focus so typing is not interrupted.
@@ -267,6 +269,7 @@ export function SketchEditor({ sketch }: Props) {
     if (e.button !== 0) return
     e.preventDefault()
     svgRef.current?.setPointerCapture(e.pointerId)
+    pressed.current = true
     tool.down(pointerInfo(e))
   }
   const onPointerMove = (e: React.PointerEvent) => {
@@ -285,7 +288,7 @@ export function SketchEditor({ sketch }: Props) {
     if (line || region) {
       clearHoverSoon(false)
       if (line !== hover.line || region !== hover.region) setHover({ line, region })
-    } else if (hover.line || hover.region) clearHoverSoon(true)
+    } else if ((hover.line || hover.region) && !pressed.current) clearHoverSoon(true)
     tool.move(info)
   }
   const onPointerUp = (e: React.PointerEvent) => {
@@ -294,6 +297,7 @@ export function SketchEditor({ sketch }: Props) {
       return
     }
     if (e.button !== 0) return
+    pressed.current = false
     tool.up(pointerInfo(e))
   }
 
@@ -381,15 +385,21 @@ export function SketchEditor({ sketch }: Props) {
   if (hover.line) for (const r of regions) if (r.boundary.some((e) => e.lineId === hover.line)) hoveredRegions.add(r.key)
   const selectedRegions = new Set(selection.regions.map(regionKey))
   const editingKey = editing?.kind === 'label' ? dimKey(editing.target) : null
+  const lineActive = (id: string) => hover.line === id || selection.lineIds.includes(id)
   const showLabel = (t: DimTarget) => {
     if (display.sizes || dimKey(t) === editingKey) return true
     if (t.kind === 'region') {
       const k = regionKey(t.ref)
       return hoveredRegions.has(k) || selectedRegions.has(k)
     }
-    return hover.line === t.lineId || selection.lineIds.includes(t.lineId)
+    return lineActive(t.lineId)
   }
-  const showHandle = (id: string) => display.handles || exprFocus || hover.line === id || selection.lineIds.includes(id)
+  const showHandle = (id: string) => display.handles || exprFocus || lineActive(id)
+  const isSelectedConstraint = (ref: ConstraintRef) => !!selection.constraint && ref.lineId === selection.constraint.lineId && ref.slot === selection.constraint.slot
+  const showConstraint = (ref: ConstraintRef) => display.constraints || lineActive(ref.lineId) || isSelectedConstraint(ref)
+  // with the toggle off an active line's constraints are the only ones drawn, so emphasis would say nothing
+  const emphasis = (ref: ConstraintRef): 'selected' | 'highlight' | undefined =>
+    isSelectedConstraint(ref) ? 'selected' : display.constraints && lineActive(ref.lineId) ? 'highlight' : undefined
 
   // region fills, drawn under the lines so a click on a line wins
   const regionNodes = regions.map((r) => {
@@ -489,10 +499,12 @@ export function SketchEditor({ sketch }: Props) {
     )
   })
 
-  const dimNodes = dims.dims.map((d) => {
+  const dimNodes = dims.dims.filter((d) => showConstraint(d.ref)).map((d) => {
     const key = dimKey(d.target)
-    const selected = selection.constraint && d.ref.lineId === selection.constraint.lineId && d.ref.slot === selection.constraint.slot
-    const color = selected ? '#0b6bcb' : '#8a5a00'
+    const level = emphasis(d.ref)
+    const selected = level === 'selected'
+    const color = level ? '#0b6bcb' : '#8a5a00'
+    const marks = { 'data-dim-highlight': level ? true : undefined, 'data-dim-selected': selected || undefined }
     const labelAlong = d.from + (d.to - d.from) * d.labelAt
     if (d.axis === 'u') {
       const y = S(0, d.at)[1]
@@ -502,11 +514,11 @@ export function SketchEditor({ sketch }: Props) {
       const past = y > ye ? 4 : -4
       const lx = S(labelAlong, 0)[0]
       return (
-        <g key={key} data-dim-slot={key} style={{ cursor: 'ns-resize' }}>
+        <g key={key} data-dim-slot={key} {...marks} style={{ cursor: 'ns-resize' }}>
           <line x1={x1} y1={ye} x2={x1} y2={y + past} stroke={color} strokeWidth={1} />
           <line x1={x2} y1={ye} x2={x2} y2={y + past} stroke={color} strokeWidth={1} />
           <line x1={x1} y1={y} x2={x2} y2={y} stroke="transparent" strokeWidth={10} />
-          <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth={selected ? 2 : 1} />
+          <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth={selected ? 2.5 : 1} />
           <line x1={x1} y1={y - 3} x2={x1} y2={y + 3} stroke={color} strokeWidth={2} />
           <line x1={x2} y1={y - 3} x2={x2} y2={y + 3} stroke={color} strokeWidth={2} />
           {labelNode(lx, y > ye ? y + 13 : y - 5, 'middle', d.label, color, 11)}
@@ -520,11 +532,11 @@ export function SketchEditor({ sketch }: Props) {
     const past = x > xe ? 4 : -4
     const ly = S(0, labelAlong)[1]
     return (
-      <g key={key} data-dim-slot={key} style={{ cursor: 'ew-resize' }}>
+      <g key={key} data-dim-slot={key} {...marks} style={{ cursor: 'ew-resize' }}>
         <line x1={xe} y1={y1} x2={x + past} y2={y1} stroke={color} strokeWidth={1} />
         <line x1={xe} y1={y2} x2={x + past} y2={y2} stroke={color} strokeWidth={1} />
         <line x1={x} y1={y1} x2={x} y2={y2} stroke="transparent" strokeWidth={10} />
-        <line x1={x} y1={y1} x2={x} y2={y2} stroke={color} strokeWidth={selected ? 2 : 1} />
+        <line x1={x} y1={y1} x2={x} y2={y2} stroke={color} strokeWidth={selected ? 2.5 : 1} />
         <line x1={x - 3} y1={y1} x2={x + 3} y2={y1} stroke={color} strokeWidth={2} />
         <line x1={x - 3} y1={y2} x2={x + 3} y2={y2} stroke={color} strokeWidth={2} />
         {labelNode(x > xe ? x + 6 : x - 6, ly + 4, x > xe ? 'start' : 'end', d.label, color, 11)}
@@ -532,13 +544,47 @@ export function SketchEditor({ sketch }: Props) {
     )
   })
 
-  const tagNodes = dims.tags.map((t) => {
+  const tagNodes = dims.tags.filter((t) => showConstraint(t.ref)).map((t) => {
     const p = S(t.u, t.v)
     return (
       <text key={`${t.ref.lineId}:${t.ref.slot}`} x={p[0] + 4} y={p[1] - 4} fontSize={10} fill="#8a5a00" fontFamily="ui-monospace, monospace">
         {t.text}
       </text>
     )
+  })
+
+  // a constraint shown by hover, selection, or the list lights the edges it measures from, so the pair reads together
+  const anchorNodes = (() => {
+    const lit = new Map<string, [[number, number], [number, number]]>()
+    for (const d of dims.dims) {
+      if (!lineActive(d.ref.lineId) && !isSelectedConstraint(d.ref)) continue
+      for (const a of d.anchors) {
+        const key = a.kind === 'line' ? `line:${a.lineId}` : `face:${a.side}`
+        if (lit.has(key)) continue
+        let seg: [[number, number], [number, number]] | undefined
+        if (a.kind === 'line') {
+          const drawnLine = byId.get(a.lineId)
+          if (!drawnLine) continue
+          const [u0, v0, u1, v1] = ends(drawnLine.shape)
+          seg = [S(u0, v0), S(u1, v1)]
+        } else if (sr?.face) {
+          const f = sr.face
+          seg =
+            a.side === 'left' ? [S(f.u0, f.v0), S(f.u0, f.v1)] : a.side === 'right' ? [S(f.u1, f.v0), S(f.u1, f.v1)] : a.side === 'bottom' ? [S(f.u0, f.v0), S(f.u1, f.v0)] : [S(f.u0, f.v1), S(f.u1, f.v1)]
+        }
+        if (seg) lit.set(key, seg)
+      }
+    }
+    return [...lit.entries()].map(([key, seg]) => (
+      <line key={key} data-anchor={key} x1={seg[0][0]} y1={seg[0][1]} x2={seg[1][0]} y2={seg[1][1]} stroke={ANCHOR_COLOR} strokeWidth={5} strokeOpacity={0.45} pointerEvents="none" />
+    ))
+  })()
+
+  // the resting cue for a driven slot whose constraint is not drawn: a short tick across the line
+  const tickNodes = dims.ticks.filter((t) => !showConstraint(t.ref)).map((t) => {
+    const [x, y] = S(t.u, t.v)
+    const [dx, dy] = t.dir === 'h' ? [0, 3] : [3, 0]
+    return <line key={`${t.ref.lineId}:${t.ref.slot}`} data-tick={`${t.ref.lineId}:${t.ref.slot}`} x1={x - dx} y1={y - dy} x2={x + dx} y2={y + dy} stroke="#8a5a00" strokeWidth={1.5} pointerEvents="none" />
   })
 
   // the reference face's edges are anchors for the link tool
@@ -661,8 +707,10 @@ export function SketchEditor({ sketch }: Props) {
         {drawn.map((d) => lineNode(d.line.id, d.line, d.shape, false, d.failed))}
         {previewRectNodes}
         {previewLineNodes}
+        {anchorNodes}
         {dimNodes}
         {tagNodes}
+        {tickNodes}
         {labelNodes}
         {highlightNodes}
         {pointer && pointer.kind !== 'grid' && (

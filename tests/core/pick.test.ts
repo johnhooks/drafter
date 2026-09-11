@@ -10,11 +10,11 @@ const IN = (n: number) => sx(n * 16)
 const doc: Document = {
   ...newDocument('t'),
   features: [
-    { kind: 'sketch', id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines: rectLines('a', 1, IN(0), IN(24), IN(0), IN(24)) },
+    { kind: 'sketch', rects: [], id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines: rectLines('a', 1, IN(0), IN(24), IN(0), IN(24)) },
     { kind: 'extrude', id: 'e1', name: 'Extrude 1', sketchId: 's1', regions: [regionOf('a')], distance: IN(24), op: 'new' },
     // the right side of the cube is the sweep of the rectangle's right line (a_r) outward +u
     {
-      kind: 'sketch',
+      kind: 'sketch', rects: [],
       id: 's2',
       handle: 's2',
       name: 'Sketch 2',

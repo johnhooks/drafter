@@ -1,10 +1,12 @@
-import { rewriteNames } from '../expr/rewrite'
 import { DEFAULT_VIEW } from './types'
 
-/** Version 3 stored rectangles and extrudes of rectangle ids; version 4 stores lines and extrudes of regions. */
+/**
+ * Version 3 stored rectangles and extrudes of rectangle ids. Version 5 stores lines, rectangle records over
+ * them, and extrudes of regions; version 3 converts straight to it so expressions naming `r1` survive.
+ */
 export function migrateV3(raw: Record<string, unknown>): Record<string, unknown> {
   const model = raw['model'] as Record<string, unknown> | undefined
-  if (!model || !Array.isArray(model['features'])) return { ...raw, version: 4 }
+  if (!model || !Array.isArray(model['features'])) return { ...raw, version: 5 }
   const features = model['features'] as Array<Record<string, unknown>>
   // per sketch: rectangle id -> its four line ids and handles, so extrudes and face refs can be rewritten
   interface RectLines {
@@ -12,13 +14,12 @@ export function migrateV3(raw: Record<string, unknown>): Record<string, unknown>
     readonly handles: [string, string, string, string]
   }
   const rectsBySketch = new Map<string, Map<string, RectLines>>()
-  const rectHandleBySketch = new Map<string, Map<string, RectLines>>()
   const out = features.map((f) => {
     if (f['kind'] !== 'sketch') return f
     const rects = Array.isArray(f['rects']) ? (f['rects'] as Array<Record<string, unknown>>) : []
     const byId = new Map<string, RectLines>()
-    const byHandle = new Map<string, RectLines>()
     const lines: Array<Record<string, unknown>> = []
+    const records: Array<Record<string, unknown>> = []
     const regionLabels: Record<string, unknown> = {}
     let n = 0
     for (const r of rects) {
@@ -28,7 +29,7 @@ export function migrateV3(raw: Record<string, unknown>): Record<string, unknown>
       n += 4
       const entry: RectLines = { ids, handles }
       byId.set(id, entry)
-      byHandle.set(String(r['handle']), entry)
+      records.push({ id, handle: r['handle'], lines: ids })
       const u = (r['u'] ?? {}) as Record<string, unknown>
       const v = (r['v'] ?? {}) as Record<string, unknown>
       const layout = (r['layout'] ?? {}) as Record<string, Record<string, unknown> | undefined>
@@ -48,23 +49,11 @@ export function migrateV3(raw: Record<string, unknown>): Record<string, unknown>
       if (Object.keys(label).length) regionLabels[`${ids[0]}|${ids[1]}`] = label
     }
     rectsBySketch.set(String(f['id']), byId)
-    rectHandleBySketch.set(String(f['id']), byHandle)
-    const { rects: _rects, ...rest } = f
-    const sketch: Record<string, unknown> = { ...rest, lines }
+    const sketch: Record<string, unknown> = { ...f, lines, rects: records }
     if (Object.keys(regionLabels).length) sketch['regionLabels'] = regionLabels
     return sketch
   })
-  // rewrite r{k}.prop inside every expression of each sketch's lines
-  const rewritten = out.map((f) => {
-    if (f['kind'] !== 'sketch') return f
-    const byHandle = rectHandleBySketch.get(String(f['id']))!
-    const fix = (v: unknown): unknown => (typeof v === 'string' ? rewriteNames(v, (path) => rectPropToLine(path, byHandle)) : v)
-    const lines = (f['lines'] as Array<Record<string, unknown>>).map((l) => {
-      const run = l['run'] as Record<string, unknown>
-      return { ...l, at: fix(l['at']), run: Object.fromEntries(Object.entries(run).map(([k, v]) => [k, fix(v)])) }
-    })
-    return { ...f, lines }
-  })
+  const rewritten = out
   // extrudes reference the region at each rectangle's lower-left corner; face refs name the region and a face
   const sketchOfExtrude = new Map<string, string>()
   const final = rewritten.map((f) => {
@@ -104,7 +93,7 @@ export function migrateV3(raw: Record<string, unknown>): Record<string, unknown>
               : side(3, 1)
     return { ...f, plane: next }
   })
-  return { ...raw, version: 4, model: { ...model, features: final } }
+  return { ...raw, version: 5, model: { ...model, features: final } }
 }
 
 /** The two positions of a rectangle axis: driven min and max, or one of them and a size expressed as an offset from the other. */
@@ -137,31 +126,12 @@ function sixteenthsLiteral(sx: number): string {
   return whole ? `${sign}${whole} ${num}/${den}` : `${sign}${num}/${den}`
 }
 
-function rectPropToLine(path: readonly string[], byHandle: Map<string, { handles: [string, string, string, string] }>): string | undefined {
-  if (path.length !== 2) return undefined
-  const e = byHandle.get(path[0]!)
-  if (!e) return undefined
-  const [left, bottom, right, top] = e.handles
-  switch (path[1]) {
-    case 'left':
-      return `${left}.at`
-    case 'right':
-      return `${right}.at`
-    case 'bottom':
-      return `${bottom}.at`
-    case 'top':
-      return `${top}.at`
-    case 'width':
-      return `(${right}.at - ${left}.at)`
-    case 'height':
-      return `(${top}.at - ${bottom}.at)`
-    case 'umid':
-      return `(${left}.at + (${right}.at - ${left}.at) / 2)`
-    case 'vmid':
-      return `(${bottom}.at + (${top}.at - ${bottom}.at) / 2)`
-    default:
-      return undefined
-  }
+/** Version 4 held lines without rectangle records; version 5 adds the records, so a version 4 sketch just gets none. */
+export function migrateV4(raw: Record<string, unknown>): Record<string, unknown> {
+  const model = raw['model'] as Record<string, unknown> | undefined
+  if (!model || !Array.isArray(model['features'])) return { ...raw, version: 5 }
+  const features = (model['features'] as Array<Record<string, unknown>>).map((f) => (f['kind'] === 'sketch' && !Array.isArray(f['rects']) ? { ...f, rects: [] } : f))
+  return { ...raw, version: 5, model: { ...model, features } }
 }
 
 /** Version 2 was a bare model with a version field; version 3 wraps it beside a view. */

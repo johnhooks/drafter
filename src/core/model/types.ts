@@ -80,6 +80,17 @@ export interface SketchLine {
   readonly layout?: LineLayout
 }
 
+/**
+ * A rectangle: four member lines that stay a rectangle through their corner attachments, kept as a
+ * named group so it can be edited as one and named in expressions. Order is left, bottom, right, top.
+ */
+export interface SketchRect {
+  readonly id: string
+  /** Stable name used in expressions: r1, r2, ... */
+  readonly handle: string
+  readonly lines: readonly [string, string, string, string]
+}
+
 /** Placement of a region's width and height labels, keyed in the sketch by the region's corner. */
 export interface RegionLabelLayout {
   readonly width?: DimLayout
@@ -97,6 +108,7 @@ export interface SketchFeature {
   readonly name: string
   readonly plane: PlaneDef
   readonly lines: readonly SketchLine[]
+  readonly rects: readonly SketchRect[]
   readonly regionLabels?: Readonly<Record<string, RegionLabelLayout>>
 }
 
@@ -150,7 +162,7 @@ export interface ViewState {
 }
 
 export interface DocumentFile {
-  readonly version: 4
+  readonly version: 5
   readonly model: Model
   readonly view: ViewState
 }
@@ -166,7 +178,7 @@ export function newDocument(title = 'Untitled'): Model {
 }
 
 export function newFile(title = 'Untitled'): DocumentFile {
-  return { version: 4, model: newDocument(title), view: DEFAULT_VIEW }
+  return { version: 5, model: newDocument(title), view: DEFAULT_VIEW }
 }
 
 export function isExpr(v: Len): v is string {

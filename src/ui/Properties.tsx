@@ -1,11 +1,14 @@
 import { Button, Checkbox, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Row, Select, SelectItem, TextField } from '@bitmachina/drafter-kit'
 import { FRAMES } from '../core/model/planes'
-import type { ExtrudeFeature, Len, LineDir, LineSlot, SketchFeature, SketchLine, Slot } from '../core/model/types'
-import { isExpr, regionKey } from '../core/model/types'
+import type { ExtrudeFeature, Len, LineDir, LineSlot, SketchFeature, SketchLine, SketchRect, Slot } from '../core/model/types'
+import { isExpr, regionKey, sameRegion } from '../core/model/types'
+import { regionIsRectangle } from '../core/geom/regions'
 import { isAttachment } from './sketch/Dimensions'
 import { type Sixteenths, formatLength } from '../core/units'
 import { LenField } from './LenField'
+import { KeyBindings } from './KeyBindings'
 import { Parameters } from './Parameters'
+import type { RectSlot } from './store/actions'
 import { useStore } from './store/store'
 
 export function Properties() {
@@ -26,6 +29,7 @@ function DocumentProperties() {
         <TextField label="Title" value={title} onCommit={(_v, t) => dispatch('setTitle', t)} />
       </Fields>
       <Parameters />
+      <KeyBindings />
       <Hint>Select a feature in the timeline or a body in the view to edit it.</Hint>
     </div>
   )
@@ -46,6 +50,10 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
   const regions = r?.kind === 'sketch' ? r.regions : []
   const single = selection.lineIds.length === 1 ? sketch.lines.find((x) => x.id === selection.lineIds[0]) : undefined
   const selectedRegionKeys = selection.regions.map(regionKey)
+  const lineAt = (id: string) => (r?.kind === 'sketch' ? r.lines.get(id)?.at : undefined)
+  // one selected region that is exactly a rectangle's area shows that rectangle's form, as a click inside it always did
+  const selectedRegion = selection.regions.length === 1 ? regions.find((x) => sameRegion(x.ref, selection.regions[0]!)) : undefined
+  const selectedRect = selectedRegion ? sketch.rects.find((rect) => regionIsRectangle(selectedRegion, rect.lines, lineAt)) : undefined
   return (
     <div>
       <h3 className="section-title">
@@ -85,7 +93,7 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
           {regions.map((region) => {
             const b = region.bounds
             const size = `${formatLength((b.u1 - b.u0) as Sixteenths)} x ${formatLength((b.v1 - b.v0) as Sixteenths)}`
-            const kind = region.rects.length === 1 ? 'Rectangle' : 'Region'
+            const kind = sketch.rects.find((rect) => regionIsRectangle(region, rect.lines, lineAt))?.handle ?? 'Region'
             // in sketch order, so a rectangle reads l1 l2 l3 l4
             const bounding = sketch.lines.filter((l) => region.boundary.some((e) => e.lineId === l.id)).map((l) => l.handle).join(' ')
             return (
@@ -127,6 +135,15 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
           })}
         </ListBox>
       </Disclosure>
+      {selection.lineIds.length === 4 && (
+        <Fields>
+          <div>
+            <Button onPress={() => dispatch('groupRectangle', sketch.id, selection.lineIds)}>Make rectangle</Button>
+          </div>
+        </Fields>
+      )}
+      {single && <RectangleProperties sketch={sketch} line={single} />}
+      {!single && selectedRect && <RectangleProperties sketch={sketch} rect={selectedRect} />}
       {single && <LineProperties sketch={sketch} line={single} />}
       <ConstraintList sketch={sketch} />
     </div>
@@ -136,6 +153,59 @@ function SketchProperties({ sketch }: { sketch: SketchFeature }) {
 function featureName(id: string): string {
   const f = useStore.getState().doc.features.find((x) => x.id === id)
   return f?.name ?? id
+}
+
+const SIDE_NAME = ['Left', 'Bottom', 'Right', 'Top'] as const
+const SIDE_SLOT: readonly RectSlot[] = ['left', 'bottom', 'right', 'top']
+
+/** The form of a rectangle, reached from a selected member line or from its selected region; every field writes to a member line. */
+function RectangleProperties({ sketch, line, rect: given }: { sketch: SketchFeature; line?: SketchLine; rect?: SketchRect }) {
+  const ev = useStore((s) => s.eval)
+  const dispatch = useStore((s) => s.dispatch)
+  const rect = given ?? sketch.rects.find((r) => line !== undefined && r.lines.includes(line.id))
+  if (!rect) return null
+  const r = ev.results.get(sketch.id)
+  const resolved = r?.kind === 'sketch' ? r.lines : undefined
+  const members = rect.lines.map((id) => sketch.lines.find((l) => l.id === id))
+  const at = (i: number) => resolved?.get(rect.lines[i]!)?.at
+  const side = line ? rect.lines.indexOf(line.id) : -1
+  const sideField = (i: number) => {
+    const m = members[i]
+    if (!m) return null
+    const err = r?.kind === 'sketch' ? r.lineErrors.get(m.id) : undefined
+    return (
+      <LenField
+        key={SIDE_SLOT[i]}
+        label={i === side ? `${SIDE_NAME[i]} (this line)` : SIDE_NAME[i]!}
+        value={m.at}
+        resolved={isExpr(m.at) ? at(i) : undefined}
+        error={isExpr(m.at) && err ? err : undefined}
+        onCommit={(v) => dispatch('setRectSlot', sketch.id, rect.id, SIDE_SLOT[i]!, v)}
+      />
+    )
+  }
+  const width = at(2) !== undefined && at(0) !== undefined ? ((at(2)! - at(0)!) as Sixteenths) : (0 as Sixteenths)
+  const height = at(3) !== undefined && at(1) !== undefined ? ((at(3)! - at(1)!) as Sixteenths) : (0 as Sixteenths)
+  return (
+    <Disclosure title={`Rectangle ${rect.handle}`}>
+      <Fields>
+        <Hint>Sides move that line. Width and Height move the right and top lines; both accept expressions.</Hint>
+        <Row>
+          {sideField(0)}
+          {sideField(2)}
+          <LenField label="Width" value={width} derived onCommit={(v) => dispatch('setRectSlot', sketch.id, rect.id, 'width', v)} />
+        </Row>
+        <Row>
+          {sideField(1)}
+          {sideField(3)}
+          <LenField label="Height" value={height} derived onCommit={(v) => dispatch('setRectSlot', sketch.id, rect.id, 'height', v)} />
+        </Row>
+        <div>
+          <Button onPress={() => dispatch('explodeRectangle', sketch.id, rect.id)}>Explode</Button>
+        </div>
+      </Fields>
+    </Disclosure>
+  )
 }
 
 const RUN_LABEL: Record<LineDir, Record<Slot, string>> = {

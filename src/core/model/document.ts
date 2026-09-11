@@ -1,4 +1,4 @@
-import { migrateV1, migrateV2, migrateV3 } from './migrate'
+import { migrateV1, migrateV2, migrateV3, migrateV4 } from './migrate'
 import type { Document, DocumentFile } from './types'
 import { type ValidationError, validateFile } from './validate'
 
@@ -8,7 +8,7 @@ export function serializeDocument(file: DocumentFile): string {
 
 export type ParseDocumentResult = { ok: true; file: DocumentFile } | { ok: false; errors: ValidationError[] }
 
-/** Accepts versions 1 to 4; earlier versions are migrated on read and always saved as 4. */
+/** Accepts versions 1 to 5; earlier versions are migrated on read and always saved as 5. */
 export function parseDocument(text: string): ParseDocumentResult {
   let raw: unknown
   try {
@@ -21,6 +21,7 @@ export function parseDocument(text: string): ParseDocumentResult {
     if (r['version'] === 1) raw = migrateV3(migrateV2(migrateV1(r)))
     else if (r['version'] === 2) raw = migrateV3(migrateV2(r))
     else if (r['version'] === 3) raw = migrateV3(r)
+    else if (r['version'] === 4) raw = migrateV4(r)
   }
   const errors = validateFile(raw)
   if (errors.length) return { ok: false, errors }

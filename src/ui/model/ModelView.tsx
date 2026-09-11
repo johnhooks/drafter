@@ -10,6 +10,7 @@ import type { Vec3 } from '../../core/model/planes'
 import type { CameraState } from '../../core/model/types'
 import { DEFAULT_CAMERA } from '../../core/model/types'
 import { useStore } from '../store/store'
+import { useViewHooks } from '../useCommands'
 import { BodyMesh, planeOfFace } from './BodyMesh'
 import { CANONICAL_VIEWS, type CanonicalView, clampElevation, lerpView, snapTarget, sphericalOf, viewFromDirection, wrapAzimuth } from './views'
 
@@ -27,8 +28,6 @@ export function cameraPosition(c: CameraState): [number, number, number] {
 function targetOf(c: CameraState): Vector3 {
   return new Vector3(c.center[0] / 16, c.center[1] / 16, c.center[2] / 16)
 }
-
-const KEY_VIEWS: Record<string, CanonicalView['id']> = { '1': 'front', '2': 'back', '3': 'left', '4': 'right', '5': 'top', '6': 'bottom' }
 
 export function ModelView() {
   const ev = useStore((s) => s.eval)
@@ -82,19 +81,15 @@ export function ModelView() {
     dispatch('setCamera', { center, zoom: Math.max(0.5, (px * 0.8) / Math.max(diagonalIn, 1)) })
   }
 
+  // view commands reach the camera through these; keys themselves are resolved by the app's one handler
+  useViewHooks({ goTo, fit })
+
+  // Space and Alt are drag modifiers, not chords
   useEffect(() => {
     const isText = (t: EventTarget | null) => t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable)
     const down = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isText(e.target)) setSpace(true)
       if (e.key === 'Alt') setAlt(true)
-      if (e.key === 'Escape') {
-        if (mode.kind === 'pickFace' || mode.kind === 'pickBody') dispatch('setMode', { kind: 'model' })
-        else if (!isText(e.target)) dispatch('select', {})
-      }
-      if (isText(e.target) || e.metaKey || e.ctrlKey) return
-      if (KEY_VIEWS[e.key]) goTo(KEY_VIEWS[e.key]!)
-      else if (e.key === 'Home') goTo('iso-fl')
-      else if (e.key === 'f' || e.key === 'F') fit()
     }
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') setSpace(false)
@@ -106,8 +101,7 @@ export function ModelView() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode.kind, dispatch, ev])
+  }, [])
 
   const picking = mode.kind === 'pickFace'
   const pickingBody = mode.kind === 'pickBody'

@@ -18,10 +18,10 @@ function doc(layout?: { left?: SketchLine['layout']; right?: SketchLine['layout'
   return {
     ...newDocument('t'),
     features: [
-      { kind: 'sketch', id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines: rectLines('a', 1, 0, IN(24), 0, IN(24)) },
+      { kind: 'sketch', rects: [], id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines: rectLines('a', 1, 0, IN(24), 0, IN(24)) },
       { kind: 'extrude', id: 'e1', name: 'Extrude 1', sketchId: 's1', regions: [regionOf('a')], distance: IN(24), op: 'new' },
       {
-        kind: 'sketch',
+        kind: 'sketch', rects: [],
         id: 's2',
         handle: 's2',
         name: 'Sketch 2',
@@ -146,5 +146,103 @@ describe('setDimLayout', () => {
     expect((s.doc.features[2] as SketchFeature).regionLabels).toEqual({ 'b_l|b_b': { width: { offset: IN(2) } } })
     s = A.removeLines(s, 's2', ['b_t'])
     expect((s.doc.features[2] as SketchFeature).regionLabels).toBeUndefined()
+  })
+})
+
+describe('dimensionsOf anchors and ticks', () => {
+  const pxPerSx = 12 / 16
+
+  /** A 24" square rectangle r1 (l1 left, l2 bottom, l3 right, l4 top) and a free vertical line l5 driven by `at`. */
+  function rectDoc(at: string): Document {
+    const lines: SketchLine[] = [...rectLines('a', 1, 0, IN(24), 0, IN(24)), { id: 'x', handle: 'l5', dir: 'v', at, run: { min: 0, max: IN(24) } }]
+    return {
+      ...newDocument('t'),
+      features: [{ kind: 'sketch', id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines, rects: [{ id: 'r', handle: 'r1', lines: ['a_l', 'a_b', 'a_r', 'a_t'] }] }],
+    }
+  }
+  const dimsOf = (d: Document) => {
+    const s = d.features[0] as SketchFeature
+    const r = evaluate(d).results.get('s1')
+    if (r?.kind !== 'sketch') throw new Error('no sketch result')
+    return dimensionsOf(s, r, { pxPerSx })
+  }
+
+  it('each constraint names the edges it measures from', () => {
+    const d = doc()
+    const { dims } = dimensionsOf(sketchOf(d), resultOf(d), { pxPerSx })
+    expect(dims.map((x) => x.anchors)).toEqual([[{ kind: 'face', side: 'left' }], [{ kind: 'face', side: 'right' }]])
+    expect(dimsOf(rectDoc('l3.at + 1')).dims.find((x) => x.ref.lineId === 'x')!.anchors).toEqual([{ kind: 'line', lineId: 'a_r' }])
+    expect(dimsOf(rectDoc('r1.right + 1')).dims.find((x) => x.ref.lineId === 'x')!.anchors).toEqual([{ kind: 'line', lineId: 'a_r' }])
+    expect(dimsOf(rectDoc('r1.umid + 1')).dims.find((x) => x.ref.lineId === 'x')!.anchors).toEqual([
+      { kind: 'line', lineId: 'a_l' },
+      { kind: 'line', lineId: 'a_r' },
+    ])
+  })
+
+  it('a rectangle side anchors on its member line, the same as naming the line', () => {
+    const viaRect = dimsOf(rectDoc('r1.right + 1'))
+    const viaLine = dimsOf(rectDoc('l3.at + 1'))
+    expect(viaRect.tags).toEqual([])
+    const a = viaRect.dims.find((x) => x.ref.lineId === 'x')!
+    const b = viaLine.dims.find((x) => x.ref.lineId === 'x')!
+    expect(a).toMatchObject({ from: IN(24), to: IN(25), label: '1"', anchorName: 'r1.right' })
+    expect([a.axis, a.from, a.to, a.at, a.edge, a.offset]).toEqual([b.axis, b.from, b.to, b.at, b.edge, b.offset])
+  })
+
+  it('a rectangle middle anchors at the mean of its two members', () => {
+    const { dims, tags } = dimsOf(rectDoc('r1.umid + 2'))
+    expect(tags).toEqual([])
+    expect(dims.find((x) => x.ref.lineId === 'x')).toMatchObject({ axis: 'u', from: IN(12), to: IN(14), label: '2"' })
+  })
+
+  it('a middle anchor on an odd span rounds to the sixteenth the evaluator resolves', () => {
+    // r1 spans 0..3 sixteenths, so r1.umid evaluates to round(1.5) = 2 and the line sits 1" past it; the anchor must be 2 too
+    const lines: SketchLine[] = [...rectLines('a', 1, 0, 3, 0, IN(24)), { id: 'x', handle: 'l5', dir: 'v', at: 'r1.umid + 1', run: { min: 0, max: IN(24) } }]
+    const d: Document = {
+      ...newDocument('t'),
+      features: [{ kind: 'sketch', id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines, rects: [{ id: 'r', handle: 'r1', lines: ['a_l', 'a_b', 'a_r', 'a_t'] }] }],
+    }
+    const { dims } = dimsOf(d)
+    expect(dims.find((x) => x.ref.lineId === 'x')).toMatchObject({ from: 2, to: 18, label: '1"' })
+  })
+
+  it('a rectangle with a missing member line draws nothing for the slot and does not throw', () => {
+    const d = rectDoc('r1.right + 1')
+    const s = d.features[0] as SketchFeature
+    const broken = { ...d, features: [{ ...s, rects: [{ id: 'r', handle: 'r1', lines: ['a_l', 'a_b', 'gone', 'a_t'] as const }] }] }
+    expect(() => dimsOf(broken)).not.toThrow()
+    expect(dimsOf(broken).dims.some((x) => x.ref.lineId === 'x')).toBe(false)
+  })
+
+  it('a driven position ticks at the run midpoint; attached corners do not tick', () => {
+    const d = doc()
+    const { ticks } = dimensionsOf(sketchOf(d), resultOf(d), { pxPerSx })
+    expect(ticks).toEqual([
+      { ref: { sketchId: 's2', lineId: 'b_l', slot: 'at' }, dir: 'v', u: IN(2), v: IN(-12) },
+      { ref: { sketchId: 's2', lineId: 'b_r', slot: 'at' }, dir: 'v', u: IN(22), v: IN(-12) },
+    ])
+  })
+
+  it('a driven run end ticks at that end', () => {
+    const d = doc()
+    const s = sketchOf(d)
+    const edited = {
+      ...d,
+      features: d.features.map((f) => (f.id === 's2' ? { ...s, lines: s.lines.map((l) => (l.id === 'b_b' ? { ...l, run: { min: 'l1.at', max: 'l3.at - 1' } } : l)) } : f)),
+    }
+    const { ticks } = dimensionsOf(sketchOf(edited), resultOf(edited), { pxPerSx })
+    expect(ticks).toContainEqual({ ref: { sketchId: 's2', lineId: 'b_b', slot: 'max' }, dir: 'h', u: IN(21), v: IN(-20) })
+    expect(ticks.filter((t) => t.ref.lineId === 'b_b')).toHaveLength(1)
+  })
+
+  it('a failed line has no tick', () => {
+    const d = doc()
+    const s = sketchOf(d)
+    const edited = {
+      ...d,
+      features: d.features.map((f) => (f.id === 's2' ? { ...s, lines: s.lines.map((l) => (l.id === 'b_l' ? { ...l, at: 'nothing + 2' } : l)) } : f)),
+    }
+    const { ticks } = dimensionsOf(sketchOf(edited), resultOf(edited), { pxPerSx })
+    expect(ticks.some((t) => t.ref.lineId === 'b_l')).toBe(false)
   })
 })

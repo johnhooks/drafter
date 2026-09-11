@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines when zoomed in, the origin, reference geometry from the model, the sketch's lines, the regions they enclose as light fills, and the dimensions you have placed. Nothing else is labelled until you point at it; see [Dimensions and editing](/sketch/dimensions/).
+The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines when zoomed in, the origin, reference geometry from the model, the sketch's lines, the regions they enclose as light fills, and its constraints. Nothing else is labelled until you point at it; see [Sizes and editing](/sketch/dimensions/).
 
 ## Navigation
 
@@ -13,7 +13,7 @@ The sketch editor shows a plane head on with a 1" grid, finer quarter-inch lines
 | --- | --- |
 | Zoom | Wheel, around the pointer |
 | Pan | Middle button drag, or hold Space and drag |
-| Cancel a drag or a tool step | Escape |
+| Cancel a drag, a chain, or a link step; then clear the selection | Escape |
 | Undo, redo | Cmd+Z and Cmd+Shift+Z on a Mac, Ctrl elsewhere. Inside a text field the field's own undo applies |
 
 The 3D view uses the same gestures for zoom and pan, and adds orbit:
@@ -31,12 +31,30 @@ The view is orthographic from every angle, so parallel edges stay parallel. The 
 
 ## Tools
 
-- **Select.** Click a line to select it, or click inside a region to select the region; a line within a few pixels wins over the region under it. Shift-click adds or removes; click empty space to clear. Delete removes the selected lines, the lines that bound only the selected regions, or a selected constraint dimension. **X** toggles construction on the selected lines.
+- **Select.** Click a line to select it, or click inside a region to select the region; a line within a few pixels wins over the region under it. Shift-click adds or removes; click empty space to clear. Delete removes the selected lines, the lines that bound only the selected regions, or a selected constraint. **X** toggles construction on the selected lines.
 - **Line.** Click to start, click to end. The line runs along whichever axis you moved farther, so it is always horizontal or vertical, and the next line starts where the last one ended. Escape or Enter ends the chain. An end that lands on a perpendicular line is attached to it, and a plain end of an existing line that the new line passes through attaches too, so a chain of four lines closes into a rectangle that stays closed when a side moves.
-- **Rectangle.** Press, drag, release. The width and height show while you drag. A drag with zero width or height creates nothing. The result is four attached lines.
+- **Rectangle.** Press, drag, release. The width and height show while you drag. A drag with zero width or height creates nothing. The result is a rectangle, `r1`, `r2`, and so on: four attached lines plus a record that names them, with a form of its own. **Explode** in that form drops the record and leaves the lines; **Make rectangle** in the sketch properties does the reverse for four selected lines whose corners are attached.
 - **Link.** Constrains one line's position to a parallel line or face edge. See [Link tool](/constraints/link-tool/).
 
 The four tools sit together in the toolbar; arrow keys move between them once one has focus.
+
+## Keys
+
+Every key is a command, and every command shows its key in its button's tooltip. The defaults:
+
+| Key | Command | Where |
+| --- | --- | --- |
+| A, L, R, D | Select, Line, Rectangle, Link | sketch |
+| X | toggle construction on the selected lines | sketch |
+| Delete, Backspace | delete the selection | sketch |
+| 1 to 6 | front, back, left, right, top, bottom | model view |
+| Home, F | default isometric, fit | model view |
+| Cmd+Z, Cmd+Shift+Z | undo, redo (Ctrl elsewhere) | everywhere |
+| Escape | cancel what is in progress, then clear | everywhere |
+
+Keys do nothing while a text field has focus, so typing `a` into a length field types it. A key bound in the sketch does not fire in the model view and the reverse.
+
+To change them, open the document properties (click the document row in the timeline) and the **Keys** section. Select a command and type its key, `V` or `Mod+Shift+Z`, where Mod is Cmd on a Mac and Ctrl elsewhere. A key already used by another command that can be active at the same time is refused with that command's name; an empty field unbinds. **Reset keys** restores the defaults. Keys are remembered in the browser, not in the file.
 
 ## Display toggles
 
@@ -45,11 +63,11 @@ Four icon toggles at the right end of the toolbar show a kind of thing everywher
 | Toggle | Default | Shows |
 | --- | --- | --- |
 | Grid | on | the inch and quarter-inch grid. Snapping to sixteenths does not depend on it |
-| Dimensions | on | driving dimensions, the relations you made with the Link tool or by typing |
+| Constraints | on | every constraint, the relations you made with the Link tool or by typing; the hovered or selected line's are highlighted |
 | Handles | off | every line's handle, `l1`, `l2`, and so on |
 | Sizes | off | every region's width and height and every free line's length |
 
-The toggles are remembered in the browser, not in the file. With Handles and Sizes off, the same labels still appear for whatever you hover or select, and every handle appears while you are typing in a length field, so the name you need is on the canvas when you need it.
+The toggles are remembered in the browser, not in the file. With Constraints, Handles, and Sizes off, the same things still appear for whatever you hover or select, and every handle appears while you are typing in a length field, so the name you need is on the canvas when you need it.
 
 :::note[Construction lines]
 A construction line, toggled with **X** or the checkbox in its properties, is drawn dashed. It snaps and can be named in expressions like any line, but it never bounds a region: a construction line across a region leaves the region whole.

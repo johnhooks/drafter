@@ -46,11 +46,11 @@ const v3 = {
 }
 
 describe('migration', () => {
-  it('version 1 loads as version 4 with attached lines, a default view, and identical geometry', () => {
+  it('version 1 loads as version 5 with attached lines, a rectangle record, a default view, and identical geometry', () => {
     const r = parseDocument(JSON.stringify(v1))
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.file.version).toBe(4)
+    expect(r.file.version).toBe(5)
     expect(r.file.view).toEqual(DEFAULT_VIEW)
     expect(r.file.model.params).toEqual([])
     const s1 = r.file.model.features[0] as SketchFeature
@@ -62,6 +62,7 @@ describe('migration', () => {
       ['l4', 'h', 384],
     ])
     expect(s1.lines[1]!.run).toEqual({ min: 'l1.at', max: 'l3.at' })
+    expect(s1.rects).toEqual([{ id: 'a', handle: 'r1', lines: ['a_l', 'a_b', 'a_r', 'a_t'] }])
     expect(r.file.model.features[1]).toMatchObject({ regions: [{ vertical: 'a_l', horizontal: 'a_b' }] })
     expect(r.file.model.features[2]).toMatchObject({ plane: { kind: 'face', featureId: 'e1', region: { vertical: 'a_l', horizontal: 'a_b' }, face: 'side', lineId: 'a_t', outward: 1 } })
     const ev = evaluate(r.file.model)
@@ -84,7 +85,7 @@ describe('migration', () => {
     expect(ev.errors).toEqual([])
     expect(bodyVolume(ev.bodies.get('e_c3')!)).toBe(384 ** 3 - 320 * 64 * 12)
   })
-  it('version 3 expressions naming rectangle properties are rewritten to line positions', () => {
+  it('version 3 expressions naming rectangle properties are kept and resolve through the records', () => {
     const doc = {
       version: 3,
       model: {
@@ -111,7 +112,8 @@ describe('migration', () => {
     if (!r.ok) return
     const s = r.file.model.features[0] as SketchFeature
     const b = s.lines.slice(4)
-    expect(b.map((l) => l.at)).toEqual(['l3.at + 1', 'l8.at - ((l4.at - l2.at))', 'l5.at + ((l3.at - l1.at) / 2)', 'l4.at'])
+    expect(b.map((l) => l.at)).toEqual(['r1.right + 1', 'l8.at - (r1.height)', 'l5.at + (r1.width / 2)', 'r1.top'])
+    expect(s.rects.map((x) => x.handle)).toEqual(['r1', 'r2'])
     const ev = evaluate(r.file.model)
     expect(ev.errors).toEqual([])
     const sr = ev.results.get('s1')
@@ -120,13 +122,42 @@ describe('migration', () => {
       { u0: 176, u1: 256, v0: 0, v1: 64 },
     ])
   })
-  it('version 2 loads as version 4 with a default view', () => {
+  it('version 2 loads as version 5 with a default view', () => {
     const v2 = { version: 2, title: 'two', params: [{ name: 'ply', value: 12 }], features: [] }
     const r = parseDocument(JSON.stringify(v2))
-    expect(r.ok && r.file).toEqual({ version: 4, model: { title: 'two', params: [{ name: 'ply', value: 12 }], features: [] }, view: DEFAULT_VIEW })
+    expect(r.ok && r.file).toEqual({ version: 5, model: { title: 'two', params: [{ name: 'ply', value: 12 }], features: [] }, view: DEFAULT_VIEW })
   })
-  it('version 4 keeps its view and validates the camera', () => {
-    const file = { version: 4, model: { title: 't', params: [], features: [] }, view: { camera: { azimuth: 90, elevation: 0, zoom: 8, center: [16, 0, 0] }, sketchId: 'nope' } }
+  it('version 4 bumps to 5 with empty rectangle lists and its expressions unchanged', () => {
+    const v4 = {
+      version: 4,
+      model: {
+        title: 't',
+        params: [],
+        features: [
+          {
+            kind: 'sketch',
+            id: 's1',
+            handle: 's1',
+            name: 'S',
+            plane: { kind: 'principal', plane: 'XZ', offset: 0, normal: -1 },
+            lines: [{ id: 'a', handle: 'l1', dir: 'h', at: 'l2.at + 4', run: { min: 0, max: 64 } }, { id: 'b', handle: 'l2', dir: 'h', at: 0, run: { min: 0, max: 64 } }],
+          },
+        ],
+      },
+      view: DEFAULT_VIEW,
+    }
+    const r = parseDocument(JSON.stringify(v4))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.file.version).toBe(5)
+    const s = r.file.model.features[0] as SketchFeature
+    expect(s.rects).toEqual([])
+    expect(s.lines[0]!.at).toBe('l2.at + 4')
+    // a version 4 file presented as 5 without rectangle lists is refused
+    expect(parseDocument(JSON.stringify({ ...v4, version: 5 })).ok).toBe(false)
+  })
+  it('version 5 keeps its view and validates the camera', () => {
+    const file = { version: 5, model: { title: 't', params: [], features: [] }, view: { camera: { azimuth: 90, elevation: 0, zoom: 8, center: [16, 0, 0] }, sketchId: 'nope' } }
     const r = parseDocument(JSON.stringify(file))
     expect(r.ok && r.file.view).toEqual(file.view)
     const bad = parseDocument(JSON.stringify({ ...file, view: { camera: { azimuth: 'x', elevation: 0, zoom: 0, center: [0, 0] } } }))
@@ -134,6 +165,6 @@ describe('migration', () => {
     if (!bad.ok) expect(bad.errors.map((e) => e.path).sort()).toEqual(['view.camera.azimuth', 'view.camera.center', 'view.camera.zoom'])
   })
   it('rejects other versions', () => {
-    expect(parseDocument(JSON.stringify({ ...v1, version: 5 })).ok).toBe(false)
+    expect(parseDocument(JSON.stringify({ ...v1, version: 6 })).ok).toBe(false)
   })
 })

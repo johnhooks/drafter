@@ -30,10 +30,21 @@ export interface LineProps {
   readonly values: Record<string, Value>
 }
 
+/** A rectangle in the scope: the handles of its member lines, whose positions its properties are read from. */
+export interface RectMembers {
+  readonly left: string
+  readonly bottom: string
+  readonly right: string
+  readonly top: string
+}
+
+export const RECT_PROPS: readonly string[] = ['left', 'right', 'bottom', 'top', 'width', 'height', 'umid', 'vmid']
+
 /** Explicit resolution scope; later changes add entries (earlier sketches) without touching the grammar. */
 export interface Scope {
   readonly params: ReadonlyMap<string, Value>
   readonly lines: ReadonlyMap<string, LineProps>
+  readonly rects?: ReadonlyMap<string, RectMembers>
   readonly face?: RectProps
   /** Set when the sketch is on a principal plane so `face` can be explained rather than "unknown". */
   readonly noFaceReason?: string
@@ -86,6 +97,8 @@ function resolveRef(path: string[], scope: Scope): Value {
     if (!v) throw new ExprError(`face has no property ${prop}; use left, right, bottom, top, width, height, umid, or vmid`, 0)
     return v
   }
+  const rect = scope.rects?.get(obj)
+  if (rect) return rectProp(obj, prop, rect, scope)
   const line = scope.lines.get(obj)
   if (!line) throw new ExprError(`Unknown name ${obj}`, 0)
   const valid = LINE_PROPS[line.dir]
@@ -96,6 +109,38 @@ function resolveRef(path: string[], scope: Scope): Value {
   const v = line.values[prop]
   if (!v) throw new ExprError(`${name} is not resolved`, 0)
   return v
+}
+
+/** A rectangle property from its member lines' positions; a member that has not resolved reads as unresolved. */
+function rectProp(obj: string, prop: string, rect: RectMembers, scope: Scope): Value {
+  if (!RECT_PROPS.includes(prop)) throw new ExprError(`${obj} is a rectangle and has ${RECT_PROPS.join(', ')}; it has no ${prop}`, 0)
+  const at = (handle: string): Value => {
+    const v = scope.lines.get(handle)?.values['at']
+    if (!v) throw new ExprError(`${obj}.${prop} is not resolved`, 0)
+    return v
+  }
+  switch (prop) {
+    case 'left':
+      return at(rect.left)
+    case 'right':
+      return at(rect.right)
+    case 'bottom':
+      return at(rect.bottom)
+    case 'top':
+      return at(rect.top)
+    case 'width':
+      return combine('-', at(rect.right), at(rect.left))
+    case 'height':
+      return combine('-', at(rect.top), at(rect.bottom))
+    case 'umid': {
+      const l = at(rect.left)
+      return combine('+', l, { kind: 'length', value: combine('-', at(rect.right), l).value / 2 })
+    }
+    default: {
+      const b = at(rect.bottom)
+      return combine('+', b, { kind: 'length', value: combine('-', at(rect.top), b).value / 2 })
+    }
+  }
 }
 
 export function combine(op: '+' | '-' | '*' | '/', a: Value, b: Value): Value {

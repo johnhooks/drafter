@@ -1,4 +1,4 @@
-import { type LineProps, type Scope, type Value, evaluateExpr, lineRunProps, position, rectProps } from '../expr/evaluate'
+import { type LineProps, type RectMembers, type Scope, type Value, evaluateExpr, lineRunProps, position, rectProps } from '../expr/evaluate'
 import { parse, references } from '../expr/parser'
 import type { Axis } from '../geom/box'
 import type { Rect2 } from '../geom/rect2d'
@@ -52,9 +52,18 @@ export function resolveSketch(sketch: SketchFeature, plane: ResolvedPlane, input
   const errors = new Map<string, string>()
   const slotValues: SketchResolution['slotValues'] = new Map()
   const byHandle = new Map(sketch.lines.map((l) => [l.handle, l]))
+  const byId = new Map(sketch.lines.map((l) => [l.id, l]))
   const scopeLines = new Map<string, LineProps>()
+  // rectangles are aliases over their member lines' positions, so they add no nodes of their own
+  const rects = new Map<string, RectMembers>()
+  const rectMembers = new Map<string, string[]>()
+  for (const r of sketch.rects) {
+    const [left, bottom, right, top] = r.lines.map((id) => byId.get(id)?.handle ?? '')
+    rects.set(r.handle, { left: left!, bottom: bottom!, right: right!, top: top! })
+    rectMembers.set(r.handle, r.lines.map((id) => id))
+  }
   const faceProps = input.face ? rectProps(input.face, frame.u, frame.v) : undefined
-  const scope: Scope = { params: input.params, lines: scopeLines, face: faceProps, noFaceReason: input.noFaceReason }
+  const scope: Scope = { params: input.params, lines: scopeLines, rects, face: faceProps, noFaceReason: input.noFaceReason }
 
   // dependency graph between nodes: an at-node, and a run-node, per line
   const deps = new Map<string, Set<string>>()
@@ -65,6 +74,14 @@ export function resolveSketch(sketch: SketchFeature, plane: ResolvedPlane, input
       try {
         for (const ref of references(parse(v))) {
           if (ref.length !== 2) continue
+          const members = rectMembers.get(ref[0]!)
+          if (members) {
+            // left, right, width, umid read the u lines; bottom, top, height, vmid the v lines
+            const [left, bottom, right, top] = members as [string, string, string, string]
+            const uSide = ['left', 'right', 'width', 'umid'].includes(ref[1]!)
+            for (const id of uSide ? [left, right] : [bottom, top]) if (byId.has(id)) d.add(nodeKey(id, 'at'))
+            continue
+          }
           const other = byHandle.get(ref[0]!)
           if (!other) continue
           d.add(nodeKey(other.id, ref[1] === 'at' ? 'at' : 'run'))

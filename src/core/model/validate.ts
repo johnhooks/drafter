@@ -39,13 +39,13 @@ function checkLayout(d: unknown, path: string, err: Err) {
   if (l['label'] !== undefined && (typeof l['label'] !== 'number' || l['label'] < -0.5 || l['label'] > 1.5)) err(`${path}.label`, 'Label must be a fraction between -0.5 and 1.5')
 }
 
-/** Structural validation of a version 4 file: a model and a view. */
+/** Structural validation of a version 5 file: a model and a view. */
 export function validateFile(file: unknown): ValidationError[] {
   if (typeof file !== 'object' || file === null) return [{ path: '', message: 'File must be an object' }]
   const f = file as Record<string, unknown>
   const errors: ValidationError[] = []
   const err: Err = (path, message) => errors.push({ path, message })
-  if (f['version'] !== 4) err('version', 'Unsupported file version')
+  if (f['version'] !== 5) err('version', 'Unsupported file version')
   errors.push(...validateDocument(f['model']).map((e) => ({ ...e, path: `model.${e.path}`.replace(/\.$/, '') })))
   const v = f['view'] as Record<string, unknown> | undefined
   if (typeof v !== 'object' || v === null) err('view', 'View must be an object')
@@ -196,6 +196,34 @@ function validateSketch(f: Record<string, unknown>, p: string, features: unknown
     if (isInt(run['min']) && isInt(run['max']) && run['min'] === run['max']) err(lp, 'Line has zero length')
     if (isInt(run['size']) && run['size'] <= 0) err(lp, 'Line has zero length')
   })
+  const lineDir = new Map<string, string>()
+  for (const raw of f['lines'] as unknown[]) {
+    const l = raw as Record<string, unknown>
+    if (typeof l?.['id'] === 'string') lineDir.set(l['id'], String(l['dir']))
+  }
+  if (!Array.isArray(f['rects'])) err(`${p}.rects`, 'Rects must be a list')
+  else {
+    const rectHandles = new Set<string>()
+    const members = new Set<string>()
+    ;(f['rects'] as unknown[]).forEach((raw, k) => {
+      const rp = `${p}.rects[${k}]`
+      const r = raw as Record<string, unknown>
+      if (typeof r?.['id'] !== 'string') return err(rp, 'Rect needs an id')
+      if (typeof r['handle'] !== 'string' || !IDENT_RE.test(r['handle'])) err(`${rp}.handle`, 'Rect needs a handle')
+      else if (rectHandles.has(r['handle'])) err(`${rp}.handle`, `Duplicate rect handle ${r['handle']}`)
+      else rectHandles.add(r['handle'])
+      const ls = r['lines']
+      if (!Array.isArray(ls) || ls.length !== 4) return err(`${rp}.lines`, 'Rect needs four member lines: left, bottom, right, top')
+      const want = ['v', 'h', 'v', 'h']
+      const names = ['left', 'bottom', 'right', 'top']
+      ls.forEach((id, i) => {
+        if (typeof id !== 'string' || !lineDir.has(id)) return err(`${rp}.lines[${i}]`, `Line ${String(id)} is not in the sketch`)
+        if (lineDir.get(id) !== want[i]) err(`${rp}.lines[${i}]`, `The ${names[i]} member must be ${want[i] === 'v' ? 'vertical' : 'horizontal'}`)
+        if (members.has(id)) err(`${rp}.lines[${i}]`, `Line ${id} belongs to two rects`)
+        members.add(id)
+      })
+    })
+  }
   const labels = f['regionLabels'] as Record<string, unknown> | undefined
   if (labels !== undefined) {
     if (typeof labels !== 'object' || labels === null) err(`${p}.regionLabels`, 'Region labels must be an object')

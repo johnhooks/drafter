@@ -33,6 +33,6 @@ The sketch view always looks at a plane from its normal side with v up. On a pla
 
 ## Lines and regions
 
-A sketch holds lines, each horizontal or vertical, with a handle such as `l1` that expressions use. A line has a position on the axis it crosses and two ends along the axis it runs on. Where lines close an outline they enclose a **region**, shown as a light fill; regions are computed from the lines and never stored. Three sides of a rectangle enclose nothing; the fourth side makes one region, and a line drawn across it makes two. Lines marked **construction** are drawn dashed and never bound a region.
+A sketch holds lines, each horizontal or vertical, with a handle such as `l1` that expressions use. A line has a position on the axis it crosses and two ends along the axis it runs on. Where lines close an outline they enclose a **region**, shown as a light fill; regions are computed from the lines and never stored. Three sides of a rectangle enclose nothing; the fourth side makes one region, and a line drawn across it makes two. Lines marked **construction** are drawn dashed and never bound a region. A rectangle drawn with the Rectangle tool is also kept as a named group, `r1`, over its four lines, so it can be edited as one and named in expressions; explode it and only the lines remain.
 
 A region is named by the two lines that meet at its lower-left corner, so an extrude of it follows the lines when they move. See [Driven slots](/constraints/driven-slots/) for how a line's values can be numbers or expressions.

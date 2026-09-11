@@ -32,11 +32,11 @@ function carcass(width: string, ply: string): Document {
       { name: 'reveal', value: '1/8' },
     ],
     features: [
-      { kind: 'sketch', id: 's1', handle: 's1', name: 'Carcass', plane: DEFAULT_PLANE, lines: exprRect('c', 0, 0, 'l1.at + width', 'l2.at + height') },
+      { kind: 'sketch', rects: [], id: 's1', handle: 's1', name: 'Carcass', plane: DEFAULT_PLANE, lines: exprRect('c', 0, 0, 'l1.at + width', 'l2.at + height') },
       { kind: 'extrude', id: 'e1', name: 'Carcass', sketchId: 's1', regions: [regionOf('c')], distance: 'depth', op: 'new' },
       // the front of the carcass is the cap of the extrusion (XZ at y = -depth, normal -Y)
       {
-        kind: 'sketch',
+        kind: 'sketch', rects: [],
         id: 's2',
         handle: 's2',
         name: 'Door',
@@ -46,7 +46,7 @@ function carcass(width: string, ply: string): Document {
       { kind: 'extrude', id: 'e2', name: 'Door', sketchId: 's2', regions: [regionOf('d')], distance: 'ply', op: 'new' },
       // shelf sketched on the right side (YZ at x = width, normal +X), extruded back through the carcass
       {
-        kind: 'sketch',
+        kind: 'sketch', rects: [],
         id: 's3',
         handle: 's3',
         name: 'Shelf',
@@ -82,7 +82,7 @@ describe('integration: parametric base cabinet', () => {
 
   it('round trips through the file format', () => {
     const doc = carcass('30', '3/4')
-    const parsed = parseDocument(serializeDocument({ version: 4, model: doc, view: DEFAULT_VIEW }))
+    const parsed = parseDocument(serializeDocument({ version: 5, model: doc, view: DEFAULT_VIEW }))
     expect(parsed.ok && parsed.file.model).toEqual(doc)
   })
 })

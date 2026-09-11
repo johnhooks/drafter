@@ -61,8 +61,6 @@ export interface ToolHost {
   toggleLine(id: string, additive: boolean): void
   toggleRegion(ref: RegionRef, additive: boolean): void
   clearSelection(): void
-  deleteSelection(): void
-  toggleConstruction(): void
   /** Resolved geometry of a line, or undefined if it failed. */
   lineInfo(id: string): LineInfo | undefined
   /** Coordinate of a reference face edge in sixteenths, undefined without a face. */
@@ -97,7 +95,7 @@ export interface Tool {
   down(p: PointerInfo): void
   move(p: PointerInfo): void
   up(p: PointerInfo): void
-  /** Returns true if the key was handled. */
+  /** Escape or Enter while something is in progress; returns true when consumed. Everything else is a command. */
   key(key: string): boolean
   cancel(): void
   previewRects(): PreviewRect[]
@@ -302,14 +300,6 @@ export class SelectTool extends BaseTool {
   override key(key: string) {
     if (key === 'Escape' && this.candidate) {
       this.cancel()
-      return true
-    }
-    if (key === 'Delete' || key === 'Backspace') {
-      this.host.deleteSelection()
-      return true
-    }
-    if (key === 'x' || key === 'X') {
-      this.host.toggleConstruction()
       return true
     }
     return false

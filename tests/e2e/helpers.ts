@@ -13,8 +13,9 @@ export interface Debug {
   params: Array<{ name: string; value: unknown }>
   history: { past: number; future: number }
   view: { camera: { azimuth: number; elevation: number; zoom: number; center: [number, number, number] }; sketchId?: string }
-  display: { grid: boolean; dims: boolean; handles: boolean; sizes: boolean }
+  display: { grid: boolean; constraints: boolean; handles: boolean; sizes: boolean }
   exprFocus: boolean
+  keys: Record<string, string | null>
 }
 
 export const dbg = (page: Page) => page.evaluate(() => (window as any).__debug() as Debug)
@@ -170,4 +171,29 @@ export async function confirmDialog(page: Page, button: string) {
   const dialog = page.getByRole('alertdialog')
   await dialog.getByRole('button', { name: button }).click()
   await expect(dialog).toHaveCount(0)
+}
+
+/** Link tool: click the driven edge, click the anchor edge, type the distance. */
+export async function link(page: Page, view: View, driven: [number, number], anchor: [number, number], distance: string) {
+  await tool(page, 'Link')
+  await clickInches(page, view, driven[0], driven[1])
+  await expect(page.locator('[data-link-label]')).toHaveText(['constrain'])
+  await clickInches(page, view, anchor[0], anchor[1])
+  await expect(page.locator('[data-link-label]')).toHaveText(['constrain', 'anchor'])
+  const input = page.locator('input.inline-edit')
+  await expect(input).toHaveCount(1)
+  await input.fill(distance)
+  await input.press('Enter')
+  await expect(input).toHaveCount(0)
+}
+
+/** Asserts that a tick's centre sits within 2 px of a plane point. */
+export async function expectTickAt(page: Page, view: View, selector: string, u: number, v: number) {
+  const tick = page.locator(selector)
+  await expect(tick).toHaveCount(1)
+  const box = (await page.locator('.sketch svg').boundingBox())!
+  const tb = (await tick.boundingBox())!
+  const [tx, ty] = px(view, u, v)
+  expect(Math.abs(tb.x + tb.width / 2 - (box.x + box.width / 2 + tx))).toBeLessThan(2)
+  expect(Math.abs(tb.y + tb.height / 2 - (box.y + box.height / 2 + ty))).toBeLessThan(2)
 }

@@ -200,6 +200,18 @@ function uniqueSorted(xs: number[]): number[] {
   return [...new Set(xs)].sort((a, b) => a - b)
 }
 
+/**
+ * True when a region is exactly the area of a rectangle whose sides are these four lines, given each
+ * line's resolved position. Adjacent rectangles share corner lines, so the corner is checked against
+ * every line covering it, not only the canonical one.
+ */
+export function regionIsRectangle(region: SketchRegion, lines: readonly [string, string, string, string], at: (lineId: string) => number | undefined): boolean {
+  const [left, bottom, right, top] = lines
+  if (!region.corner.verticals.includes(left) || !region.corner.horizontals.includes(bottom)) return false
+  const b = region.bounds
+  return region.rects.length === 1 && at(left) === b.u0 && at(right) === b.u1 && at(bottom) === b.v0 && at(top) === b.v1
+}
+
 /** Finds the region whose corner is bounded by both named lines; coincident lines at the corner all count. */
 export function regionByRef(regions: readonly SketchRegion[], ref: RegionRef): SketchRegion | undefined {
   return regions.find((r) => r.corner.verticals.includes(ref.vertical) && r.corner.horizontals.includes(ref.horizontal))

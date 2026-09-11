@@ -10,7 +10,7 @@ import { hline, rectLines, regionOf, vline } from './fixtures'
 const IN = (n: number) => n * 16
 const plane: ResolvedPlane = { plane: 'XY', offset: IN(24) as Sixteenths, normal: 1 }
 const face = { u0: 0, u1: IN(24), v0: -IN(24), v1: 0 }
-const sk = (lines: SketchLine[]): SketchFeature => ({ kind: 'sketch', id: 's', handle: 's1', name: 'S', plane: DEFAULT_PLANE, lines })
+const sk = (lines: SketchLine[], rects: SketchFeature['rects'] = []): SketchFeature => ({ kind: 'sketch', id: 's', handle: 's1', name: 'S', plane: DEFAULT_PLANE, lines, rects })
 const params = new Map([['ply', length(12)]])
 
 describe('resolveSketch', () => {
@@ -90,10 +90,10 @@ describe('evaluate with constraints', () => {
     ...newDocument('t'),
     params: [{ name: 'ply', value: '3/4' }],
     features: [
-      { kind: 'sketch', id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines: rectLines('a', 1, 0, IN(24), 0, IN(24)) },
+      { kind: 'sketch', rects: [], id: 's1', handle: 's1', name: 'Sketch 1', plane: DEFAULT_PLANE, lines: rectLines('a', 1, 0, IN(24), 0, IN(24)) },
       { kind: 'extrude', id: 'e1', name: 'Extrude 1', sketchId: 's1', regions: [regionOf('a')], distance: IN(24), op: 'new' },
       {
-        kind: 'sketch',
+        kind: 'sketch', rects: [],
         id: 's2',
         handle: 's2',
         name: 'Sketch 2',
@@ -142,7 +142,7 @@ describe('evaluate with constraints', () => {
       ...newDocument('t'),
       params: [{ name: 'ply', value: 12 as never }],
       features: [
-        { kind: 'sketch', id: 's1', handle: 's1', name: 'S', plane: { ...DEFAULT_PLANE, offset: 'ply * 2' }, lines: rectLines('a', 1, 0, 16, 0, 16) },
+        { kind: 'sketch', rects: [], id: 's1', handle: 's1', name: 'S', plane: { ...DEFAULT_PLANE, offset: 'ply * 2' }, lines: rectLines('a', 1, 0, 16, 0, 16) },
         { kind: 'extrude', id: 'e1', name: 'E', sketchId: 's1', regions: [regionOf('a')], distance: 'ply', op: 'new' },
         { kind: 'extrude', id: 'e2', name: 'E2', sketchId: 's1', regions: [regionOf('a')], distance: 'l1.length', op: 'new' },
       ],

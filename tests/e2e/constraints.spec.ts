@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { type View, choose, clickInches, dbg, drawInches, faceView, field, isoPoint, linesOf, makeCube, regionAt, regionsOf, rowAction, tool } from './helpers'
+import { choose, clickInches, dbg, drawInches, faceView, field, isoPoint, linesOf, link, makeCube, regionAt, regionsOf, rowAction, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -9,20 +9,6 @@ test.beforeEach(async ({ page }) => {
   await page.waitForSelector('.timeline')
   await page.waitForLoadState('networkidle')
 })
-
-/** Link tool: click the driven edge, click the anchor edge, type the distance. */
-async function link(page: import('@playwright/test').Page, view: View, driven: [number, number], anchor: [number, number], distance: string) {
-  await tool(page, 'Link')
-  await clickInches(page, view, driven[0], driven[1])
-  await expect(page.locator('[data-link-label]')).toHaveText(['constrain'])
-  await clickInches(page, view, anchor[0], anchor[1])
-  await expect(page.locator('[data-link-label]')).toHaveText(['constrain', 'anchor'])
-  const input = page.locator('input.inline-edit')
-  await expect(input).toHaveCount(1)
-  await input.fill(distance)
-  await input.press('Enter')
-  await expect(input).toHaveCount(0)
-}
 
 test('inset pocket linked to both face edges follows the carcass and refuses a width edit', async ({ page }) => {
   await makeCube(page)
@@ -49,7 +35,7 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     expect(linesOf(d, 2)[2]!.at).toBe('face.right - 2')
     expect(d.errors).toEqual([])
     // resolved 2" .. 22"
-    await expect(page.getByRole('option', { name: /^Rectangle 20" x 16"/ })).toContainText('at (2", -20"), lines l1 l2 l3 l4')
+    await expect(page.getByRole('option', { name: /^r1 20" x 16"/ })).toContainText('at (2", -20"), lines l1 l2 l3 l4')
     const constraints = page.getByRole('listbox', { name: 'Constraints' }).getByRole('option')
     await expect(constraints).toContainText(['l1.at = face.left + 2', 'l3.at = face.right - 2'])
     await expect(constraints.first()).toContainText('2"')
@@ -124,7 +110,7 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     d = await dbg(page)
     expect(linesOf(d, 2)[0]!.at).toBe(24)
     await expect(page.locator('[data-dim-slot^="L:"]:not([data-dim-slot$=":size"])')).toHaveCount(1)
-    await page.getByRole('button', { name: 'Dimensions' }).click()
+    await page.getByRole('button', { name: 'Constraints', exact: true }).click()
     await expect(page.locator('[data-dim-slot^="L:"]:not([data-dim-slot$=":size"])')).toHaveCount(0)
     // remove the remaining link from the list: after widening, face.right is 30, so the line freezes at 28
     const list = page.getByRole('listbox', { name: 'Constraints' })

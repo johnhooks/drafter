@@ -23,7 +23,7 @@ Deleting a feature deletes what depends on it: extrudes that use a sketch, sketc
 
 ## Undo
 
-Every change to the document can be undone and redone, from the toolbar or with Cmd+Z and Cmd+Shift+Z (Ctrl on other systems). One gesture is one step: a drag, a committed field, a link, a delete with everything it cascaded to, a parameter rename with every expression it rewrote. Typing into a name coalesces into one step. What you are looking at does not change: selection, tool, pan, and zoom stay, except that undoing the creation of the sketch you are editing returns you to the model view. Opening or starting a document clears the history, which keeps the last 200 steps and is not saved.
+Every change to the document can be undone and redone, from the toolbar or with Cmd+Z and Cmd+Shift+Z (Ctrl on other systems; both can be changed in the Keys section of the document properties). One gesture is one step: a drag, a committed field, a link, a delete with everything it cascaded to, a parameter rename with every expression it rewrote. Typing into a name coalesces into one step. What you are looking at does not change: selection, tool, pan, and zoom stay, except that undoing the creation of the sketch you are editing returns you to the model view. Opening or starting a document clears the history, which keeps the last 200 steps and is not saved.
 
 ## Reopening a sketch
 

@@ -11,7 +11,7 @@ An expression is a small formula that yields a length or a position. It can go i
 
 - **Literals** in inches: `24`, `2 1/4`, `2-1/4`, `3/4`, `2.5`. A trailing `"` is allowed. Decimals round to the nearest sixteenth.
 - **Operators** `+`, `-`, `*`, `/`, unary minus, and parentheses, with the usual precedence.
-- **Names**: `ply`, `l1.at`, `l2.right`, `face.width`.
+- **Names**: `ply`, `l1.at`, `l2.right`, `r1.width`, `face.width`.
 
 Results are rounded to a whole sixteenth. Division by zero is an error.
 
@@ -24,9 +24,11 @@ Results are rounded to a whole sixteenth. Division by zero is an error.
 | `l2.left`, `l2.right`, `l2.mid` | the ends and middle of a horizontal line along u |
 | `l2.bottom`, `l2.top`, `l2.mid` | the ends and middle of a vertical line along v |
 | `l2.length` | its length |
+| `r1.left`, `r1.right`, `r1.bottom`, `r1.top` | the positions of rectangle `r1`'s sides, read from its member lines |
+| `r1.width`, `r1.height`, `r1.umid`, `r1.vmid` | its size and middles |
 | `face.left`, `face.right`, `face.bottom`, `face.top`, `face.width`, `face.height`, `face.umid`, `face.vmid` | the bounding rectangle of the face this sketch sits on |
 
-`face` exists only on a sketch attached to a face. Asking a vertical line for `left` is an error that lists what it does have. Lines can reference any line in the same sketch, drawn earlier or later; the sketch resolves positions and runs separately, in dependency order, so the four sides of a rectangle may all reference each other's positions. Two positions cannot reference each other in a loop.
+`face` exists only on a sketch attached to a face. Asking a vertical line for `left`, or a rectangle for `middle`, is an error that lists what it does have. Lines can reference any line in the same sketch, drawn earlier or later; the sketch resolves positions and runs separately, in dependency order, so the four sides of a rectangle may all reference each other's positions. Two positions cannot reference each other in a loop.
 
 Extrude distances and plane offsets can use parameters and literals only.
 

@@ -1,12 +1,12 @@
 import { type EvalResult, evaluate } from '../../core/eval/evaluate'
 import type { ResolvedLine } from '../../core/eval/resolveSketch'
-import { parse, references } from '../../core/expr/parser'
+import { parse, references, simpleLink } from '../../core/expr/parser'
 import { type SketchRegion, regionByRef } from '../../core/geom/regions'
 import { dependentsOf } from '../../core/model/deps'
 import { defaultOp } from '../../core/model/extrude'
 import { newId, nextHandle, nextName } from '../../core/model/names'
 import { renameParam as renameParamInDoc, usesOf, validateParamName } from '../../core/model/params'
-import { rectangleLines } from '../../core/model/sketch'
+import { rectangleLines, rewriteRectRefs } from '../../core/model/sketch'
 import { setSlot } from '../../core/model/slots'
 import type {
   CameraState,
@@ -23,6 +23,7 @@ import type {
   RegionRef,
   SketchFeature,
   SketchLine,
+  SketchRect,
   Slot,
   ViewState,
 } from '../../core/model/types'
@@ -81,20 +82,22 @@ export interface State {
   readonly display: Display
   /** True while a field that accepts an expression has focus, so line handles show on the canvas. */
   readonly exprFocus: boolean
+  /** Key binding overrides by command id: a chord, or null for unbound. A browser preference like the theme. */
+  readonly keys: Readonly<Record<string, string | null>>
   readonly history: History
 }
 
 export interface Display {
   readonly grid: boolean
-  /** Driving dimensions. */
-  readonly dims: boolean
+  /** Every constraint, drawn regardless of hover and selection. */
+  readonly constraints: boolean
   /** Line handles on every line. */
   readonly handles: boolean
   /** Size labels on every region and free line. */
   readonly sizes: boolean
 }
 
-export const DEFAULT_DISPLAY: Display = { grid: true, dims: true, handles: false, sizes: false }
+export const DEFAULT_DISPLAY: Display = { grid: true, constraints: true, handles: false, sizes: false }
 
 export const EMPTY_SELECTION: Selection = { lineIds: [], regions: [] }
 export const HISTORY_LIMIT = 200
@@ -114,6 +117,7 @@ export function initialState(doc: Document = newDocument(), view: ViewState = DE
     lastGood: goodLines(ev, new Map()),
     display: DEFAULT_DISPLAY,
     exprFocus: false,
+    keys: {},
     history: { past: [], future: [] },
   }
 }
@@ -129,7 +133,7 @@ export function setCamera(s: State, camera: Partial<CameraState>): State {
 
 export function fileOf(s: State): DocumentFile {
   const sketchId = s.mode.kind === 'sketch' ? s.mode.sketchId : undefined
-  return { version: 4, model: s.doc, view: sketchId ? { ...s.view, sketchId } : { camera: s.view.camera } }
+  return { version: 5, model: s.doc, view: sketchId ? { ...s.view, sketchId } : { camera: s.view.camera } }
 }
 
 function goodLines(ev: EvalResult, prev: ReadonlyMap<string, LineShape>): Map<string, LineShape> {
@@ -249,7 +253,7 @@ export function setTitle(s: State, title: string, now?: number): State {
 
 export function addSketch(s: State, plane: PlaneDef, id = newId('s')): State {
   const handles = s.doc.features.filter((f): f is SketchFeature => f.kind === 'sketch').map((f) => f.handle)
-  const sketch: SketchFeature = { kind: 'sketch', id, handle: nextHandle('s', handles), name: nextName(s.doc, 'sketch'), plane, lines: [] }
+  const sketch: SketchFeature = { kind: 'sketch', id, handle: nextHandle('s', handles), name: nextName(s.doc, 'sketch'), plane, lines: [], rects: [] }
   const next = withDoc(s, { ...s.doc, features: [...s.doc.features, sketch] })
   return { ...next, mode: { kind: 'sketch', sketchId: id }, tool: 'rect', selection: { featureId: id, lineIds: [], regions: [] } }
 }
@@ -341,15 +345,115 @@ export function addLine(s: State, sketchId: string, spec: NewLine, id = newId('l
   return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, lines: [...lines, line] })))
 }
 
-/** Adds the four attached lines of a rectangle; nothing for a zero width or height. */
-export function addRectangle(s: State, sketchId: string, u0: number, u1: number, v0: number, v1: number, ids?: readonly [string, string, string, string]): State {
+/** Adds a rectangle: four attached lines and the record that names them; nothing for a zero width or height. */
+export function addRectangle(s: State, sketchId: string, u0: number, u1: number, v0: number, v1: number, ids?: readonly [string, string, string, string], rectId = newId('r')): State {
   const sketch = sketchOf(s, sketchId)
   if (!sketch || u0 === u1 || v0 === v1) return s
   const taken = sketch.lines.map((l) => l.handle)
   const handles: string[] = []
   for (let i = 0; i < 4; i++) handles.push(nextHandle('l', [...taken, ...handles]))
-  const lines = rectangleLines(ids ?? [newId('l'), newId('l'), newId('l'), newId('l')], handles as [string, string, string, string], u0, u1, v0, v1)
-  return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, lines: [...f.lines, ...lines] })))
+  const lineIds = ids ?? ([newId('l'), newId('l'), newId('l'), newId('l')] as const)
+  const lines = rectangleLines(lineIds, handles as [string, string, string, string], u0, u1, v0, v1)
+  const rect: SketchRect = { id: rectId, handle: nextHandle('r', sketch.rects.map((r) => r.handle)), lines: [lineIds[0], lineIds[1], lineIds[2], lineIds[3]] }
+  return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, lines: [...f.lines, ...lines], rects: [...f.rects, rect] })))
+}
+
+/**
+ * Drops the rectangle record; its lines and their corner attachments stay as they are. Expressions that
+ * named the rectangle are rewritten over its lines first, so nothing that referenced it breaks.
+ */
+export function explodeRectangle(s: State, sketchId: string, rectId: string): State {
+  return withDoc(
+    s,
+    mapFeature<SketchFeature>(s.doc, sketchId, (f) => {
+      const rect = f.rects.find((r) => r.id === rectId)
+      if (!rect) return f
+      const rewritten = rewriteRectRefs(f, rect)
+      return { ...rewritten, rects: rewritten.rects.filter((r) => r.id !== rectId) }
+    }),
+  )
+}
+
+/** The handle a run end is attached to: the slot holds a bare `<handle>.at`. */
+function attachedTo(line: SketchLine, slot: 'min' | 'max'): string | undefined {
+  const v = line.run[slot]
+  if (v === undefined || !isExpr(v)) return undefined
+  try {
+    const link = simpleLink(parse(v))
+    return link && link.offset === 0 && link.ref.length === 2 && link.ref[1] === 'at' ? link.ref[0] : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Groups four lines into a rectangle: two vertical, two horizontal, every run end attached to the
+ * perpendicular member it meets. Anything else is refused with a message saying what is missing.
+ */
+export function groupRectangle(s: State, sketchId: string, lineIds: readonly string[], rectId = newId('r')): State {
+  const sketch = sketchOf(s, sketchId)
+  if (!sketch) return s
+  const lines = lineIds.map((id) => sketch.lines.find((l) => l.id === id)).filter((l): l is SketchLine => !!l)
+  if (lines.length !== 4) return notify(s, `Four lines are needed to make a rectangle (${lines.length} selected)`)
+  const owned = lines.find((l) => sketch.rects.some((r) => r.lines.includes(l.id)))
+  if (owned) return notify(s, `${owned.handle} already belongs to a rectangle`)
+  const resolved = resolvedLines(s, sketchId)
+  const vs = lines.filter((l) => l.dir === 'v').sort((a, b) => (resolved.get(a.id)?.at ?? 0) - (resolved.get(b.id)?.at ?? 0))
+  const hs = lines.filter((l) => l.dir === 'h').sort((a, b) => (resolved.get(a.id)?.at ?? 0) - (resolved.get(b.id)?.at ?? 0))
+  if (vs.length !== 2 || hs.length !== 2) return notify(s, 'A rectangle needs two vertical and two horizontal lines')
+  const [left, right] = vs as [SketchLine, SketchLine]
+  const [bottom, top] = hs as [SketchLine, SketchLine]
+  const ends: Array<[SketchLine, 'min' | 'max', SketchLine, string]> = [
+    [left, 'min', bottom, 'bottom'],
+    [left, 'max', top, 'top'],
+    [right, 'min', bottom, 'bottom'],
+    [right, 'max', top, 'top'],
+    [bottom, 'min', left, 'left'],
+    [bottom, 'max', right, 'right'],
+    [top, 'min', left, 'left'],
+    [top, 'max', right, 'right'],
+  ]
+  // an end attached to a line collinear with the member holds the corner just as well
+  const holds = (line: SketchLine, slot: 'min' | 'max', member: SketchLine) => {
+    const handle = attachedTo(line, slot)
+    if (handle === member.handle) return true
+    const other = sketch.lines.find((l) => l.handle === handle)
+    return !!other && other.dir === member.dir && resolved.get(other.id)?.at === resolved.get(member.id)?.at
+  }
+  for (const [line, slot, other, name] of ends) {
+    if (!holds(line, slot, other)) return notify(s, `${line.handle}'s ${name} end is not attached to ${other.handle}; the corners must be attached to make a rectangle`)
+  }
+  const rect: SketchRect = { id: rectId, handle: nextHandle('r', sketch.rects.map((r) => r.handle)), lines: [left.id, bottom.id, right.id, top.id] }
+  return withDoc(s, mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, rects: [...f.rects, rect] })))
+}
+
+export type RectSlot = 'left' | 'right' | 'bottom' | 'top' | 'width' | 'height'
+
+/**
+ * The rectangle form. A side writes that member line's position. Width writes the right line as the
+ * left line plus the value, a number when the value is a number and `<left>.at + (expr)` otherwise;
+ * Height likewise for the top. Refused when the far line's position is already an expression.
+ */
+export function setRectSlot(s: State, sketchId: string, rectId: string, slot: RectSlot, value: Len): State {
+  const sketch = sketchOf(s, sketchId)
+  const rect = sketch?.rects.find((r) => r.id === rectId)
+  if (!sketch || !rect) return s
+  const [left, bottom, right, top] = rect.lines
+  if (slot === 'left' || slot === 'bottom' || slot === 'right' || slot === 'top') {
+    const id = { left, bottom, right, top }[slot]
+    return setLineSlot(s, sketchId, id, 'at', value)
+  }
+  const nearId = slot === 'width' ? left : bottom
+  const farId = slot === 'width' ? right : top
+  const near = sketch.lines.find((l) => l.id === nearId)
+  const far = sketch.lines.find((l) => l.id === farId)
+  if (!near || !far) return s
+  if (isExpr(far.at)) return notify(s, `${far.handle} is fixed by ${far.at}; remove that constraint to type a ${slot}`)
+  if (isExpr(value)) return setLineSlot(s, sketchId, farId, 'at', `${near.handle}.at + (${value})`)
+  const nearAt = slotValue(s, sketchId, near, 'at')
+  if (nearAt === undefined) return notify(s, `${near.handle} has no value yet`)
+  if (value <= 0) return notify(s, `A ${slot} must be greater than zero`)
+  return setLineSlot(s, sketchId, farId, 'at', (nearAt + value) as Sixteenths)
 }
 
 export function updateLine(s: State, sketchId: string, line: SketchLine): State {
@@ -479,9 +583,12 @@ export function setRegionLabelLayout(s: State, sketchId: string, ref: RegionRef,
  * named by the lines, and an extrude left with no regions is deleted with its dependents.
  */
 export function removeLines(s: State, sketchId: string, lineIds: readonly string[]): State {
-  const sketch = sketchOf(s, sketchId)
-  if (!sketch || lineIds.length === 0) return s
+  const original = sketchOf(s, sketchId)
+  if (!original || lineIds.length === 0) return s
   const gone = new Set(lineIds)
+  // a rectangle losing a side dissolves; references to its name become line references before the freeze below
+  let sketch = original
+  for (const rect of original.rects) if (rect.lines.some((id) => gone.has(id))) sketch = rewriteRectRefs(sketch, rect)
   const goneHandles = new Set(sketch.lines.filter((l) => gone.has(l.id)).map((l) => l.handle))
   const mentions = (v: Len | undefined): boolean => {
     if (v === undefined || !isExpr(v)) return false
@@ -504,7 +611,8 @@ export function removeLines(s: State, sketchId: string, lineIds: readonly string
     }
     kept.push(next)
   }
-  let doc = mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, lines: kept }))
+  // a rectangle missing a side is no longer a rectangle; its other lines stay as loose lines
+  let doc = mapFeature<SketchFeature>(s.doc, sketchId, (f) => ({ ...f, lines: kept, rects: f.rects.filter((r) => !r.lines.some((id) => gone.has(id))) }))
   const emptied: string[] = []
   doc = {
     ...doc,
@@ -623,13 +731,29 @@ export function setExprFocus(s: State, exprFocus: boolean): State {
   return exprFocus === s.exprFocus ? s : { ...s, exprFocus }
 }
 
+/** Rebinds a command; a chord equal to the default drops the override. Conflicts are checked by the caller against the command table. */
+export function setKey(s: State, commandId: string, chord: string | null, isDefault: boolean): State {
+  const keys = { ...s.keys }
+  if (isDefault) delete keys[commandId]
+  else keys[commandId] = chord
+  return { ...s, keys }
+}
+
+export function setKeys(s: State, keys: Readonly<Record<string, string | null>>): State {
+  return { ...s, keys }
+}
+
+export function resetKeys(s: State): State {
+  return { ...s, keys: {} }
+}
+
 export function loadDocument(s: State, doc: Document): State {
-  return { ...initialState(doc), notices: s.notices, theme: s.theme, display: s.display }
+  return { ...initialState(doc), notices: s.notices, theme: s.theme, display: s.display, keys: s.keys }
 }
 
 /** Loads a whole file, restoring the camera and reopening the stored sketch if it still exists. */
 export function loadFile(s: State, file: DocumentFile): State {
-  const next = { ...initialState(file.model, { camera: file.view.camera }), notices: s.notices, theme: s.theme, display: s.display }
+  const next = { ...initialState(file.model, { camera: file.view.camera }), notices: s.notices, theme: s.theme, display: s.display, keys: s.keys }
   const id = file.view.sketchId
   if (id && file.model.features.some((f) => f.kind === 'sketch' && f.id === id)) return setMode(next, { kind: 'sketch', sketchId: id })
   return next

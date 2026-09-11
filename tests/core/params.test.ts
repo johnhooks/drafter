@@ -35,7 +35,7 @@ describe('parameters', () => {
     ],
     features: [
       {
-        kind: 'sketch',
+        kind: 'sketch', rects: [],
         id: 's1',
         handle: 's1',
         name: 'Sketch 1',

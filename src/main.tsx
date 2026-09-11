@@ -28,6 +28,7 @@ if (import.meta.env.DEV) {
       view: s.view,
       display: s.display,
       exprFocus: s.exprFocus,
+      keys: s.keys,
       params: s.doc.params,
       history: { past: s.history.past.length, future: s.history.future.length },
     }

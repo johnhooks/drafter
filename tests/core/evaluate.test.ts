@@ -15,7 +15,7 @@ const IN = (n: number) => sx(n * 16)
 
 /** A sketch of rectangles given as [prefix, u1, v1, u2, v2] in inches; line handles run on from each other. */
 const sketch = (id: string, name: string, plane: SketchFeature['plane'], rects: Array<[string, number, number, number, number]>, extra: SketchLine[] = []): SketchFeature => ({
-  kind: 'sketch',
+  kind: 'sketch', rects: [],
   id,
   handle: id,
   name,
@@ -86,7 +86,7 @@ describe('evaluate', () => {
 
   it('an L region extrudes to one body of the L area', () => {
     const s: SketchFeature = {
-      kind: 'sketch',
+      kind: 'sketch', rects: [],
       id: 's1',
       handle: 's1',
       name: 'S',
@@ -252,7 +252,7 @@ describe('defaults, names, dependencies', () => {
 describe('document format', () => {
   it('round trips', () => {
     const doc = cubeWithPocket()
-    const parsed = parseDocument(serializeDocument({ version: 4, model: doc, view: DEFAULT_VIEW }))
+    const parsed = parseDocument(serializeDocument({ version: 5, model: doc, view: DEFAULT_VIEW }))
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
       expect(parsed.file.model).toEqual(doc)
@@ -261,7 +261,7 @@ describe('document format', () => {
   })
   it('rejects a dangling sketch reference', () => {
     const doc = cubeWithPocket()
-    const bad = { version: 4, model: { ...doc, features: doc.features.filter((f) => f.id !== 's2') }, view: DEFAULT_VIEW }
+    const bad = { version: 5, model: { ...doc, features: doc.features.filter((f) => f.id !== 's2') }, view: DEFAULT_VIEW }
     const parsed = parseDocument(JSON.stringify(bad))
     expect(parsed.ok).toBe(false)
     if (!parsed.ok) expect(parsed.errors.some((e) => e.path.includes('sketchId'))).toBe(true)
@@ -272,7 +272,7 @@ describe('document format', () => {
       params: [],
       features: [
         {
-          kind: 'sketch',
+          kind: 'sketch', rects: [],
           id: 's',
           handle: 's1',
           name: 'S',

@@ -3,7 +3,7 @@ import type { ResolvedLine } from '../../core/eval/resolveSketch'
 import { parse, simpleLink } from '../../core/expr/parser'
 import type { Rect2 } from '../../core/geom/rect2d'
 import type { SketchRegion } from '../../core/geom/regions'
-import { type DimLayout, LABEL_MAX, LABEL_MIN, type LineSlot, type RegionRef, type SketchFeature, type SketchLine } from '../../core/model/types'
+import { type DimLayout, LABEL_MAX, LABEL_MIN, type LineDir, type LineSlot, type RegionRef, type SketchFeature, type SketchLine, type SketchRect } from '../../core/model/types'
 import { isExpr } from '../../core/model/types'
 import { type Sixteenths, formatLength } from '../../core/units'
 import type { ConstraintRef } from '../store/actions'
@@ -24,9 +24,14 @@ export function parseDimKey(key: string): DimTarget | undefined {
   return undefined
 }
 
+/** An edge a constraint measures from: a line, or a side of the reference face. */
+export type AnchorEdge = { readonly kind: 'line'; readonly lineId: string } | { readonly kind: 'face'; readonly side: 'left' | 'right' | 'bottom' | 'top' }
+
 export interface DimSpec {
   readonly ref: ConstraintRef
   readonly target: DimTarget
+  /** The edges the anchor lies on, to light the pair when the constraint is shown on demand. */
+  readonly anchors: readonly AnchorEdge[]
   /** Axis the dimension measures along. */
   readonly axis: 'u' | 'v'
   /** Anchor and driven coordinates along the axis, sixteenths. */
@@ -49,6 +54,14 @@ export interface DimSpec {
 export interface TagSpec {
   readonly ref: ConstraintRef
   readonly text: string
+  readonly u: number
+  readonly v: number
+}
+
+/** The resting cue for a driven slot: where a short tick crosses the line when its constraint is not drawn. */
+export interface TickSpec {
+  readonly ref: ConstraintRef
+  readonly dir: LineDir
   readonly u: number
   readonly v: number
 }
@@ -125,8 +138,16 @@ export function isAttachment(sketch: SketchFeature, line: SketchLine, slot: Line
   }
 }
 
-/** Coordinate and axis of a referenced property: face edges, or a line's position or ends. */
-function anchorCoord(sketch: SketchFeature, result: SketchResult, ref: string[]): { axis: 'u' | 'v'; value: number } | undefined {
+interface Anchor {
+  readonly axis: 'u' | 'v'
+  readonly value: number
+  readonly edges: readonly AnchorEdge[]
+}
+
+const face = (side: 'left' | 'right' | 'bottom' | 'top'): AnchorEdge => ({ kind: 'face', side })
+
+/** Coordinate, axis, and edges of a referenced property: face edges, a rectangle's sides, or a line's position or ends. */
+function anchorCoord(sketch: SketchFeature, result: SketchResult, ref: string[]): Anchor | undefined {
   if (ref.length !== 2) return undefined
   const [owner, prop] = ref as [string, string]
   if (owner === 'face') {
@@ -134,46 +155,65 @@ function anchorCoord(sketch: SketchFeature, result: SketchResult, ref: string[])
     if (!f) return undefined
     switch (prop) {
       case 'left':
-        return { axis: 'u', value: f.u0 }
+        return { axis: 'u', value: f.u0, edges: [face('left')] }
       case 'right':
-        return { axis: 'u', value: f.u1 }
+        return { axis: 'u', value: f.u1, edges: [face('right')] }
       case 'umid':
-        return { axis: 'u', value: (f.u0 + f.u1) / 2 }
+        return { axis: 'u', value: Math.round((f.u0 + f.u1) / 2), edges: [face('left'), face('right')] }
       case 'bottom':
-        return { axis: 'v', value: f.v0 }
+        return { axis: 'v', value: f.v0, edges: [face('bottom')] }
       case 'top':
-        return { axis: 'v', value: f.v1 }
+        return { axis: 'v', value: f.v1, edges: [face('top')] }
       case 'vmid':
-        return { axis: 'v', value: (f.v0 + f.v1) / 2 }
+        return { axis: 'v', value: Math.round((f.v0 + f.v1) / 2), edges: [face('bottom'), face('top')] }
       default:
         return undefined
     }
   }
+  const rect = sketch.rects.find((x) => x.handle === owner)
+  if (rect) return rectAnchor(result, rect, prop)
   const line = sketch.lines.find((l) => l.handle === owner)
   const r = line ? result.lines.get(line.id) : undefined
-  if (!r) return undefined
+  if (!line || !r) return undefined
   const runAxis: 'u' | 'v' = r.dir === 'h' ? 'u' : 'v'
   const atAxis: 'u' | 'v' = r.dir === 'h' ? 'v' : 'u'
+  const edges: AnchorEdge[] = [{ kind: 'line', lineId: line.id }]
   switch (prop) {
     case 'at':
-      return { axis: atAxis, value: r.at }
+      return { axis: atAxis, value: r.at, edges }
     case 'left':
     case 'bottom':
-      return { axis: runAxis, value: r.min }
+      return { axis: runAxis, value: r.min, edges }
     case 'right':
     case 'top':
-      return { axis: runAxis, value: r.max }
+      return { axis: runAxis, value: r.max, edges }
     case 'mid':
-      return { axis: runAxis, value: (r.min + r.max) / 2 }
+      return { axis: runAxis, value: Math.round((r.min + r.max) / 2), edges }
     default:
       return undefined
   }
 }
 
+/** Which member lines a rectangle property reads, by position in its validated [left, bottom, right, top] list. */
+const RECT_MEMBERS: Record<string, readonly number[]> = { left: [0], right: [2], umid: [0, 2], bottom: [1], top: [3], vmid: [1, 3] }
+
+/** A rectangle side is its member line's position; a middle is the mean of two, rounded as the evaluator rounds it. */
+function rectAnchor(result: SketchResult, rect: SketchRect, prop: string): Anchor | undefined {
+  const members = RECT_MEMBERS[prop]
+  if (!members) return undefined
+  const ids = members.map((i) => rect.lines[i]!)
+  const lines = ids.map((id) => result.lines.get(id))
+  const first = lines[0]
+  if (!first || lines.some((l) => !l || l.dir !== first.dir)) return undefined
+  const axis: 'u' | 'v' = first.dir === 'h' ? 'v' : 'u'
+  return { axis, value: Math.round(lines.reduce((sum, l) => sum + l!.at, 0) / lines.length), edges: ids.map((lineId) => ({ kind: 'line', lineId })) }
+}
+
 /** Turns every simple link (ref, ref ± literal) into a drawable dimension; attachments draw nothing; everything else becomes a tag. */
-export function dimensionsOf(sketch: SketchFeature, result: SketchResult, opts: PlacementOptions): { dims: DimSpec[]; tags: TagSpec[] } {
+export function dimensionsOf(sketch: SketchFeature, result: SketchResult, opts: PlacementOptions): { dims: DimSpec[]; tags: TagSpec[]; ticks: TickSpec[] } {
   const dims: DimSpec[] = []
   const tags: TagSpec[] = []
+  const ticks: TickSpec[] = []
   const step = Math.round(DRIVING_OFFSET_PX / opts.pxPerSx)
   // automatic dimensions that share an axis and a reference edge stack outward when their spans overlap
   const placed: Array<{ axis: 'u' | 'v'; base: number; from: number; to: number; stack: number }> = []
@@ -198,13 +238,11 @@ export function dimensionsOf(sketch: SketchFeature, result: SketchResult, opts: 
       const ref: ConstraintRef = { sketchId: sketch.id, lineId: line.id, slot }
       const target: DimTarget = { kind: 'line', lineId: line.id, slot }
       const endU = slot === 'max' ? resolved.max : resolved.min
-      const tag = () =>
-        tags.push({
-          ref,
-          text: `${slot} = ${v}`,
-          u: resolved.dir === 'h' ? (slot === 'at' || slot === 'size' ? (resolved.min + resolved.max) / 2 : endU) : resolved.at,
-          v: resolved.dir === 'v' ? (slot === 'at' || slot === 'size' ? (resolved.min + resolved.max) / 2 : endU) : resolved.at,
-        })
+      // where the slot sits on the line: a run end at that end, a position or size at the middle
+      const along = slot === 'min' || slot === 'max' ? endU : (resolved.min + resolved.max) / 2
+      const rest = resolved.dir === 'h' ? { u: along, v: resolved.at } : { u: resolved.at, v: along }
+      ticks.push({ ref, dir: resolved.dir, ...rest })
+      const tag = () => tags.push({ ref, text: `${slot} = ${v}`, ...rest })
       let link: ReturnType<typeof simpleLink> = null
       try {
         link = simpleLink(parse(v))
@@ -229,6 +267,7 @@ export function dimensionsOf(sketch: SketchFeature, result: SketchResult, opts: 
       dims.push({
         ref,
         target,
+        anchors: anchor.edges,
         axis: dimAxis,
         from: anchor.value,
         to,
@@ -243,7 +282,7 @@ export function dimensionsOf(sketch: SketchFeature, result: SketchResult, opts: 
       })
     }
   }
-  return { dims, tags }
+  return { dims, tags, ticks }
 }
 
 /** Size labels: each region's width and height, and the length of every line that bounds no region. */

@@ -51,14 +51,40 @@ export function saveTheme(theme: 'light' | 'dark') {
   }
 }
 
+const KEYS_KEY = 'drafter.keys'
+
+/** Key binding overrides; anything malformed falls back to no overrides. */
+export function loadKeys(): Record<string, string | null> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEYS_KEY) ?? '{}') as Record<string, unknown>
+    const out: Record<string, string | null> = {}
+    for (const [k, v] of Object.entries(raw)) if (v === null || typeof v === 'string') out[k] = v
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export function saveKeys(keys: Readonly<Record<string, string | null>>) {
+  try {
+    localStorage.setItem(KEYS_KEY, JSON.stringify(keys))
+  } catch {
+    // storage may be unavailable; the choice then lasts for the session
+  }
+}
+
 const DISPLAY_KEY = 'drafter.display'
 
 /** The sketch display toggles; anything missing or malformed falls back to the default. */
 export function loadDisplay(): Display {
   try {
     const raw = JSON.parse(localStorage.getItem(DISPLAY_KEY) ?? '{}') as Record<string, unknown>
-    const pick = (k: keyof Display) => (typeof raw[k] === 'boolean' ? (raw[k] as boolean) : DEFAULT_DISPLAY[k])
-    return { grid: pick('grid'), dims: pick('dims'), handles: pick('handles'), sizes: pick('sizes') }
+    const pick = (k: keyof Display, legacy?: string) => {
+      const v = raw[k] ?? (legacy ? raw[legacy] : undefined)
+      return typeof v === 'boolean' ? v : DEFAULT_DISPLAY[k]
+    }
+    // the constraints toggle was stored as `dims` before it was renamed
+    return { grid: pick('grid'), constraints: pick('constraints', 'dims'), handles: pick('handles'), sizes: pick('sizes') }
   } catch {
     return DEFAULT_DISPLAY
   }

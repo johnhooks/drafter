@@ -15,6 +15,8 @@ import {
   TextField,
   ToastRegion,
   ToggleButton,
+  Tooltip,
+  TooltipTrigger,
   ToggleButtonGroup,
   ToggleIconButton,
   Toolbar,
@@ -31,11 +33,11 @@ import type { Sixteenths } from '../core/units'
 import { downloadText, downloadUrl, readFile, safeName } from './exportFile'
 import { parseLen } from './LenField'
 import { ModelView } from './model/ModelView'
-import { loadDisplay, loadSaved, loadTheme, save, saveDisplay, saveTheme } from './persist'
+import { loadDisplay, loadKeys, loadSaved, loadTheme, save, saveDisplay, saveKeys, saveTheme } from './persist'
 import { Properties } from './Properties'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
-import { DEFAULT_EXTRUDE } from './sketch/tools'
-import { type Tool, canRedo, canUndo, fileOf } from './store/actions'
+import { type Tool, fileOf } from './store/actions'
+import { useCommand, useKeyHandler, useViewHooks } from './useCommands'
 import { useStore } from './store/store'
 import { Timeline } from './Timeline'
 
@@ -55,6 +57,7 @@ export function App() {
       loaded.current = true
       dispatch('setTheme', loadTheme())
       dispatch('setDisplay', loadDisplay())
+      dispatch('setKeys', loadKeys())
       const r = loadSaved()
       if (r.kind === 'loaded') dispatch('loadFile', r.file)
       else if (r.kind === 'corrupt') dispatch('notify', r.message, 'danger')
@@ -86,6 +89,8 @@ export function App() {
   }, [theme])
   const display = useStore((s) => s.display)
   useEffect(() => saveDisplay(display), [display])
+  const keys = useStore((s) => s.keys)
+  useEffect(() => saveKeys(keys), [keys])
 
   // new store notices become toasts; closing a toast releases the notice so it can appear again later
   const shown = useRef(new Set<string>())
@@ -109,20 +114,8 @@ export function App() {
     })
   }, [dispatch])
 
-  // Cmd or Ctrl plus Z undoes, with Shift redoes; text fields keep the browser's own text undo
-  useEffect(() => {
-    const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
-    const onKey = (e: KeyboardEvent) => {
-      const mod = isMac ? e.metaKey : e.ctrlKey
-      if (!mod || e.key.toLowerCase() !== 'z') return
-      const t = e.target as HTMLElement | null
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      e.preventDefault()
-      dispatch(e.shiftKey ? 'redo' : 'undo')
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [dispatch])
+  // every key goes through the command table; a tool with something in progress gets Escape and Enter first
+  useKeyHandler()
 
   const sketch = mode.kind === 'sketch' ? doc.features.find((f): f is SketchFeature => f.kind === 'sketch' && f.id === mode.sketchId) : undefined
 
@@ -160,17 +153,16 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   const selection = useStore((s) => s.selection)
   const display = useStore((s) => s.display)
   const theme = useStore((s) => s.theme)
-  const undoable = useStore(canUndo)
-  const redoable = useStore(canRedo)
-  const regionCount = useStore((s) => {
-    const r = sketch ? s.eval.results.get(sketch.id) : undefined
-    return r?.kind === 'sketch' ? r.regions.length : 0
-  })
+  const undo = useCommand('edit.undo')
+  const redo = useCommand('edit.redo')
+  const tools = { select: useCommand('tool.select'), line: useCommand('tool.line'), rect: useCommand('tool.rect'), link: useCommand('tool.link') }
+  const extrude = useCommand('sketch.extrude')
+  const finish = useCommand('sketch.finish')
+  const newSketch = useCommand('model.newSketch')
+  const pickFace = useCommand('model.pickFace')
   const fileInput = useRef<HTMLInputElement>(null)
   const [newSketchOpen, setNewSketchOpen] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
-  const modKey = isMac ? 'Cmd' : 'Ctrl'
 
   const exportSvg = () => {
     if (!centre.current || !sketch) return
@@ -191,6 +183,16 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
     dispatch('loadFile', r.file)
     toastQueue.clear()
   }
+  // the toolbar owns the file input, the dialogs, and the export helpers, so the file commands come back here
+  useViewHooks({
+    openNewSketch: () => setNewSketchOpen(true),
+    menu: (action) => onMenu(action),
+    selectLatest: () => {
+      const id = useStore.getState().doc.features.at(-1)?.id
+      const res = id ? useStore.getState().eval.results.get(id) : undefined
+      if (id) dispatch('select', { featureId: id, bodyId: res?.kind === 'extrude' ? res.bodyId : undefined })
+    },
+  })
   const onMenu = (key: React.Key) => {
     switch (key) {
       case 'export-svg':
@@ -213,44 +215,36 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   return (
     <Toolbar aria-label="Main" className="topbar">
       <span className="kit-toolbar-title">{doc.title}</span>
-      <IconButton icon="undo" aria-label="Undo" isDisabled={!undoable} onPress={() => dispatch('undo')} />
-      <IconButton icon="redo" aria-label="Redo" isDisabled={!redoable} onPress={() => dispatch('redo')} />
+      <IconButton icon="undo" aria-label={undo.tooltip} isDisabled={!undo.enabled} onPress={undo.run} />
+      <IconButton icon="redo" aria-label={redo.tooltip} isDisabled={!redo.enabled} onPress={redo.run} />
       <ToolbarSeparator />
       {sketch ? (
         <>
-          <ToggleButtonGroup aria-label="Tool" selectedKeys={[tool]} onSelectionChange={(keys) => dispatch('setTool', [...keys][0] as Tool)}>
-            <ToggleButton id="select">Select</ToggleButton>
-            <ToggleButton id="line">Line</ToggleButton>
-            <ToggleButton id="rect">Rectangle</ToggleButton>
-            <ToggleButton id="link">Link</ToggleButton>
+          <ToggleButtonGroup aria-label="Tool" selectedKeys={[tool]} onSelectionChange={(keys) => tools[[...keys][0] as Tool].run()}>
+            {(['select', 'line', 'rect', 'link'] as const).map((id) => (
+              <TooltipTrigger key={id}>
+                <ToggleButton id={id}>{tools[id].label}</ToggleButton>
+                <Tooltip>{tools[id].tooltip}</Tooltip>
+              </TooltipTrigger>
+            ))}
           </ToggleButtonGroup>
           <ToolbarSeparator />
-          <Button
-            variant="primary"
-            isDisabled={regionCount === 0}
-            onPress={() => {
-              dispatch('addExtrude', sketch.id, selection.regions, DEFAULT_EXTRUDE)
-              dispatch('setMode', { kind: 'model' })
-              const id = useStore.getState().doc.features.at(-1)?.id
-              const res = id ? useStore.getState().eval.results.get(id) : undefined
-              if (id) dispatch('select', { featureId: id, bodyId: res?.kind === 'extrude' ? res.bodyId : undefined })
-            }}
-          >
-            Extrude {selection.regions.length ? `(${selection.regions.length})` : '(all)'}
+          <Button variant="primary" isDisabled={!extrude.enabled} onPress={extrude.run}>
+            {extrude.label} {selection.regions.length ? `(${selection.regions.length})` : '(all)'}
           </Button>
-          <Button onPress={() => dispatch('setMode', { kind: 'model' })}>Finish</Button>
+          <Button onPress={finish.run}>{finish.label}</Button>
           <ToolbarSpacer />
           <ToggleIconButton icon="grid" aria-label="Grid" isSelected={display.grid} onChange={(on) => dispatch('setDisplay', { grid: on })} />
-          <ToggleIconButton icon="ruler" aria-label="Dimensions" isSelected={display.dims} onChange={(on) => dispatch('setDisplay', { dims: on })} />
+          <ToggleIconButton icon="ruler" aria-label="Constraints" isSelected={display.constraints} onChange={(on) => dispatch('setDisplay', { constraints: on })} />
           <ToggleIconButton icon="tag" aria-label="Handles" isSelected={display.handles} onChange={(on) => dispatch('setDisplay', { handles: on })} />
           <ToggleIconButton icon="sizes" aria-label="Sizes" isSelected={display.sizes} onChange={(on) => dispatch('setDisplay', { sizes: on })} />
           <ToolbarSeparator />
         </>
       ) : (
         <>
-          <Button onPress={() => setNewSketchOpen(true)}>New sketch</Button>
-          <ToggleButton isSelected={mode.kind === 'pickFace'} onChange={(on) => dispatch('setMode', on ? { kind: 'pickFace' } : { kind: 'model' })}>
-            Pick face
+          <Button onPress={newSketch.run}>{newSketch.label}</Button>
+          <ToggleButton isSelected={mode.kind === 'pickFace'} onChange={pickFace.run}>
+            {pickFace.label}
           </ToggleButton>
         </>
       )}
@@ -270,10 +264,6 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
             <MenuItem id="theme-light">{theme === 'light' ? 'Light (current)' : 'Light'}</MenuItem>
             <MenuItem id="theme-dark">{theme === 'dark' ? 'Dark (current)' : 'Dark'}</MenuItem>
           </MenuSection>
-          <MenuSeparator />
-          <MenuItem id="undo-hint" isDisabled>
-            Undo {modKey}+Z, redo {modKey}+Shift+Z
-          </MenuItem>
         </Menu>
       </MenuTrigger>
       <input

@@ -127,7 +127,7 @@ test('nothing is labelled unasked: hover, selection, expression focus, and the d
     expect(regionsOf(d, 0)[1]!.bounds).toEqual({ u0: 480, u1: 640, v0: 0, v1: 160 })
     await page.reload()
     await page.waitForSelector('.timeline')
-    expect((await dbg(page)).display).toEqual({ grid: false, dims: true, handles: true, sizes: true })
+    expect((await dbg(page)).display).toEqual({ grid: false, constraints: true, handles: true, sizes: true })
     await expect(page.locator('[data-handle]')).toHaveCount(8)
   })
 })

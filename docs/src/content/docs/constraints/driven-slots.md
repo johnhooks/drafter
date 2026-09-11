@@ -23,11 +23,11 @@ In practice:
 - Type a **left** or **bottom** end and the line moves as a whole; its length is kept.
 - Type a **right** or **top** end and the length changes; the first end stays.
 
-If both other slots are expressions, the edit is refused with a message naming them, because satisfying it would mean silently dropping a relation. This is the case for every side of a rectangle, whose ends are both attached: to change its length, move the perpendicular line at one end, or type the region's width or height label, which does that for you.
+If both other slots are expressions, the edit is refused with a message naming them, because satisfying it would mean silently dropping a relation. This is the case for every side of a rectangle, whose ends are both attached: to change its length, move the perpendicular line at one end, or type Width or Height in the rectangle's form or on its label, which does that for you.
 
 ## Deleting a line
 
-Deleting a line freezes every slot that referenced it to its current number first, so the rest of the sketch keeps its shape. Deleting one side of a rectangle leaves three plain lines and no region. An extrude that loses its only region is deleted with everything that depended on it, after confirmation.
+Deleting a line freezes every slot that referenced it to its current number first, so the rest of the sketch keeps its shape. Deleting one side of a rectangle leaves three plain lines and no region, and the rectangle's name goes with it; anything that referenced `r1` is rewritten over its lines first. An extrude that loses its only region is deleted with everything that depended on it, after confirmation.
 
 ## Failed lines
 

@@ -250,7 +250,7 @@ test('sketch, extrude, pick a face, cut, edit upstream, persist, export', async 
     const [dl] = await Promise.all([page.waitForEvent('download'), menu(page, 'Download JSON')])
     await dl.saveAs(jsonPath)
     const json = JSON.parse(readFileSync(jsonPath, 'utf8'))
-    expect(json.version).toBe(4)
+    expect(json.version).toBe(5)
     expect(json.model.features).toHaveLength(6)
     expect(json.view.camera.zoom).toBeGreaterThan(0)
     const [png] = await Promise.all([page.waitForEvent('download'), menu(page, 'Export view as PNG')])

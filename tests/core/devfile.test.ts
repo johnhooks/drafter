@@ -12,11 +12,11 @@ import { parseDocument } from '../../src/core/model/document'
 const file = readFileSync(new URL('./fixtures/dev-cabinets.v2.json', import.meta.url), 'utf8')
 
 describe('development file migration', () => {
-  it('loads as version 4 and evaluates to the expected bodies', () => {
+  it('loads as version 5 and evaluates to the expected bodies', () => {
     const r = parseDocument(file)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.file.version).toBe(4)
+    expect(r.file.version).toBe(5)
     const ev = evaluate(r.file.model)
     // Extrude 7 is a cut with no target, as it was before migration
     expect(ev.errors.map((e) => e.featureId)).toEqual(['e_mtszt21p1'])

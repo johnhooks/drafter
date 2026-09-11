@@ -20,4 +20,4 @@ Vitest covers the core and the store actions. Geometry tests assert on volume, b
 
 Playwright drives the app in headless Chromium with software rendering so the 3D view works. The dev server is started on port 5199 by the Playwright config. Tests read application state through a debug hook that exists only in development builds.
 
-Two things to know when writing them: the 3D canvas reports its default size for a frame after switching modes, so wait for its real size before computing click positions; and Playwright will not click a zero-height SVG line, so select dimensions through their labels.
+Two things to know when writing them: the 3D canvas reports its default size for a frame after switching modes, so wait for its real size before computing click positions; and Playwright will not click a zero-height SVG line, so select constraints through their labels.
