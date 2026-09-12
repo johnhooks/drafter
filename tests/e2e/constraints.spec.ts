@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { choose, clickInches, dbg, drawInches, faceView, field, isoPoint, linesOf, link, makeCube, regionAt, regionsOf, rowAction, tool } from './helpers'
+import { choose, clickInches, dbg, drawInches, faceView, field, isoPoint, linesOf, link, makeCube, openList, regionAt, regionsOf, rowAction, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -35,7 +35,9 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     expect(linesOf(d, 2)[2]!.at).toBe('face.right - 2')
     expect(d.errors).toEqual([])
     // resolved 2" .. 22"
+    await openList(page, 'Rectangles')
     await expect(page.getByRole('option', { name: /^r1 20" x 16"/ })).toContainText('at (2", -20"), lines l1 l2 l3 l4')
+    await openList(page, 'Constraints')
     const constraints = page.getByRole('listbox', { name: 'Constraints' }).getByRole('option')
     await expect(constraints).toContainText(['l1.at = face.left + 2', 'l3.at = face.right - 2'])
     await expect(constraints.first()).toContainText('2"')
@@ -113,6 +115,7 @@ test('inset pocket linked to both face edges follows the carcass and refuses a w
     await page.getByRole('button', { name: 'Constraints', exact: true }).click()
     await expect(page.locator('[data-dim-slot^="L:"]:not([data-dim-slot$=":size"])')).toHaveCount(0)
     // remove the remaining link from the list: after widening, face.right is 30, so the line freezes at 28
+    await openList(page, 'Constraints')
     const list = page.getByRole('listbox', { name: 'Constraints' })
     await expect(list.getByRole('option')).toHaveCount(1)
     await rowAction(page, /l3\.at/, 'Remove')

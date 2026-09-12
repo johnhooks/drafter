@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, field, lineInches, linesOf, newSketch, regionsOf, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, field, lineInches, linesOf, newSketch, openList, regionsOf, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -18,6 +18,7 @@ test('a drawn rectangle is named, has a form, explodes, and can be grouped again
   await drawInches(page, v1, [0, 0], [24, 16])
   let d = await dbg(page)
   expect(rects(d)).toMatchObject([{ handle: 'r1', lines: linesOf(d, 0).map((l) => l.id) }])
+  await openList(page, 'Rectangles')
   await expect(page.getByRole('option', { name: /^r1 24" x 16"/ })).toBeVisible()
 
   await test.step('clicking inside the rectangle shows its form', async () => {
@@ -56,6 +57,8 @@ test('a drawn rectangle is named, has a form, explodes, and can be grouped again
   })
 
   await test.step('Explode keeps the lines, rewrites the reference to r1, and the region list reads Region', async () => {
+    // the open Rectangles list goes away with the record; the accordion must fall back to Regions, not to nothing
+    await openList(page, 'Rectangles')
     await page.getByRole('button', { name: 'Explode' }).click()
     d = await dbg(page)
     expect(rects(d)).toEqual([])
@@ -63,12 +66,13 @@ test('a drawn rectangle is named, has a form, explodes, and can be grouped again
     expect(linesOf(d, 0)[2]!.at).toBe('l1.at + ((l4.at - l2.at) * 2)')
     expect(d.errors).toEqual([])
     expect(regionsOf(d, 0)).toHaveLength(1)
+    await expect(page.getByRole('listbox', { name: 'Regions' })).toBeVisible()
     await expect(page.getByRole('option', { name: /^Region/ })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Explode' })).toHaveCount(0)
   })
 
   await test.step('Make rectangle on four chained lines', async () => {
-    await page.getByRole('button', { name: /^Lines/ }).click()
+    await openList(page, 'Lines')
     for (const h of ['l1', 'l2', 'l3', 'l4']) await page.getByRole('option', { name: h, exact: true }).click({ modifiers: ['Shift'] })
     d = await dbg(page)
     expect(d.selection.lineIds).toHaveLength(4)
@@ -76,6 +80,7 @@ test('a drawn rectangle is named, has a form, explodes, and can be grouped again
     d = await dbg(page)
     // r1 was exploded, so nothing is in use and the handle starts again
     expect(rects(d).map((r) => r.handle)).toEqual(['r1'])
+    await openList(page, 'Rectangles')
     await expect(page.getByRole('option', { name: /^r1 /, exact: false })).toBeVisible()
   })
 
@@ -92,12 +97,54 @@ test('a drawn rectangle is named, has a form, explodes, and can be grouped again
     await tool(page, 'Select')
     // a click on empty canvas clears the four lines still selected from the last step
     await clickInches(page, v1, 12, 30)
+    await openList(page, 'Lines')
     await page.getByRole('option', { name: 'l5', exact: true }).click()
     for (const h of ['l6', 'l7', 'l8']) await page.getByRole('option', { name: h, exact: true }).click({ modifiers: ['Shift'] })
     await page.getByRole('button', { name: 'Make rectangle' }).click()
     d = await dbg(page)
     // the chain's bottom sits on the first rectangle's bottom line too; an end attached to a collinear line still counts
     expect(rects(d).map((r) => r.handle)).toEqual(['r1', 'r2'])
+  })
+})
+
+test('a split rectangle stays in the rectangle list and its form still works from there', async ({ page }) => {
+  await newSketch(page)
+  await drawInches(page, v1, [0, 0], [24, 16])
+  const rectList = page.getByRole('listbox', { name: 'Rectangles' })
+  const regionList = page.getByRole('listbox', { name: 'Regions' })
+  await expect(regionList.getByRole('option')).toHaveText([/^Region 24" x 16"/])
+  await expect(regionList.getByRole('option')).toContainText('fills r1')
+  await openList(page, 'Rectangles')
+  await expect(rectList.getByRole('option')).toHaveText([/^r1 24" x 16"/])
+
+  await test.step('a splitting line leaves the rectangle listed and two regions that fill none', async () => {
+    await lineInches(page, v1, [
+      [10, 0],
+      [10, 16],
+    ])
+    await expect(rectList.getByRole('option')).toHaveText([/^r1 24" x 16"/])
+    await openList(page, 'Regions')
+    await expect(regionList.getByRole('option')).toHaveCount(2)
+    await expect(regionList.getByText('fills r1')).toHaveCount(0)
+    await openList(page, 'Rectangles')
+  })
+
+  await test.step('choosing the rectangle selects its four sides and shows its form', async () => {
+    await tool(page, 'Select')
+    await rectList.getByRole('option', { name: /^r1/ }).click()
+    let d = await dbg(page)
+    expect([...d.selection.lineIds].sort()).toEqual([...rects(d)[0]!.lines].sort())
+    await expect(rectList.getByRole('option', { selected: true })).toHaveCount(1)
+    await page.mouse.move(5, 5)
+    await expect(page.locator('[data-handle]')).toHaveCount(4)
+    await expect(page.getByRole('button', { name: 'Make rectangle' })).toHaveCount(0)
+    await expect(page.getByRole('textbox', { name: 'Width' })).toBeVisible()
+    await field(page, 'Width').fill('30')
+    await field(page, 'Width').press('Enter')
+    d = await dbg(page)
+    expect(linesOf(d, 0)[2]!.at).toBe(480)
+    expect(linesOf(d, 0)[4]!.run).toEqual({ min: 'l2.at', max: 'l4.at' })
+    expect(regionsOf(d, 0)).toHaveLength(2)
   })
 })
 

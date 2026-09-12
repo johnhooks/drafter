@@ -34,6 +34,6 @@ The corners of a rectangle are relations too, an end attached to a perpendicular
 
 ## See and remove relations
 
-The sketch properties list every relation in the sketch other than corner attachments, as `l1.at = face.left + 2` with its current value. Click one to select it and draw it highlighted in the sketch, whether or not the toggle is on. The x beside it removes the relation, leaving the slot as a plain number equal to its current value, so nothing moves.
+The **Constraints** list in the sketch properties, one of the lists that open one at a time, holds every relation in the sketch other than corner attachments, as `l1.at = face.left + 2` with its current value. Click one to select it and draw it highlighted in the sketch, whether or not the toggle is on. The x beside it removes the relation, leaving the slot as a plain number equal to its current value, so nothing moves.
 
 With the Select tool, clicking a drawn constraint's label selects it too, and Delete removes it the same way.

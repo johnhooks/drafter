@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, faceView, field, hoverInches, isoPoint, lineInches, linesOf, makeCube, newSketch, regionAt, regionsOf, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, faceView, field, hoverInches, isoPoint, lineInches, linesOf, makeCube, newSketch, openList, regionAt, regionsOf, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -143,12 +143,12 @@ test('regions select alone or together, X makes a splitting line construction, t
   let d = await dbg(page)
   expect(d.selection.regions).toHaveLength(1)
   expect(d.selection.regions[0]!.horizontal).toBe(linesOf(d, 0)[1]!.id)
-  await expect(page.getByRole('listbox', { name: 'Shapes' }).getByRole('option', { selected: true })).toHaveCount(1)
+  await expect(page.getByRole('listbox', { name: 'Regions' }).getByRole('option', { selected: true })).toHaveCount(1)
   await regionAt(page, v1, 18, 8, true)
   d = await dbg(page)
   expect(d.selection.regions).toHaveLength(2)
   await expect(page.getByRole('button', { name: 'Extrude (2)' })).toBeVisible()
-  await expect(page.getByRole('listbox', { name: 'Shapes' }).getByRole('option', { selected: true })).toHaveCount(2)
+  await expect(page.getByRole('listbox', { name: 'Regions' }).getByRole('option', { selected: true })).toHaveCount(2)
 
   // select the splitting line and make it construction: the regions merge
   await clickInches(page, v1, 10, 8)
@@ -211,4 +211,102 @@ test('a drawn line snaps onto a face edge and its end attaches nowhere on the fa
   expect(linesOf(d, 2)[0]).toMatchObject({ dir: 'h', at: -192, run: { min: 64, max: 384 } })
   expect(regionsOf(d, 2)).toEqual([])
   await tool(page, 'Select')
+})
+
+test('the selection pane keeps its place: a hint when empty, then the form for a line or a listed rectangle', async ({ page }) => {
+  await newSketch(page)
+  const pane = page.locator('.props-selection')
+  await expect(pane).toContainText('Nothing selected')
+  await drawInches(page, v1, [0, 0], [24, 16])
+  const rectList = page.getByRole('listbox', { name: 'Rectangles' })
+  const regionList = page.getByRole('listbox', { name: 'Regions' })
+  const before = await regionList.boundingBox()
+  await tool(page, 'Select')
+  await clickInches(page, v1, 24, 8)
+  await expect(pane.getByRole('textbox', { name: 'Right (this line)' })).toBeVisible()
+  await expect(pane.getByRole('textbox', { name: 'Position (u)' })).toBeVisible()
+  expect((await regionList.boundingBox())?.y).toBe(before?.y)
+  await clickInches(page, v1, 12, 30)
+  await expect(pane).toContainText('Nothing selected')
+  await openList(page, 'Rectangles')
+  await rectList.getByRole('option', { name: /^r1/ }).click()
+  await expect(pane.getByRole('textbox', { name: 'Width' })).toBeVisible()
+  await expect(pane.getByRole('textbox', { name: /^Position/ })).toHaveCount(0)
+})
+
+test('the divider resizes the selection pane, the height survives a reload, and the sketch region fades where it scrolls', async ({ page }) => {
+  // tall enough that a 60 px drag stays under the ceiling the lists' floor imposes, short enough that six regions overflow the open list
+  await page.setViewportSize({ width: 1280, height: 700 })
+  await newSketch(page)
+  const pane = page.locator('.props-selection')
+  const divider = page.getByRole('separator', { name: 'Resize the selection pane' })
+  const before = (await pane.boundingBox())!.height
+  const box = (await divider.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 60, { steps: 6 })
+  await page.mouse.up()
+  const after = (await pane.boundingBox())!.height
+  expect(Math.round(after - before)).toBe(60)
+  // the drag left the divider focused, so the keyboard works without a separate click
+  await page.keyboard.press('ArrowDown')
+  expect(Math.round((await pane.boundingBox())!.height)).toBe(Math.round(after) - 16)
+  await page.reload()
+  await page.waitForSelector('.props-selection')
+  expect(Math.round((await pane.boundingBox())!.height)).toBe(Math.round(after) - 16)
+  await divider.dblclick()
+  expect(Math.round((await pane.boundingBox())!.height)).toBe(Math.round(before))
+
+  // enough regions to overflow the open list at this height; the reload left the Select tool active
+  await tool(page, 'Rectangle')
+  await drawInches(page, v1, [0, 0], [24, 16])
+  for (const u of [4, 8, 12, 16, 20]) await lineInches(page, v1, [[u, 0], [u, 16]])
+  const area = page.locator('.props-lists .kit-disclosure[data-expanded] .scroll-area')
+  await expect(area).toHaveAttribute('data-more', 'bottom')
+  await area.locator('.scroll-area-inner').evaluate((el) => el.scrollTo(0, el.scrollHeight))
+  await expect(area).toHaveAttribute('data-more', 'top')
+
+  // the sketch window minimizes to its title bar and the lists take the space
+  const lists = page.locator('.props-lists')
+  const listsBefore = (await lists.boundingBox())!.height
+  await page.getByRole('button', { name: 'Minimize sketch properties' }).click()
+  await expect(page.getByRole('textbox', { name: 'Name' })).toBeHidden()
+  expect((await lists.boundingBox())!.height).toBeGreaterThan(listsBefore + 60)
+  await page.getByRole('button', { name: 'Restore sketch properties' }).click()
+  await expect(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
+
+  // one list open at a time
+  await openList(page, 'Lines')
+  await expect(page.locator('.props-lists').getByRole('button', { name: /^Regions/ })).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('listbox', { name: 'Lines' })).toBeVisible()
+})
+
+test('a stored pane height is clamped to the column on load and on resize', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 })
+  await newSketch(page)
+  const pane = page.locator('.props-selection')
+  const lists = page.locator('.props-lists')
+  const column = page.locator('.props')
+  const check = async () => {
+    const c = (await column.boundingBox())!
+    const p = (await pane.boundingBox())!
+    const l = (await lists.boundingBox())!
+    expect(p.height).toBeGreaterThanOrEqual(120)
+    expect(l.height).toBeGreaterThanOrEqual(120)
+    expect(p.y + p.height).toBeLessThanOrEqual(c.y + c.height + 1)
+  }
+  for (const stored of [5000, 5]) {
+    await page.evaluate((h) => localStorage.setItem('drafter.layout', JSON.stringify({ paneHeight: h })), stored)
+    await page.reload()
+    await page.waitForSelector('.props-selection')
+    await check()
+  }
+  // a height that fits at 900px must still fit when the window shrinks
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.evaluate(() => localStorage.setItem('drafter.layout', JSON.stringify({ paneHeight: 500 })))
+  await page.reload()
+  await page.waitForSelector('.props-selection')
+  await check()
+  await page.setViewportSize({ width: 1280, height: 500 })
+  await check()
 })

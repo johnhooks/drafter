@@ -34,7 +34,7 @@ import { downloadText, downloadUrl, readFile, safeName } from './exportFile'
 import { parseLen } from './LenField'
 import { ModelView } from './model/ModelView'
 import { loadDisplay, loadKeys, loadSaved, loadTheme, save, saveDisplay, saveKeys, saveTheme } from './persist'
-import { Properties } from './Properties'
+import { PropertiesColumn } from './PropertiesColumn'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
 import { type Tool, fileOf } from './store/actions'
 import { useCommand, useKeyHandler, useViewHooks } from './useCommands'
@@ -137,9 +137,7 @@ export function App() {
           </div>
         )}
       </div>
-      <Panel edge="left" className="side">
-        <Properties />
-      </Panel>
+      <PropertiesColumn />
       <ToastRegion />
     </div>
   )

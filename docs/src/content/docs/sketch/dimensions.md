@@ -33,12 +33,14 @@ Negative lengths are rejected. Lengths display with reduced fractions: `35 1/2"`
 
 ## The properties panel
 
+The column is three windows. The sketch window at the top holds the name, plane, and offset; the minimize button in its title bar folds it to the bar and gives the space to the lists. The lists are in the middle: Rectangles, Regions, Lines, and Constraints, one open at a time, and the open one takes the remaining height and scrolls, fading at an edge when there is more in that direction. The **Selection** pane at the bottom shows the form for whatever is selected, so it stays in the same place however long the lists get; with nothing selected it says so. Drag the divider above it to change its height, or focus the divider and use the arrow keys; double-click it to go back to the default. The height is remembered.
+
 Select a line in the sketch or in the line list to edit it by fields: its **Position** on the axis it crosses, and along its run Left, Right, and Length for a horizontal line or Bottom, Top, and Length for a vertical one. Two of the three run values are driven; the third is marked derived and shows its computed value. Each field accepts a length or an expression, and a **Construction** checkbox turns the line into a guide.
 
-The sketch properties list the shapes the lines enclose, a rectangle by its name, `r1 24" x 16"`, and anything else as **Region**, each with the lines that bound it; selecting one there selects it in the view and the reverse. The lines themselves are in a collapsed list below.
+The Rectangles list has every rectangle by its name and size, `r1 24" x 16"`, with its member lines. A rectangle stays in the list when lines are drawn across it. Choosing one selects its four sides in the view and opens its form. The Regions list, open to start, has the regions the lines enclose as **Region** with their size and the lines that bound them, and a region that exactly fills a rectangle says so; selecting one there selects it in the view and the reverse. The Lines list has every line by its handle.
 
 ## The rectangle form
 
-Click inside a rectangle, choose its row in the shape list, or select any of its sides, and its form appears: Left, Right, Bottom, Top, Width, Height, and Explode. A side field is that line's position, so typing Left moves the left line and changes the width. Width moves the right line to the left line plus what you typed, and Height moves the top; both accept expressions, so a Width of `ply * 2` becomes `l1.at + (ply * 2)` on the right line. If the far line is already held by an expression the edit is refused and the message names it.
+Click inside a rectangle, choose it in the rectangle list, select any of its sides, or select all four, and its form appears: Left, Right, Bottom, Top, Width, Height, and Explode. A side field is that line's position, so typing Left moves the left line and changes the width. Width moves the right line to the left line plus what you typed, and Height moves the top; both accept expressions, so a Width of `ply * 2` becomes `l1.at + (ply * 2)` on the right line. If the far line is already held by an expression the edit is refused and the message names it.
 
 Blank is not allowed: every field has a value. To make a line follow something instead of holding a number, type an expression or use the Link tool.

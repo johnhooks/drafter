@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { clickInches, dbg, drawInches, expectTickAt, faceView, field, hoverInches, isoPoint, linesOf, link, makeCube, px, rowAction, tool } from './helpers'
+import { clickInches, dbg, drawInches, expectTickAt, faceView, field, hoverInches, isoPoint, linesOf, link, makeCube, openList, px, rowAction, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -74,6 +74,7 @@ test('constraints show on demand, tick at rest, and keep their placement and edi
   })
 
   await test.step('selecting from the constraints list draws it as the selected one', async () => {
+    await openList(page, 'Constraints')
     await page.getByRole('listbox', { name: 'Constraints' }).getByRole('option', { name: /l1\.at/ }).click()
     await page.mouse.move(5, 5)
     await expect(page.locator(leftDim)).toHaveCount(1)

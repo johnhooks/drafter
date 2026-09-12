@@ -1,4 +1,5 @@
-import { Button, Checkbox, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Row, Select, SelectItem, TextField } from '@bitmachina/drafter-kit'
+import type { CSSProperties, ReactNode } from 'react'
+import { Button, Checkbox, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Panel, Row, Select, SelectItem, TextField } from '@bitmachina/drafter-kit'
 import { FRAMES } from '../core/model/planes'
 import type { ExtrudeFeature, Len, LineDir, LineSlot, SketchFeature, SketchLine, SketchRect, Slot } from '../core/model/types'
 import { isExpr, regionKey, sameRegion } from '../core/model/types'
@@ -6,8 +7,10 @@ import { regionIsRectangle } from '../core/geom/regions'
 import { isAttachment } from './sketch/Dimensions'
 import { type Sixteenths, formatLength } from '../core/units'
 import { LenField } from './LenField'
+import { ScrollArea } from './ScrollArea'
 import { KeyBindings } from './KeyBindings'
 import { Parameters } from './Parameters'
+import type { SketchResult } from '../core/eval/evaluate'
 import type { RectSlot } from './store/actions'
 import { useStore } from './store/store'
 
@@ -15,8 +18,8 @@ export function Properties() {
   const doc = useStore((s) => s.doc)
   const selection = useStore((s) => s.selection)
   const feature = doc.features.find((f) => f.id === selection.featureId)
-  if (!feature) return <DocumentProperties />
-  return feature.kind === 'sketch' ? <SketchProperties sketch={feature} /> : <ExtrudeProperties extrude={feature} />
+  if (!feature || feature.kind === 'sketch') return <DocumentProperties />
+  return <ExtrudeProperties extrude={feature} />
 }
 
 function DocumentProperties() {
@@ -40,113 +43,205 @@ function NameField({ id, name }: { id: string; name: string }) {
   return <TextField label="Name" value={name} onCommit={(_v, t) => dispatch('renameFeature', id, t)} />
 }
 
-function SketchProperties({ sketch }: { sketch: SketchFeature }) {
+/** The sketch's own fields: name, plane, offset, and the way into the editor. */
+export function SketchFields({ sketch }: { sketch: SketchFeature }) {
   const ev = useStore((s) => s.eval)
-  const selection = useStore((s) => s.selection)
   const mode = useStore((s) => s.mode)
   const dispatch = useStore((s) => s.dispatch)
   const r = ev.results.get(sketch.id)
   const plane = r?.kind === 'sketch' ? r.plane : null
+  return (
+    <Fields>
+      <NameField id={sketch.id} name={sketch.name} />
+      <Field label="Plane">
+        {sketch.plane.kind === 'principal'
+          ? `${sketch.plane.plane}, normal ${sketch.plane.normal > 0 ? '+' : '-'}${FRAMES[sketch.plane.plane].n.toUpperCase()}`
+          : `${sketch.plane.face} face of ${featureName(sketch.plane.featureId)}${plane ? ` (${plane.plane} at ${formatLength(plane.offset)})` : ''}`}
+      </Field>
+      {sketch.plane.kind === 'principal' && (
+        <LenField
+          label="Offset"
+          value={sketch.plane.offset}
+          resolved={plane?.offset}
+          error={r?.kind === 'error' && isExpr(sketch.plane.offset) ? r.message : undefined}
+          onCommit={(v) => dispatch('setSketchPlaneOffset', sketch.id, v)}
+        />
+      )}
+      {r?.kind === 'error' && <Field error={r.message}>{null}</Field>}
+      {mode.kind !== 'sketch' && <Button onPress={() => dispatch('setMode', { kind: 'sketch', sketchId: sketch.id })}>Edit sketch</Button>}
+    </Fields>
+  )
+}
+
+export type SketchList = 'rectangles' | 'regions' | 'lines' | 'constraints'
+
+/** The sketch's lists as an accordion: one open at a time, and the open one takes the remaining height and scrolls. */
+export function SketchLists({ sketch, open, onOpen }: { sketch: SketchFeature; open: SketchList | null; onOpen: (list: SketchList | null) => void }) {
+  const ev = useStore((s) => s.eval)
+  const selection = useStore((s) => s.selection)
+  const dispatch = useStore((s) => s.dispatch)
+  const r = ev.results.get(sketch.id)
   const regions = r?.kind === 'sketch' ? r.regions : []
-  const single = selection.lineIds.length === 1 ? sketch.lines.find((x) => x.id === selection.lineIds[0]) : undefined
   const selectedRegionKeys = selection.regions.map(regionKey)
   const lineAt = (id: string) => (r?.kind === 'sketch' ? r.lines.get(id)?.at : undefined)
+  const lineError = (id: string) => (r?.kind === 'sketch' ? r.lineErrors.get(id) : undefined)
+  const selectedLines = new Set(selection.lineIds)
+  const wholeRects = sketch.rects.filter((rect) => rect.lines.every((id) => selectedLines.has(id)))
+  const handleOf = (id: string) => sketch.lines.find((l) => l.id === id)?.handle ?? id
+  // the open list can disappear from under the accordion (the last rectangle exploded, the last constraint removed)
+  const available = new Set<SketchList>(['regions', 'lines', ...(sketch.rects.length > 0 ? ['rectangles' as const] : []), ...(constraintEntries(sketch, r?.kind === 'sketch' ? r : undefined).length > 0 ? ['constraints' as const] : [])])
+  const shown: SketchList | null = open === null ? null : available.has(open) ? open : 'regions'
+  const section = (list: SketchList) => ({ isExpanded: shown === list, onExpandedChange: (on: boolean) => onOpen(on ? list : null) })
+  return (
+    <>
+      {sketch.rects.length > 0 && (
+        <Disclosure title="Rectangles" trailing={String(sketch.rects.length)} {...section('rectangles')}>
+          <ScrollArea>
+            <ListBox
+              aria-label="Rectangles"
+              dense
+              selectionMode="multiple"
+              selectedKeys={wholeRects.map((rect) => rect.id)}
+              onSelectionChange={(keys) => {
+                const chosen = keys === 'all' ? sketch.rects : sketch.rects.filter((rect) => ([...keys] as string[]).includes(rect.id))
+                dispatch('selectLines', sketch.id, chosen.flatMap((rect) => rect.lines))
+              }}
+            >
+              {sketch.rects.map((rect) => {
+                const [left, bottom, right, top] = rect.lines.map(lineAt)
+                const handles = rect.lines.map(handleOf).join(' ')
+                if (left === undefined || bottom === undefined || right === undefined || top === undefined) {
+                  const failed = rect.lines.find((id) => lineError(id) !== undefined)
+                  const why = failed ? `${handleOf(failed)}: ${lineError(failed)}` : 'unresolved'
+                  return (
+                    <ListBoxItem key={rect.id} id={rect.id} textValue={rect.handle} tone="error" detail={why}>
+                      {rect.handle}
+                    </ListBoxItem>
+                  )
+                }
+                const size = `${formatLength((right - left) as Sixteenths)} x ${formatLength((top - bottom) as Sixteenths)}`
+                return (
+                  <ListBoxItem key={rect.id} id={rect.id} textValue={`${rect.handle} ${size}`} detail={`at (${formatLength(left as Sixteenths)}, ${formatLength(bottom as Sixteenths)}), lines ${handles}`}>
+                    {rect.handle} {size}
+                  </ListBoxItem>
+                )
+              })}
+            </ListBox>
+          </ScrollArea>
+        </Disclosure>
+      )}
+      <Disclosure title="Regions" trailing={String(regions.length)} {...section('regions')}>
+        <ScrollArea>
+          {regions.length === 0 && <Hint>None yet. Close an outline with lines or draw a rectangle.</Hint>}
+          <ListBox
+            aria-label="Regions"
+            dense
+            selectionMode="multiple"
+            selectedKeys={selectedRegionKeys}
+            onSelectionChange={(keys) => {
+              const chosen = keys === 'all' ? regions.map((x) => x.key) : ([...keys] as string[])
+              dispatch('selectRegions', sketch.id, regions.filter((x) => chosen.includes(x.key)).map((x) => x.ref))
+            }}
+          >
+            {regions.map((region) => {
+              const b = region.bounds
+              const size = `${formatLength((b.u1 - b.u0) as Sixteenths)} x ${formatLength((b.v1 - b.v0) as Sixteenths)}`
+              const fills = sketch.rects.find((rect) => regionIsRectangle(region, rect.lines, lineAt))
+              // in sketch order, so a rectangle reads l1 l2 l3 l4
+              const bounding = sketch.lines.filter((l) => region.boundary.some((e) => e.lineId === l.id)).map((l) => l.handle).join(' ')
+              const detail = `at (${formatLength(b.u0 as Sixteenths)}, ${formatLength(b.v0 as Sixteenths)}), lines ${bounding}${fills ? `, fills ${fills.handle}` : ''}`
+              return (
+                <ListBoxItem key={region.key} id={region.key} textValue={`Region ${size}`} detail={detail}>
+                  Region {size}
+                </ListBoxItem>
+              )
+            })}
+          </ListBox>
+        </ScrollArea>
+      </Disclosure>
+      <Disclosure title="Lines" trailing={String(sketch.lines.length)} {...section('lines')}>
+        <ScrollArea>
+          {sketch.lines.length === 0 && <Hint>None yet. Use the line or rectangle tool.</Hint>}
+          <ListBox
+            aria-label="Lines"
+            dense
+            selectionMode="multiple"
+            selectedKeys={selection.lineIds}
+            onSelectionChange={(keys) => dispatch('selectLines', sketch.id, keys === 'all' ? sketch.lines.map((x) => x.id) : ([...keys] as string[]))}
+          >
+            {sketch.lines.map((line) => {
+              const res = r?.kind === 'sketch' ? r.lines.get(line.id) : undefined
+              const err = lineError(line.id)
+              const dir = line.dir === 'h' ? 'horizontal' : 'vertical'
+              return (
+                <ListBoxItem
+                  key={line.id}
+                  id={line.id}
+                  textValue={line.handle}
+                  tone={err ? 'error' : 'neutral'}
+                  detail={
+                    res
+                      ? `${dir}${line.construction ? ', construction' : ''} at ${formatLength(res.at as Sixteenths)}, ${formatLength(res.min as Sixteenths)} to ${formatLength(res.max as Sixteenths)}`
+                      : (err ?? 'unresolved')
+                  }
+                >
+                  {line.handle}
+                </ListBoxItem>
+              )
+            })}
+          </ListBox>
+        </ScrollArea>
+      </Disclosure>
+      <ConstraintList sketch={sketch} {...section('constraints')} />
+    </>
+  )
+}
+
+/** The fixed pane under the sketch properties: the form for whatever is selected, so it never moves with the lists. */
+export function SelectionPanel({ style }: { style?: CSSProperties }) {
+  const doc = useStore((s) => s.doc)
+  const selection = useStore((s) => s.selection)
+  const ev = useStore((s) => s.eval)
+  const dispatch = useStore((s) => s.dispatch)
+  const sketch = doc.features.find((f): f is SketchFeature => f.kind === 'sketch' && f.id === selection.featureId)
+  if (!sketch) return null
+  const r = ev.results.get(sketch.id)
+  const regions = r?.kind === 'sketch' ? r.regions : []
+  const lineAt = (id: string) => (r?.kind === 'sketch' ? r.lines.get(id)?.at : undefined)
+  const single = selection.lineIds.length === 1 ? sketch.lines.find((x) => x.id === selection.lineIds[0]) : undefined
   // one selected region that is exactly a rectangle's area shows that rectangle's form, as a click inside it always did
   const selectedRegion = selection.regions.length === 1 ? regions.find((x) => sameRegion(x.ref, selection.regions[0]!)) : undefined
   const selectedRect = selectedRegion ? sketch.rects.find((rect) => regionIsRectangle(selectedRegion, rect.lines, lineAt)) : undefined
-  return (
-    <div>
-      <h3 className="section-title">
-        Sketch <span className="handle">{sketch.handle}</span>
-      </h3>
+  const selectedLines = new Set(selection.lineIds)
+  // four selected lines that already are a rectangle get its form, not the grouping action
+  const fourRect = selection.lineIds.length === 4 ? sketch.rects.find((rect) => rect.lines.every((id) => selectedLines.has(id))) : undefined
+  const rect = selectedRect ?? fourRect
+  const lines = selection.lineIds.length
+  const regionCount = selection.regions.length
+  let body: ReactNode
+  if (single) {
+    body = (
+      <>
+        <RectangleProperties sketch={sketch} line={single} />
+        <LineProperties sketch={sketch} line={single} />
+      </>
+    )
+  } else if (rect) body = <RectangleProperties sketch={sketch} rect={rect} />
+  else if (lines === 4) {
+    body = (
       <Fields>
-        <NameField id={sketch.id} name={sketch.name} />
-        <Field label="Plane">
-          {sketch.plane.kind === 'principal'
-            ? `${sketch.plane.plane}, normal ${sketch.plane.normal > 0 ? '+' : '-'}${FRAMES[sketch.plane.plane].n.toUpperCase()}`
-            : `${sketch.plane.face} face of ${featureName(sketch.plane.featureId)}${plane ? ` (${plane.plane} at ${formatLength(plane.offset)})` : ''}`}
-        </Field>
-        {sketch.plane.kind === 'principal' && (
-          <LenField
-            label="Offset"
-            value={sketch.plane.offset}
-            resolved={plane?.offset}
-            error={r?.kind === 'error' && isExpr(sketch.plane.offset) ? r.message : undefined}
-            onCommit={(v) => dispatch('setSketchPlaneOffset', sketch.id, v)}
-          />
-        )}
-        {r?.kind === 'error' && <Field error={r.message}>{null}</Field>}
-        {mode.kind !== 'sketch' && <Button onPress={() => dispatch('setMode', { kind: 'sketch', sketchId: sketch.id })}>Edit sketch</Button>}
+        <div>
+          <Button onPress={() => dispatch('groupRectangle', sketch.id, selection.lineIds)}>Make rectangle</Button>
+        </div>
       </Fields>
-      <Disclosure title="Shapes" trailing={String(regions.length)}>
-        {regions.length === 0 && <Hint>None yet. Close an outline with lines or draw a rectangle.</Hint>}
-        <ListBox
-          aria-label="Shapes"
-          dense
-          selectionMode="multiple"
-          selectedKeys={selectedRegionKeys}
-          onSelectionChange={(keys) => {
-            const chosen = keys === 'all' ? regions.map((x) => x.key) : ([...keys] as string[])
-            dispatch('selectRegions', sketch.id, regions.filter((x) => chosen.includes(x.key)).map((x) => x.ref))
-          }}
-        >
-          {regions.map((region) => {
-            const b = region.bounds
-            const size = `${formatLength((b.u1 - b.u0) as Sixteenths)} x ${formatLength((b.v1 - b.v0) as Sixteenths)}`
-            const kind = sketch.rects.find((rect) => regionIsRectangle(region, rect.lines, lineAt))?.handle ?? 'Region'
-            // in sketch order, so a rectangle reads l1 l2 l3 l4
-            const bounding = sketch.lines.filter((l) => region.boundary.some((e) => e.lineId === l.id)).map((l) => l.handle).join(' ')
-            return (
-              <ListBoxItem key={region.key} id={region.key} textValue={`${kind} ${size}`} detail={`at (${formatLength(b.u0 as Sixteenths)}, ${formatLength(b.v0 as Sixteenths)}), lines ${bounding}`}>
-                {kind} {size}
-              </ListBoxItem>
-            )
-          })}
-        </ListBox>
-      </Disclosure>
-      <Disclosure title="Lines" trailing={String(sketch.lines.length)} defaultExpanded={false}>
-        {sketch.lines.length === 0 && <Hint>None yet. Use the line or rectangle tool.</Hint>}
-        <ListBox
-          aria-label="Lines"
-          dense
-          selectionMode="multiple"
-          selectedKeys={selection.lineIds}
-          onSelectionChange={(keys) => dispatch('selectLines', sketch.id, keys === 'all' ? sketch.lines.map((x) => x.id) : ([...keys] as string[]))}
-        >
-          {sketch.lines.map((line) => {
-            const res = r?.kind === 'sketch' ? r.lines.get(line.id) : undefined
-            const err = r?.kind === 'sketch' ? r.lineErrors.get(line.id) : undefined
-            const dir = line.dir === 'h' ? 'horizontal' : 'vertical'
-            return (
-              <ListBoxItem
-                key={line.id}
-                id={line.id}
-                textValue={line.handle}
-                tone={err ? 'error' : 'neutral'}
-                detail={
-                  res
-                    ? `${dir}${line.construction ? ', construction' : ''} at ${formatLength(res.at as Sixteenths)}, ${formatLength(res.min as Sixteenths)} to ${formatLength(res.max as Sixteenths)}`
-                    : (err ?? 'unresolved')
-                }
-              >
-                {line.handle}
-              </ListBoxItem>
-            )
-          })}
-        </ListBox>
-      </Disclosure>
-      {selection.lineIds.length === 4 && (
-        <Fields>
-          <div>
-            <Button onPress={() => dispatch('groupRectangle', sketch.id, selection.lineIds)}>Make rectangle</Button>
-          </div>
-        </Fields>
-      )}
-      {single && <RectangleProperties sketch={sketch} line={single} />}
-      {!single && selectedRect && <RectangleProperties sketch={sketch} rect={selectedRect} />}
-      {single && <LineProperties sketch={sketch} line={single} />}
-      <ConstraintList sketch={sketch} />
-    </div>
+    )
+  } else if (lines > 1) body = <Hint>{lines} lines selected</Hint>
+  else if (regionCount > 0) body = <Hint>{regionCount === 1 ? '1 region' : `${regionCount} regions`} selected</Hint>
+  else body = <Hint>Nothing selected. Click a line or region in the view, or choose one from the lists.</Hint>
+  return (
+    <Panel edge="left" title="Selection" className="props-selection" style={style}>
+      <ScrollArea>{body}</ScrollArea>
+    </Panel>
   )
 }
 
@@ -269,12 +364,9 @@ function LineProperties({ sketch, line }: { sketch: SketchFeature; line: SketchL
 }
 
 /** Every expression-driven slot in the sketch other than endpoint attachments, selectable and removable. */
-function ConstraintList({ sketch }: { sketch: SketchFeature }) {
-  const ev = useStore((s) => s.eval)
-  const selected = useStore((s) => s.selection.constraint)
-  const dispatch = useStore((s) => s.dispatch)
-  const r = ev.results.get(sketch.id)
-  const entries = sketch.lines.flatMap((line) =>
+/** Every listed constraint: the expression slots that are not corner attachments, with their values or errors. */
+function constraintEntries(sketch: SketchFeature, r: SketchResult | undefined) {
+  return sketch.lines.flatMap((line) =>
     (['at', 'min', 'max', 'size'] as const).flatMap((slot) => {
       const v = slot === 'at' ? line.at : line.run[slot]
       if (v === undefined || !isExpr(v) || isAttachment(sketch, line, slot)) return []
@@ -283,10 +375,19 @@ function ConstraintList({ sketch }: { sketch: SketchFeature }) {
       return [{ key: `${line.id}:${slot}`, line, slot, expr: v, value, error }]
     }),
   )
+}
+
+function ConstraintList({ sketch, isExpanded, onExpandedChange }: { sketch: SketchFeature; isExpanded: boolean; onExpandedChange: (on: boolean) => void }) {
+  const ev = useStore((s) => s.eval)
+  const selected = useStore((s) => s.selection.constraint)
+  const dispatch = useStore((s) => s.dispatch)
+  const r = ev.results.get(sketch.id)
+  const entries = constraintEntries(sketch, r?.kind === 'sketch' ? r : undefined)
   if (entries.length === 0) return null
   const selectedKey = selected ? `${selected.lineId}:${selected.slot}` : undefined
   return (
-    <Disclosure title="Constraints" trailing={String(entries.length)}>
+    <Disclosure title="Constraints" trailing={String(entries.length)} isExpanded={isExpanded} onExpandedChange={onExpandedChange}>
+      <ScrollArea>
       <ListBox
         aria-label="Constraints"
         dense
@@ -322,6 +423,7 @@ function ConstraintList({ sketch }: { sketch: SketchFeature }) {
           </ListBoxItem>
         ))}
       </ListBox>
+      </ScrollArea>
     </Disclosure>
   )
 }

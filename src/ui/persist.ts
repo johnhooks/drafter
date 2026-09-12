@@ -97,3 +97,24 @@ export function saveDisplay(display: Display) {
     // storage may be unavailable; the choice then lasts for the session
   }
 }
+
+const LAYOUT_KEY = 'drafter.layout'
+
+/** The selection pane height in pixels, or null for the default proportion; anything malformed is the default. */
+export function loadPaneHeight(): number | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '{}') as Record<string, unknown>
+    const h = raw['paneHeight']
+    return typeof h === 'number' && Number.isFinite(h) && h > 0 ? h : null
+  } catch {
+    return null
+  }
+}
+
+export function savePaneHeight(height: number | null) {
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(height === null ? {} : { paneHeight: height }))
+  } catch {
+    // storage may be unavailable; the height then lasts for the session
+  }
+}

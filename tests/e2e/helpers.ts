@@ -197,3 +197,9 @@ export async function expectTickAt(page: Page, view: View, selector: string, u: 
   expect(Math.abs(tb.x + tb.width / 2 - (box.x + box.width / 2 + tx))).toBeLessThan(2)
   expect(Math.abs(tb.y + tb.height / 2 - (box.y + box.height / 2 + ty))).toBeLessThan(2)
 }
+
+/** Opens one of the sketch lists; they are an accordion, so this closes whichever was open. */
+export async function openList(page: Page, name: 'Rectangles' | 'Regions' | 'Lines' | 'Constraints') {
+  const trigger = page.locator('.props-lists').getByRole('button', { name: new RegExp(`^${name}`) })
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
+}

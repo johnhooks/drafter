@@ -105,7 +105,7 @@ Pressing X with the Select tool, or a checkbox in the line properties, SHALL tog
 - **THEN** the line is dashed and the two regions merge into one
 
 ### Requirement: Typed line fields
-The properties panel for a selected line SHALL show its direction, its position, and its run min, max, and size with the derived one marked, a construction checkbox, and a delete action, with the same parsing and error rules as inline editing. When the line is a member of a rectangle, the rectangle's form per `sketch-rectangles` SHALL be shown above it with the member's side marked. When exactly four lines are selected, a Make rectangle action SHALL be offered.
+The properties panel for a selected line SHALL show its direction, its position, and its run min, max, and size with the derived one marked, a construction checkbox, and a delete action, with the same parsing and error rules as inline editing. When the line is a member of a rectangle, the rectangle's form per `sketch-rectangles` SHALL be shown above it with the member's side marked. When exactly four lines are selected that are not already a rectangle's members, a Make rectangle action SHALL be offered; four lines that are a rectangle's members SHALL show that rectangle's form instead, per `sketch-rectangles`.
 
 #### Scenario: Move by typing position
 - **WHEN** the user sets a horizontal line's position to `12` in the panel
@@ -115,20 +115,9 @@ The properties panel for a selected line SHALL show its direction, its position,
 - **WHEN** the user selects the right line of `r1`
 - **THEN** the panel shows `r1`'s form with Right marked, then the line's own fields
 
-### Requirement: Shape list
-The sketch properties SHALL list the sketch's regions as shapes: a region that is exactly the area of a rectangle record SHALL read as that rectangle's handle with its size, any other region "Region" with its bounding size, each with the handles of the lines that bound it. Selecting a shape in the list SHALL select the region in the view and the reverse. The lines SHALL be listed separately, collapsed by default, with each line's handle, direction, and error if any.
-
-#### Scenario: A rectangle reads as one shape
-- **WHEN** a sketch holds `r1`, 24" by 16", drawn with the Rectangle tool
-- **THEN** the shape list has one entry, "r1 24" x 16"", naming lines l1 l2 l3 l4
-
-#### Scenario: A split rectangle is two regions
-- **WHEN** a line splits `r1` across
-- **THEN** the shape list has two "Region" entries and `r1` still exists with its form
-
-#### Scenario: Shape list follows the view
-- **WHEN** the user clicks a region in the view
-- **THEN** the same shape is selected in the list
+#### Scenario: Four loose lines offer Make rectangle
+- **WHEN** four attached lines that form a closed outline but belong to no rectangle are selected
+- **THEN** the panel offers Make rectangle
 
 ### Requirement: Labels appear on demand
 Line handles SHALL be shown on the hovered line, on every selected line, and on every resolved line while a text field that accepts an expression has focus. Size labels SHALL be shown for the hovered region or free line and for every selected region or free line. A selected region SHALL show its size labels and not the handles of its bounding lines. The constraints of the hovered line and of every selected line SHALL be shown, and a constraint selected from the sketch's constraint list SHALL be shown. Labels and constraints shown this way SHALL be drawn, dragged, and edited exactly as when shown by a toggle.
@@ -201,3 +190,57 @@ Whenever a constraint is drawn because its line is hovered or selected or becaus
 #### Scenario: Toggle alone highlights nothing
 - **WHEN** the constraints toggle is on and nothing is hovered or selected
 - **THEN** every constraint is drawn and no anchor is highlighted
+
+### Requirement: Rectangle and region lists
+The sketch properties SHALL list the sketch's rectangles first, one entry per rectangle record in sketch order, reading as the rectangle's handle with its width and height, with its lower-left position and the handles of its four member lines as detail. A rectangle whose members do not all resolve SHALL still be listed, in an error style, with the failing line's message as detail. Choosing a rectangle in the list SHALL select its four member lines, which are highlighted in the view as selected lines, and a rectangle SHALL read as selected in the list while all four of its member lines are selected. The sketch's regions SHALL be listed separately, each reading "Region" with its bounding size and, as detail, its lower-left position, the handles of the lines that bound it, and the handle of the rectangle it fills exactly if there is one. Selecting a region in the list SHALL select the region in the view and the reverse. The lines SHALL be listed separately, collapsed by default, with each line's handle, direction, and error if any.
+
+#### Scenario: A rectangle is listed with its members
+- **WHEN** a sketch holds `r1`, 24" by 16", drawn with the Rectangle tool
+- **THEN** the rectangle list has one entry, "r1 24" x 16"", naming lines l1 l2 l3 l4, and the region list has one "Region 24" x 16"" entry whose detail names `r1`
+
+#### Scenario: A split rectangle stays listed
+- **WHEN** a line splits `r1` across
+- **THEN** the rectangle list still has "r1 24" x 16"" and the region list has two "Region" entries, neither naming a rectangle
+
+#### Scenario: Choosing a rectangle selects its sides
+- **WHEN** the user chooses `r1` in the rectangle list
+- **THEN** its four member lines are selected, highlighted in the view, and `r1` reads as selected in the list
+
+#### Scenario: Region list follows the view
+- **WHEN** the user clicks a region in the view
+- **THEN** the same region is selected in the region list
+
+### Requirement: Selection pane
+While the properties column shows a sketch, it SHALL be three windows: the sketch's fields at the top, with a control in its title bar that minimizes it to the bar and restores it, the lists in the middle taking whatever height the other two leave, and a Selection pane at the bottom that is always present and scrolls on its own, separated from the lists by a divider. The lists, Rectangles, Regions, Lines, and Constraints, SHALL be an accordion with at most one open, Regions open to start; the open list SHALL take the remaining height of its window and scroll on its own. The pane SHALL show the form for the current selection: the rectangle form for four selected member lines or a region that fills a rectangle; the rectangle form above the line form for a single member line; the line form for any other single line; the Make rectangle action for four selected lines that are not a rectangle; a count of selected lines or regions for any other selection; and a hint saying nothing is selected otherwise. The pane's height SHALL NOT change with the length of the lists or the selection. Dragging the divider SHALL set the pane's height between a minimum that keeps the pane usable and a maximum that keeps the sketch region visible; the divider SHALL be focusable and the up and down arrow keys SHALL change the height in steps; double-clicking it SHALL restore the default height. The height SHALL be remembered across sessions. A scrolling list or pane SHALL show a fade at its top edge while content is scrolled past it and at its bottom edge while content extends below it.
+
+#### Scenario: Nothing selected
+- **WHEN** a sketch is open and nothing is selected
+- **THEN** the Selection pane is shown with a hint and no fields
+
+#### Scenario: A line is selected
+- **WHEN** the user clicks a line in the view
+- **THEN** the line's form appears in the Selection pane and the lists above do not move
+
+#### Scenario: A rectangle is chosen from the list
+- **WHEN** the user chooses `r1` in the rectangle list
+- **THEN** `r1`'s form appears in the Selection pane
+
+#### Scenario: Divider dragged and remembered
+- **WHEN** the user drags the divider up by 80 px and reloads
+- **THEN** the pane is 80 px taller than before, and still is after the reload
+
+#### Scenario: Divider by keyboard and reset
+- **WHEN** the user focuses the divider, presses the down arrow, then double-clicks it
+- **THEN** the pane first shrinks by one step and then returns to the default height
+
+#### Scenario: Scroll fade
+- **WHEN** the open list holds more rows than fit
+- **THEN** it fades at the bottom, and after scrolling to the end it fades at the top instead
+
+#### Scenario: Minimize the sketch window
+- **WHEN** the user presses the minimize control in the sketch window's title bar
+- **THEN** only the title bar remains, the lists grow by the freed height, and the restore control brings the fields back
+
+#### Scenario: One list at a time
+- **WHEN** the Regions list is open and the user opens Lines
+- **THEN** Lines is open and Regions is closed

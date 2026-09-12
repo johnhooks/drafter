@@ -5,6 +5,31 @@ body { background: var(--kit-surface-frame); color: var(--kit-text); font-family
 .app { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 240px 1fr 300px; height: 100%; }
 .topbar { grid-column: 1 / -1; }
 .side { min-height: 0; }
+/* the properties column of a sketch is three windows: its fields, which minimize to their title bar; the lists as an
+   accordion that takes what is left, only the open one scrolling; and the selection pane below a divider that sets its height */
+.props { display: flex; flex-direction: column; }
+.props-sketch { flex: 0 0 auto; }
+.props-sketch .handle { text-transform: none; }
+.props-sketch[data-minimized] .kit-panel-body { display: none; }
+/* the lists keep a floor and the pane may shrink, so a stored or stale pane height can never push the lists out */
+.props-lists { flex: 1 1 auto; min-height: 120px; }
+.props-lists .kit-panel-body { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.props-lists .kit-disclosure { display: flex; flex-direction: column; flex: 0 0 auto; min-height: 0; }
+.props-lists .kit-disclosure[data-expanded] { flex: 1 1 auto; }
+.props-lists .kit-disclosure-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.props-lists .kit-disclosure-panel[hidden] { display: none; }
+.props-divider { flex: 0 0 var(--kit-line-w); position: relative; background: var(--kit-line); outline: none; touch-action: none; }
+.props-divider::after { content: ''; position: absolute; left: 0; right: 0; top: -3px; bottom: -3px; cursor: row-resize; }
+.props-divider:hover, .props-divider:focus-visible, .props-divider[data-dragging] { background: var(--kit-focus); }
+.props-selection { flex: 0 1 45%; min-height: 120px; }
+.props-selection .kit-panel-body { display: flex; flex-direction: column; overflow: hidden; }
+/* fades over the edges of a scroll area say there is more in that direction; the attribute follows the scroll position */
+.scroll-area { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.scroll-area-inner { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.scroll-area::before, .scroll-area::after { content: ''; position: absolute; left: 0; right: 0; height: 24px; pointer-events: none; opacity: 0; transition: opacity 120ms; z-index: 1; }
+.scroll-area::before { top: 0; background: linear-gradient(var(--kit-surface-panel), transparent); }
+.scroll-area::after { bottom: 0; background: linear-gradient(transparent, var(--kit-surface-panel)); }
+.scroll-area[data-more~='top']::before, .scroll-area[data-more~='bottom']::after { opacity: 1; }
 .centre { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .centre .view { flex: 1; position: relative; min-height: 0; }
 /* the model view keeps its own light colours in either theme; the sketch canvas draws its surface from the canvas tokens */
