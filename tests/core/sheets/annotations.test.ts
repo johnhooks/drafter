@@ -70,8 +70,8 @@ describe('sheet annotations', () => {
 
   it('draws dimension extensions past the line and ticks with centred text', () => {
     const svg = render({ dimensions: [dimension] })
-    expect(svg).toContain('<line x1="2.5" y1="0" x2="2.5" y2="8.0625"/>')
-    expect(svg).toContain('<line x1="8.5" y1="7.5" x2="8.5" y2="8.0625"/>')
+    expect(svg).toContain('<line x1="2.5" y1="0.0625" x2="2.5" y2="8.0625"/>')
+    expect(svg).toContain('<line x1="8.5" y1="7.5625" x2="8.5" y2="8.0625"/>')
     expect(svg).toContain('<line x1="2.5" y1="8" x2="8.5" y2="8"/>')
     expect(svg).toContain('x="5.5" y="7.9375" text-anchor="middle"')
     expect(svg).toContain('<line x1="2.46875" y1="8.03125" x2="2.53125" y2="7.96875"/>')

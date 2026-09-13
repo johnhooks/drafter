@@ -45,6 +45,10 @@ Picked points and the edges meeting them stay blue while you place the dimension
 
 Points snap to visible and hidden corners, then edge coordinates, then the 1/16" grid. A dimension measures the true horizontal or vertical distance, not the printed distance. A 24" measurement still reads 24" when you change the scale from 1:4 to 1:8. Short dimensions place the text outside their extension lines. Text stays 3/32" high on paper.
 
+Visible edges on orthographic sheets use a heavier 0.50 mm stroke; hidden dashed edges, dimension strokes, and note leaders use 0.25 mm. These widths are fixed on paper and match in the preview, SVG export, and printing at 100%. Isometric images keep their rendered edge appearance; their note leaders use the thin stroke.
+
+Dimension extension lines start 1/16" away from their measured points and extend 1/16" past the dimension line. If you place the dimension line within that gap, its extension is omitted; its ticks, label, and measurement remain. Note leaders still reach their endpoints without a gap.
+
 :::caution[Dimensions do not follow edited edges]
 Dimensions keep their stored points after model edits. If either point no longer lies on the projected geometry, the dimension turns orange and appears in the sheet's warnings. Its value is unchanged. Check and update the points when the model changes.
 :::

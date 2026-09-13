@@ -3,6 +3,7 @@ import { formatLength, sx } from '../units'
 import { sheetLayout } from './layout'
 import { escapeXml } from './titleBlock'
 import type { Sheet, SheetDimension } from './types'
+import { EXTENSION_GAP, EXTENSION_OVERRUN, THIN_STROKE_WIDTH } from './style'
 
 export type { SheetDimension, SheetNote } from './types'
 
@@ -34,7 +35,7 @@ function line(firstX: number, firstY: number, secondX: number, secondY: number):
 export function renderAnnotations(sheet: Sheet, projection: Projection, options: AnnotationRenderOptions = {}): string {
   const { originU, originV, factor } = sheetLayout(sheet, projection.bounds)
   const paper = (point: readonly [number, number]): readonly [number, number] => [originU + point[0] * factor, originV - point[1] * factor]
-  const group = (id: string, kind: 'dimension' | 'note', content: string, detached = false) => `<g data-annotation-id="${escapeXml(id)}" data-annotation-kind="${kind}" pointer-events="visiblePainted"${options.selectedId === id ? ' data-selected="true"' : ''}${detached ? ' data-detached="true"' : ''} fill="${detached ? DETACHED_COLOR : 'black'}" stroke="${detached ? DETACHED_COLOR : 'black'}" stroke-width="0.01" font-size="${TEXT_HEIGHT}">${content}</g>`
+  const group = (id: string, kind: 'dimension' | 'note', content: string, detached = false) => `<g data-annotation-id="${escapeXml(id)}" data-annotation-kind="${kind}" pointer-events="visiblePainted"${options.selectedId === id ? ' data-selected="true"' : ''}${detached ? ' data-detached="true"' : ''} fill="${detached ? DETACHED_COLOR : 'black'}" stroke="${detached ? DETACHED_COLOR : 'black'}" stroke-width="${THIN_STROKE_WIDTH}" font-size="${TEXT_HEIGHT}">${content}</g>`
   const dimensions = (sheet.dimensions ?? []).map((dimension) => {
     const horizontal = dimension.orientation === 'horizontal'
     const first = paper(dimension.first)
@@ -42,9 +43,16 @@ export function renderAnnotations(sheet: Sheet, projection: Projection, options:
     const position = horizontal ? originV - dimension.position * factor : originU + dimension.position * factor
     const firstEnd = horizontal ? [first[0], position] as const : [position, first[1]] as const
     const secondEnd = horizontal ? [second[0], position] as const : [position, second[1]] as const
-    const extension = (point: readonly [number, number]) => horizontal
-      ? line(point[0], point[1], point[0], position + (position < point[1] ? -GAP : GAP))
-      : line(point[0], point[1], position + (position < point[0] ? -GAP : GAP), point[1])
+    const extension = (measured: readonly [number, number]) => {
+      const distance = dimension.position - measured[horizontal ? 1 : 0]
+      if (Math.abs(distance) <= EXTENSION_GAP * 16 * sheet.scale) return ''
+      const point = paper(measured)
+      const start = point[horizontal ? 1 : 0]
+      const direction = Math.sign(distance) * (horizontal ? -1 : 1)
+      const from = start + direction * EXTENSION_GAP
+      const to = position + direction * EXTENSION_OVERRUN
+      return horizontal ? line(point[0], from, point[0], to) : line(from, point[1], to, point[1])
+    }
     const tick = (point: readonly [number, number]) => line(point[0] - TICK, point[1] + TICK, point[0] + TICK, point[1] - TICK)
     const label = formatLength(sx(dimensionValue(dimension)))
     const axis = horizontal ? 0 : 1
@@ -55,7 +63,7 @@ export function renderAnnotations(sheet: Sheet, projection: Projection, options:
     const textX = horizontal ? along : position - GAP
     const textY = horizontal ? position - GAP : along
     const text = `<text x="${textX}" y="${textY}" text-anchor="${outside ? 'start' : 'middle'}" stroke="none"${horizontal ? '' : ` transform="rotate(-90 ${textX} ${textY})"`}>${escapeXml(label)}</text>`
-    return group(dimension.id, 'dimension', extension(first) + extension(second) + line(...firstEnd, ...secondEnd) + tick(firstEnd) + tick(secondEnd) + text, dimensionDetached(dimension, projection))
+    return group(dimension.id, 'dimension', extension(dimension.first) + extension(dimension.second) + line(...firstEnd, ...secondEnd) + tick(firstEnd) + tick(secondEnd) + text, dimensionDetached(dimension, projection))
   }).join('')
   const notes = (sheet.notes ?? []).map((note) => {
     const [textX, textY] = note.position
