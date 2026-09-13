@@ -9,6 +9,7 @@ A sheet with only a view is a picture. What makes it a drawing is the measuremen
 - Snapping for annotation points to projection vertices, then segments per axis, then the 1/16" grid in view coordinates, through the sketch's snapper list with a projection candidate source.
 - Detachment: after a model change, a dimension whose points no longer sit on the projection is marked, drawn in a warning colour, and listed in the sheet's warnings, with its value unchanged.
 - Tools in sheets mode: a three-click dimension tool with a live preview, a note tool with inline text entry and shift-drag leader, and select with delete, drag-move, double-click note edit, and typed editing in the properties panel. Tool keys join the command table in the sheet view.
+- Dimension placement keeps confirmed points and their incident geometry blue until completion or cancellation. This feedback is screen-only. Annotation picking follows strokes and text so nested dimensions remain independently selectable.
 - Annotations are saved on their sheet in the document file.
 
 Not in this change: aligned or angular dimensions, dimensions on the isometric view, any change to how sheets are laid out or printed.

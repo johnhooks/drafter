@@ -19,6 +19,7 @@ export function conflictFor(cmd: Command, chord: Chord, keys: State['keys']): Co
   return COMMANDS.find((other) => {
     if (other.id === cmd.id || !viewsOverlap(other.view, cmd.view)) return false
     const c = chordOf(other, keys)
-    return !!c && sameChord(c, chord)
+    const alias = other.alias ? parseChord(other.alias) : null
+    return (!!c && sameChord(c, chord)) || (!!alias?.ok && sameChord(alias.chord, chord))
   })
 }

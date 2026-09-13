@@ -1,5 +1,5 @@
 import type { CanonicalView } from './model/views'
-import { type State, type Tool, canRedo, canUndo } from './store/actions'
+import { type State, type Tool, type SheetTool, canRedo, canUndo } from './store/actions'
 import type { Store } from './store/store'
 
 /** The distance a new extrude starts with: 1". */
@@ -70,6 +70,18 @@ const viewCommand = (id: CanonicalView['id'], label: string, key: string): Comma
   run: ({ hooks }) => hooks.goTo?.(id),
 })
 
+const sheetToolCommand = (tool: SheetTool, label: string, key: string): Command => ({
+  id: `sheet.tool.${tool}`,
+  label,
+  view: 'sheet',
+  key,
+  when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId && state.sheetTool !== tool,
+  run: ({ dispatch, hooks }) => {
+    hooks.cancelTool?.()
+    dispatch('setSheetTool', tool)
+  },
+})
+
 export const COMMANDS: readonly Command[] = [
   toolCommand('select', 'Select', 'A'),
   toolCommand('line', 'Line', 'L'),
@@ -137,6 +149,10 @@ export const COMMANDS: readonly Command[] = [
   { id: 'model.sheets', label: 'Sheets', view: 'model', run: ({ state, dispatch }) => dispatch('setMode', { kind: 'sheet', sheetId: state.doc.sheets?.[0]?.id }) },
   { id: 'sheet.model', label: 'Model', view: 'sheet', run: ({ dispatch }) => dispatch('setMode', { kind: 'model' }) },
   { id: 'sheet.add', label: 'Add Sheet', view: 'sheet', run: ({ dispatch }) => dispatch('addSheet') },
+  sheetToolCommand('select', 'Select', 'A'),
+  sheetToolCommand('dimension', 'Dimension', 'D'),
+  sheetToolCommand('note', 'Note', 'N'),
+  { id: 'sheet.deleteAnnotation', label: 'Delete annotation', view: 'sheet', key: 'Delete', alias: 'Backspace', when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId && state.sheetSelection !== undefined, run: ({ dispatch }) => dispatch('deleteSheetAnnotation') },
   { id: 'sheet.delete', label: 'Delete Sheet', view: 'sheet', when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId, run: ({ hooks }) => hooks.menu?.('delete-sheet') },
   ...([-1, 1] as const).map((direction): Command => ({
     id: direction === -1 ? 'sheet.up' : 'sheet.down', label: direction === -1 ? 'Move up' : 'Move down', view: 'sheet',
@@ -160,7 +176,10 @@ export const COMMANDS: readonly Command[] = [
     run: ({ state, dispatch, hooks }) => {
       if (state.mode.kind === 'pickFace' || state.mode.kind === 'pickBody') return dispatch('setMode', { kind: 'model' })
       hooks.cancelTool?.()
-      if (state.mode.kind === 'sheet') dispatch('setMode', { kind: 'sheet' })
+      if (state.mode.kind === 'sheet') {
+        if (state.sheetSelection !== undefined) return dispatch('selectSheetAnnotation')
+        dispatch('setMode', { kind: 'sheet' })
+      }
       dispatch('select', state.mode.kind === 'sketch' ? { featureId: state.mode.sketchId } : {})
     },
   },

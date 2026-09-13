@@ -44,7 +44,7 @@ export function useKeyHandler() {
     const onKey = (e: KeyboardEvent) => {
       if (isText(e.target) || (e.target instanceof HTMLElement && e.target.closest('[role="dialog"], [role="alertdialog"]'))) return
       const s = useStore.getState()
-      if (s.mode.kind === 'sketch' && (e.key === 'Escape' || e.key === 'Enter') && hooks.toolConsumes?.(e.key)) {
+      if ((s.mode.kind === 'sketch' || s.mode.kind === 'sheet') && (e.key === 'Escape' || e.key === 'Enter') && hooks.toolConsumes?.(e.key)) {
         e.preventDefault()
         return
       }

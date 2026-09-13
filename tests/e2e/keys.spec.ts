@@ -76,7 +76,8 @@ test('keys can be rebound, conflicts are refused, and reset restores the default
   await menu(page, 'Keyboard shortcuts')
   await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
   const pick = async (label: string) => {
-    await page.getByRole('button', { name: new RegExp(`^Edit ${label} key,`) }).click()
+    const scope = label === 'Select' ? page.getByRole('row', { name: /^Select sketch / }) : page
+    await scope.getByRole('button', { name: new RegExp(`^Edit ${label} key,`) }).click()
     return field(page, `${label} key`)
   }
 
@@ -141,7 +142,7 @@ test('keys can be rebound, conflicts are refused, and reset restores the default
     expect((await dbg(page)).keys).toEqual({})
     await expect(page.getByRole('button', { name: 'Edit Line key, currently L' })).toBeVisible()
     await expect(invalidKey).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Edit Select key, currently A' })).toBeVisible()
+    await expect(page.getByRole('row', { name: /^Select sketch / }).getByRole('button', { name: 'Edit Select key, currently A' })).toBeVisible()
   })
 })
 
@@ -157,7 +158,7 @@ test('keyboard shortcuts opens in every view without triggering canvas keys', as
   const bounds = (await dialog.boundingBox())!
   expect(bounds.y).toBeGreaterThanOrEqual(0)
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height)
-  const value = page.getByRole('button', { name: 'Edit Select key, currently A' })
+  const value = page.getByRole('row', { name: /^Select sketch / }).getByRole('button', { name: 'Edit Select key, currently A' })
   await expect(value).toBeVisible()
   const before = await dialog.boundingBox()
   const valueBounds = await value.boundingBox()

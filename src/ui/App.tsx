@@ -36,7 +36,7 @@ import { ModelView } from './model/ModelView'
 import { loadDisplay, loadKeys, loadSaved, loadTheme, save, saveDisplay, saveKeys, saveTheme } from './persist'
 import { PropertiesColumn } from './PropertiesColumn'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
-import { type Tool, fileOf } from './store/actions'
+import { type Tool, type SheetTool, fileOf } from './store/actions'
 import { useCommand, useKeyHandler, useViewHooks } from './useCommands'
 import { useStore } from './store/store'
 import { Timeline } from './Timeline'
@@ -154,12 +154,14 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   const doc = useStore((s) => s.doc)
   const mode = useStore((s) => s.mode)
   const tool = useStore((s) => s.tool)
+  const sheetTool = useStore((s) => s.sheetTool)
   const selection = useStore((s) => s.selection)
   const display = useStore((s) => s.display)
   const theme = useStore((s) => s.theme)
   const undo = useCommand('edit.undo')
   const redo = useCommand('edit.redo')
   const tools = { select: useCommand('tool.select'), line: useCommand('tool.line'), rect: useCommand('tool.rect'), link: useCommand('tool.link') }
+  const sheetTools = { select: useCommand('sheet.tool.select'), dimension: useCommand('sheet.tool.dimension'), note: useCommand('sheet.tool.note') }
   const extrude = useCommand('sketch.extrude')
   const finish = useCommand('sketch.finish')
   const newSketch = useCommand('model.newSketch')
@@ -234,7 +236,22 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
       <IconButton icon="undo" aria-label={undo.tooltip} isDisabled={!undo.enabled} onPress={undo.run} />
       <IconButton icon="redo" aria-label={redo.tooltip} isDisabled={!redo.enabled} onPress={redo.run} />
       <ToolbarSeparator />
-      {mode.kind === 'sheet' ? <><SheetCommand id="sheet.model" /><SheetCommand id="view.fit" /><SheetCommand id="sheet.print" /><SheetCommand id="sheet.printAll" /></> : sketch ? (
+      {mode.kind === 'sheet' ? <>
+        <SheetCommand id="sheet.model" />
+        <ToggleButtonGroup aria-label="Sheet tool" selectedKeys={[sheetTool]} isDisabled={!mode.sheetId} onSelectionChange={(keys) => {
+          const selected = [...keys][0] as SheetTool | undefined
+          if (selected) sheetTools[selected].run()
+        }}>
+          {(['select', 'dimension', 'note'] as const).map((id) => (
+            <TooltipTrigger key={id}>
+              <ToggleButton id={id}>{sheetTools[id].label}</ToggleButton>
+              <Tooltip>{sheetTools[id].tooltip}</Tooltip>
+            </TooltipTrigger>
+          ))}
+        </ToggleButtonGroup>
+        <ToolbarSeparator />
+        <SheetCommand id="view.fit" /><SheetCommand id="sheet.print" /><SheetCommand id="sheet.printAll" />
+      </> : sketch ? (
         <>
           <ToggleButtonGroup aria-label="Tool" selectedKeys={[tool]} onSelectionChange={(keys) => tools[[...keys][0] as Tool].run()}>
             {(['select', 'line', 'rect', 'link'] as const).map((id) => (

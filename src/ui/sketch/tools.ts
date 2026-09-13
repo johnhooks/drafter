@@ -90,21 +90,24 @@ export interface Prompt {
  * A tool is a small state machine. `preview()` is rendered through the same code as
  * committed geometry so what you see while drawing is exactly what gets committed.
  */
-export interface Tool {
-  readonly name: 'select' | 'line' | 'rect' | 'link'
-  down(p: PointerInfo): void
-  move(p: PointerInfo): void
-  up(p: PointerInfo): void
+export interface ToolLifecycle<Pointer, Name extends string> {
+  readonly name: Name
+  down(p: Pointer): void
+  move(p: Pointer): void
+  up(p: Pointer): void
   /** Escape or Enter while something is in progress; returns true when consumed. Everything else is a command. */
   key(key: string): boolean
   cancel(): void
+  hint(): string
+}
+
+export interface Tool extends ToolLifecycle<PointerInfo, 'select' | 'line' | 'rect' | 'link'> {
   previewRects(): PreviewRect[]
   previewLines(): PreviewLine[]
   /** Targets the tool wants highlighted, in order of selection. */
   highlights(): LinkTarget[]
   prompt(): Prompt | null
   commitPrompt(text: string): void
-  hint(): string
 }
 
 abstract class BaseTool implements Tool {

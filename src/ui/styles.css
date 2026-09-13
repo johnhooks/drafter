@@ -35,6 +35,18 @@ body { background: var(--kit-surface-frame); color: var(--kit-text); font-family
 .sheet-viewport { overflow: hidden; background: var(--kit-surface-frame); touch-action: none; user-select: none; }
 .sheet-paper { position: absolute; left: 50%; top: 50%; transform-origin: center; }
 .sheet-paper > svg { display: block; width: 100%; height: 100%; }
+.sheet-paper [data-annotation-id] { cursor: pointer; }
+.sheet-paper [data-selected]:not([data-detached]) { stroke: var(--kit-focus); fill: var(--kit-focus); }
+.sheet-paper [data-selected][data-detached] { filter: drop-shadow(0 0 1px var(--kit-focus)); }
+.sheet-edit-overlay { position: absolute; left: 50%; top: 50%; transform-origin: center; pointer-events: none; }
+.sheet-pick-overlay { position: absolute; left: 50%; top: 50%; transform-origin: center; pointer-events: none; }
+.sheet-pick-overlay line { stroke: var(--kit-canvas-select); }
+.sheet-pick-overlay circle { fill: var(--kit-canvas-select); }
+@media print { .sheet-pick-overlay { display: none; } }
+.sheet-note-input { position: absolute; min-width: 160px; width: 240px; max-width: 600px; padding: 3px; font: 12px/1.2 sans-serif; color: black; background: white; border: 1px solid var(--kit-focus); pointer-events: auto; user-select: text; resize: both; }
+.sheet-note-field { display: flex; flex-direction: column; gap: var(--kit-space); }
+.sheet-note-field textarea { resize: vertical; min-height: 60px; }
+.sheet-annotation-properties { border-top: var(--kit-line-w) solid var(--kit-line); padding-top: var(--kit-space-2); }
 .sheet-list { display: flex; flex-direction: column; gap: 8px; }
 .sheet-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 .sheet-warning { color: var(--kit-danger); }

@@ -32,12 +32,13 @@ import { DEFAULT_VIEW, isExpr, newDocument, regionKey, sameRegion } from '../../
 import type { Sixteenths } from '../../core/units'
 import { type SheetResult, evaluateSheets } from '../../core/sheets/evaluate'
 import { defaultScale } from '../../core/sheets/layout'
-import { type Sheet, nextSheetNumber } from '../../core/sheets/types'
+import { type Sheet, type SheetDimension, type SheetNote, nextSheetNumber } from '../../core/sheets/types'
 import { project } from '../../core/projection/project'
 import { calendarDate } from '../date'
 
 export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' } | { kind: 'pickBody'; extrudeId: string } | { kind: 'sheet'; sheetId?: string }
 export type Tool = 'select' | 'line' | 'rect' | 'link'
+export type SheetTool = 'select' | 'dimension' | 'note'
 
 export interface ConstraintRef {
   readonly sketchId: string
@@ -80,6 +81,8 @@ export interface State {
   readonly sheets: ReadonlyMap<string, SheetResult>
   readonly mode: Mode
   readonly tool: Tool
+  readonly sheetTool: SheetTool
+  readonly sheetSelection?: string
   readonly selection: Selection
   readonly notices: readonly Notice[]
   readonly theme: Theme
@@ -120,6 +123,7 @@ export function initialState(doc: Document = newDocument(), view: ViewState = DE
     sheets: evaluateSheets(doc.sheets ?? [], ev),
     mode: { kind: 'model' },
     tool: 'select',
+    sheetTool: 'select',
     selection: EMPTY_SELECTION,
     notices: [],
     theme: 'light',
@@ -210,6 +214,7 @@ function withDoc(s: State, doc: Document, opts: PushOptions = {}): State {
     sheets: evaluateSheets(pruned.sheets ?? [], ev, ev === s.eval ? s.sheets : undefined),
     lastGood: goodLines(ev, s.lastGood),
     selection: reconcileSelection(s.selection, pruned, ev),
+    sheetSelection: reconcileSheetSelection(s.sheetSelection, s.mode, pruned),
     history: { past, future: [], lastKey: opts.key, lastAt: opts.key !== undefined ? now : undefined },
   }
 }
@@ -223,7 +228,7 @@ function reconcile(s: State, doc: Document): State {
     const id = mode.sheetId
     if (!doc.sheets?.some((sheet) => sheet.id === id)) mode = { kind: 'sheet' }
   }
-  return { ...s, doc, eval: ev, sheets: evaluateSheets(doc.sheets ?? [], ev), lastGood: goodLines(ev, s.lastGood), mode, selection: reconcileSelection(s.selection, doc, ev) }
+  return { ...s, doc, eval: ev, sheets: evaluateSheets(doc.sheets ?? [], ev), lastGood: goodLines(ev, s.lastGood), mode, selection: reconcileSelection(s.selection, doc, ev), sheetSelection: reconcileSheetSelection(s.sheetSelection, mode, doc) }
 }
 
 export function undo(s: State): State {
@@ -731,7 +736,8 @@ export function selectRegions(s: State, sketchId: string, regions: readonly Regi
 export function setMode(s: State, mode: Mode): State {
   const tool: Tool = mode.kind === 'sketch' ? s.tool : 'select'
   const selection = mode.kind === 'sketch' ? { featureId: mode.sketchId, lineIds: [], regions: [] } : s.selection
-  return { ...s, mode, tool, selection }
+  const sameSheet = mode.kind === 'sheet' && s.mode.kind === 'sheet' && mode.sheetId === s.mode.sheetId
+  return { ...s, mode, tool, selection, sheetSelection: sameSheet ? reconcileSheetSelection(s.sheetSelection, mode, s.doc) : undefined }
 }
 
 export function setTool(s: State, tool: Tool): State {
@@ -794,7 +800,7 @@ export function addSheet(s: State, id = newId('sheet')): State {
   const projection = project([...s.eval.bodies.values()], 'front')
   const sheet: Sheet = { id, name: `Sheet ${number}`, orientation: 'landscape', view: 'front', scale: defaultScale(projection.bounds, 'landscape') }
   const next = withDoc(s, { ...s.doc, sheets: [...sheets, sheet], nextSheetNumber: number + 1 })
-  return { ...next, mode: { kind: 'sheet', sheetId: id }, selection: EMPTY_SELECTION }
+  return { ...next, mode: { kind: 'sheet', sheetId: id }, selection: EMPTY_SELECTION, sheetSelection: undefined }
 }
 
 export function updateSheet(s: State, id: string, patch: Partial<Omit<Sheet, 'id'>>): State {
@@ -816,4 +822,55 @@ export function moveSheet(s: State, id: string, direction: -1 | 1): State {
   const sheet = sheets.splice(index, 1)[0]!
   sheets.splice(target, 0, sheet)
   return withDoc(s, { ...s.doc, sheets })
+}
+
+function hasSheetAnnotation(sheet: Sheet, id: string): boolean {
+  return !!sheet.dimensions?.some((dimension) => dimension.id === id) || !!sheet.notes?.some((note) => note.id === id)
+}
+
+function reconcileSheetSelection(id: string | undefined, mode: Mode, doc: Document): string | undefined {
+  const sheet = mode.kind === 'sheet' ? doc.sheets?.find((sheet) => sheet.id === mode.sheetId) : undefined
+  return id !== undefined && sheet && hasSheetAnnotation(sheet, id) ? id : undefined
+}
+
+export function setSheetTool(s: State, sheetTool: SheetTool): State {
+  return { ...s, sheetTool }
+}
+
+export function selectSheetAnnotation(s: State, id?: string): State {
+  return { ...s, sheetSelection: reconcileSheetSelection(id, s.mode, s.doc) }
+}
+
+export function addSheetDimension(s: State, sheetId: string, dimension: SheetDimension): State {
+  const sheet = s.doc.sheets?.find((sheet) => sheet.id === sheetId)
+  if (!sheet || hasSheetAnnotation(sheet, dimension.id)) return s
+  return updateSheet(s, sheetId, { dimensions: [...(sheet.dimensions ?? []), dimension] })
+}
+
+export function updateSheetDimension(s: State, sheetId: string, id: string, patch: Partial<Omit<SheetDimension, 'id'>>): State {
+  const sheet = s.doc.sheets?.find((sheet) => sheet.id === sheetId)
+  if (!sheet?.dimensions?.some((dimension) => dimension.id === id)) return s
+  return updateSheet(s, sheetId, { dimensions: sheet.dimensions.map((dimension) => dimension.id === id ? { ...dimension, ...patch } : dimension) })
+}
+
+export function addSheetNote(s: State, sheetId: string, note: SheetNote): State {
+  const sheet = s.doc.sheets?.find((sheet) => sheet.id === sheetId)
+  if (!sheet || hasSheetAnnotation(sheet, note.id)) return s
+  return updateSheet(s, sheetId, { notes: [...(sheet.notes ?? []), note] })
+}
+
+export function updateSheetNote(s: State, sheetId: string, id: string, patch: Partial<Omit<SheetNote, 'id'>>): State {
+  const sheet = s.doc.sheets?.find((sheet) => sheet.id === sheetId)
+  if (!sheet?.notes?.some((note) => note.id === id)) return s
+  return updateSheet(s, sheetId, { notes: sheet.notes.map((note) => note.id === id ? { ...note, ...patch } : note) })
+}
+
+export function deleteSheetAnnotation(s: State): State {
+  const mode = s.mode
+  const sheet = mode.kind === 'sheet' ? s.doc.sheets?.find((sheet) => sheet.id === mode.sheetId) : undefined
+  if (!sheet || s.sheetSelection === undefined || !hasSheetAnnotation(sheet, s.sheetSelection)) return s
+  return updateSheet(s, sheet.id, {
+    ...(sheet.dimensions ? { dimensions: sheet.dimensions.filter((dimension) => dimension.id !== s.sheetSelection) } : {}),
+    ...(sheet.notes ? { notes: sheet.notes.filter((note) => note.id !== s.sheetSelection) } : {}),
+  })
 }

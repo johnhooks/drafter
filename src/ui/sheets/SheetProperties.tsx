@@ -3,6 +3,7 @@ import type { ViewKind } from '../../core/projection/frame'
 import { type Orientation, type SheetScale, SCALES } from '../../core/sheets/types'
 import { VIEW_NAMES } from '../../core/sheets/titleBlock'
 import { useStore } from '../store/store'
+import { AnnotationProperties } from './AnnotationProperties'
 
 export function SheetProperties() {
   const mode = useStore((state) => state.mode)
@@ -29,6 +30,7 @@ export function SheetProperties() {
     <Select label="Scale" selectedKey={String(sheet.scale)} onSelectionChange={(key) => dispatch('updateSheet', sheet.id, { scale: Number(key) as SheetScale })}>
       {SCALES.map((scale) => <SelectItem key={scale} id={String(scale)}>{`1:${scale}`}</SelectItem>)}
     </Select>
+    <AnnotationProperties sheet={sheet} />
     {warnings.map((warning) => <p className="sheet-warning" role="status" key={warning}>{warning}</p>)}
   </div>
 }

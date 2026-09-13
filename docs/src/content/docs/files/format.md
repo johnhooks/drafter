@@ -70,6 +70,11 @@ A file is JSON with a version, a `model`, a `view`, and optional drawing sheets.
 
 The optional top-level `sheets` array holds sheets in order. Each has an opaque unique `id`, a `name`, an `orientation` of `portrait` or `landscape`, a `view` of `front`, `top`, `left`, or `right`, and a numeric `scale` denominator from 1, 2, 4, 8, 12, 16, or 24. Optional `targetBodyId` restricts the view to one body; absent means the whole model. A missing body is a warning rather than an invalid file.
 
+Each sheet can contain optional `dimensions` and `notes` arrays; absent means none. Annotation ids are unique within the sheet, across both arrays.
+
+- A dimension has `id`, `first` and `second` coordinate pairs in whole sixteenths, `orientation` (`horizontal` or `vertical`), and `position`, the dimension line's coordinate in whole sixteenths. Position is v for horizontal dimensions and u for vertical dimensions. Points `[0, 0]` and `[384, 0]` measure 24" horizontally, regardless of scale.
+- A note has `id`, `text` (newlines allowed), `position` as an `[x, y]` pair in paper inches from the page's upper-left corner, and an optional `leader` endpoint in view sixteenths. Paper positions may be fractional numbers. Dimension points and leader endpoints are stored positions, not references to model edges.
+
 The optional top-level `nextSheetNumber` is a positive integer used for the next default sheet name. Creating a sheet advances it; deletion and renaming do not reduce it. When absent, it defaults to one past the highest numbered sheet name, or 1 with none. Optional `modifiedDate`, in local `YYYY-MM-DD` form, records the last document edit for title blocks. Older sheet files without a date use and save the opening date.
 
 ```json

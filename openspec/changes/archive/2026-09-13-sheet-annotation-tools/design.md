@@ -24,6 +24,8 @@
 
 **Rendering.** `renderSheet` gains an annotations pass after the view group: extension lines, ticks, text with outside placement when the span is narrower than the text width estimated from the character count, leaders with an arrowhead marker. Detached dimensions use a warning colour, the one exception to black on white.
 
+**Picking and placement feedback.** Annotation hit-testing follows painted strokes and text rather than group bounding boxes, so nested dimensions remain individually selectable. The dimension tool exposes only confirmed points. A screen-only, pointer-transparent overlay highlights projected segments containing those points and draws point markers in `--kit-canvas-select`; it clears with the tool state and never enters `renderSheet` or output.
+
 **Persistence.** `Sheet` gains `dimensions` and `notes` arrays; the version stays 6 since both are optional and absent means none.
 
 ## Risks / Trade-offs

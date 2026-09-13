@@ -1,13 +1,27 @@
 import type { Sixteenths } from './units'
+import type { Projection } from './projection/project'
 
-export interface SnapContext {
+export interface SnapSource {
   /** Corner points to snap to, in sixteenths. */
   readonly corners: ReadonlyArray<readonly [number, number]>
   /** Edge coordinates to snap to, per axis, in sixteenths. */
   readonly uEdges: readonly number[]
   readonly vEdges: readonly number[]
+}
+
+export interface SnapContext extends SnapSource {
+  readonly source?: SnapSource
   /** Snap range in sixteenths (converted from pixels by the caller). */
   readonly range: number
+}
+
+export function projectionSnapContext(projection: Projection, range: number): SnapContext {
+  const source: SnapSource = {
+    corners: projection.vertices,
+    uEdges: projection.segments.filter((segment) => segment.dir === 'v').map((segment) => segment.at),
+    vEdges: projection.segments.filter((segment) => segment.dir === 'h').map((segment) => segment.at),
+  }
+  return { ...source, source, range }
 }
 
 export type SnapKind = 'corner' | 'edge' | 'grid'
@@ -62,9 +76,10 @@ const gridSnap: Snapper = (u, v) => ({
 export const SNAPPERS: readonly Snapper[] = [cornerSnap, edgeSnap, gridSnap]
 
 export function snap(u: number, v: number, ctx: SnapContext): Snapped {
+  const context = ctx.source ? { ...ctx.source, range: ctx.range } : ctx
   for (const s of SNAPPERS) {
-    const r = s(u, v, ctx)
+    const r = s(u, v, context)
     if (r) return r
   }
-  return gridSnap(u, v, ctx)!
+  return gridSnap(u, v, context)!
 }

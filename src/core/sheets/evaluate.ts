@@ -2,6 +2,7 @@ import type { EvalResult } from '../eval/evaluate'
 import { type Projection, project } from '../projection/project'
 import type { Sheet } from './types'
 import { sheetLayout } from './layout'
+import { dimensionDetached } from './annotations'
 
 export interface SheetResult {
   readonly sheet: Sheet
@@ -17,6 +18,9 @@ export function evaluateSheets(sheets: readonly Sheet[], model: EvalResult, prev
       ? cached.projection : project(sheet.targetBodyId ? (target ? [target] : []) : [...model.bodies.values()], sheet.view)
     const warnings = [...sheetLayout(sheet, projection.bounds).warnings]
     if (sheet.targetBodyId && !target) warnings.push(`Body ${sheet.targetBodyId} no longer exists.`)
+    for (const dimension of sheet.dimensions ?? []) {
+      if (dimensionDetached(dimension, projection)) warnings.push(`Dimension ${dimension.id} is detached from the view.`)
+    }
     return [sheet.id, { sheet, projection, warnings }]
   }))
 }
