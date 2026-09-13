@@ -5,11 +5,13 @@ import { sheetLayout } from './layout'
 import { escapeXml, titleBlock } from './titleBlock'
 import { renderAnnotations } from './annotations'
 
-export function renderSheet(sheet: Sheet, projection: Projection, doc: Pick<Document, 'title'>, index: number, total: number, date: string): string {
+export function renderSheet(sheet: Sheet, projection: Projection, doc: Pick<Document, 'title'>, index: number, total: number, date: string, image?: string): string {
   const layout = sheetLayout(sheet, projection.bounds)
   const { width, height, drawing, factor, originU, originV } = layout
   const clipId = `sheet-clip-${Array.from(sheet.id, (character) => character.codePointAt(0)!.toString(16)).join('-')}`
-  const lines = projection.segments.map((segment) => {
+  const lines = sheet.view === 'isometric'
+    ? image ? `<image x="${drawing.x - originU}" y="${drawing.y - originV}" width="${drawing.width}" height="${drawing.height}" href="${escapeXml(image)}"/>` : ''
+    : projection.segments.map((segment) => {
     const horizontal = segment.dir === 'h'
     const firstU = (horizontal ? segment.min : segment.at) * factor
     const firstV = -(horizontal ? segment.at : segment.min) * factor

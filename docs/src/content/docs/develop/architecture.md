@@ -21,7 +21,9 @@ Everything relies on geometry being axis-aligned. That is a deliberate constrain
 
 ## User interface
 
-`src/ui` is React. A zustand store holds the document, its evaluation, the mode, selection, and notices. Every action is a pure function from state to state, tested without React. The sketch editor is SVG with tools implemented as small state machines that share a preview path with committed geometry. The 3D view is react-three-fiber with an orthographic camera at a fixed isometric angle; face picking maps a hit point back to the extrude and face that own it.
+`src/ui` is React. A zustand store holds the document, its evaluation, the mode, selection, and notices. Every action is a pure function from state to state, tested without React. The sketch editor is SVG with tools implemented as small state machines that share a preview path with committed geometry. The 3D view is react-three-fiber with an orbitable orthographic camera; face picking maps a hit point back to the extrude and face that own it.
+
+Isometric sheets persist the camera's azimuth and elevation at creation and render their target off-screen at that orientation and the stored scale, embedding a 300 DPI raster in the sheet SVG. Pure camera-basis projection in core supplies target bounds for centring, initial fitting scale, and overflow warnings without changing the axis-aligned model geometry. Later model, target, and page edits preserve the ratio and clip overflow. The image cache includes model evaluation, target, captured angles, scale, and raster size; viewport navigation and annotation edits reuse the image. Asynchronous preview and export and synchronous native printing use the same camera extents. Notes and leaders retain their paper coordinates when scale changes; dimensions remain unavailable on isometric sheets.
 
 ## Documentation
 

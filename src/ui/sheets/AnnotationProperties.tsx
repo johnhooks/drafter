@@ -61,6 +61,7 @@ export function AnnotationProperties({ sheet }: { sheet: Sheet }) {
     </div>
   }
   if (note) {
+    const LeaderField = sheet.view === 'isometric' ? PaperField : CoordinateField
     const update = (patch: Partial<Omit<SheetNote, 'id'>>) => dispatch('updateSheetNote', sheet.id, note.id, patch)
     return <div className="kit-fields sheet-annotation-properties" key={note.id}>
       <h3 className="section-title">Note</h3>
@@ -68,8 +69,8 @@ export function AnnotationProperties({ sheet }: { sheet: Sheet }) {
       <PaperField label="Paper X" value={note.position[0]} onCommit={(value) => update({ position: [value, note.position[1]] })} />
       <PaperField label="Paper Y" value={note.position[1]} onCommit={(value) => update({ position: [note.position[0], value] })} />
       {note.leader ? <>
-        <CoordinateField label="Leader U" value={note.leader[0]} onCommit={(value) => update({ leader: [value, note.leader![1]] })} />
-        <CoordinateField label="Leader V" value={note.leader[1]} onCommit={(value) => update({ leader: [note.leader![0], value] })} />
+        <LeaderField label={sheet.view === 'isometric' ? 'Leader X' : 'Leader U'} value={note.leader[0]} onCommit={(value) => update({ leader: [value, note.leader![1]] })} />
+        <LeaderField label={sheet.view === 'isometric' ? 'Leader Y' : 'Leader V'} value={note.leader[1]} onCommit={(value) => update({ leader: [note.leader![0], value] })} />
         <Button onPress={() => update({ leader: undefined })}>Remove leader</Button>
       </> : <Button onPress={() => update({ leader: [0, 0] })}>Add leader</Button>}
     </div>

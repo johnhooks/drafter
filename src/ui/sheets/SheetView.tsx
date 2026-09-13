@@ -7,10 +7,12 @@ import { useStore } from '../store/store'
 import { useViewHooks } from '../useCommands'
 import { calendarDate } from '../date'
 import { makeSheetTool, pickedSegments, type SheetPointer } from './tools'
+import { cachedIsometric, renderIsometric } from './isoRender'
 
 export function SheetView() {
   const mode = useStore((state) => state.mode)
   const doc = useStore((state) => state.doc)
+  const model = useStore((state) => state.eval)
   const id = mode.kind === 'sheet' ? mode.sheetId : undefined
   const result = useStore((state) => id ? state.sheets.get(id) : undefined)
   const toolName = useStore((state) => state.sheetTool)
@@ -24,6 +26,18 @@ export function SheetView() {
   const drag = useRef<{ pointer: number; x: number; y: number; panX: number; panY: number } | null>(null)
   const [view, setView] = useState({ scale: 1, x: 0, y: 0 })
   const [, redraw] = useState(0)
+  const [rendered, setRendered] = useState<{ sheet: typeof result; model: typeof model; image: string } | null>(null)
+  useEffect(() => {
+    if (!result || result.sheet.view !== 'isometric') return
+    let cancelled = false
+    renderIsometric(result.sheet, model).then((image) => {
+      if (!cancelled) setRendered({ sheet: result, model, image })
+    }).catch((error: unknown) => {
+      if (!cancelled) dispatch('notify', `Could not render isometric sheet: ${error instanceof Error ? error.message : String(error)}`, 'danger')
+    })
+    return () => { cancelled = true }
+  }, [result, model, dispatch])
+  const image = result?.sheet.view === 'isometric' ? cachedIsometric(result.sheet, model) ?? (rendered?.sheet === result && rendered.model === model ? rendered.image : undefined) : undefined
   const page = pageLayout(result?.sheet.orientation ?? 'landscape')
   const tool = useMemo(() => makeSheetTool(toolName, {
     newId: () => crypto.randomUUID(),
@@ -110,8 +124,8 @@ export function SheetView() {
     const sheet = !preview ? result.sheet : preview.kind === 'dimension'
       ? { ...result.sheet, dimensions: [...(result.sheet.dimensions ?? []).filter((dimension) => dimension.id !== preview.value.id), preview.value] }
       : { ...result.sheet, notes: [...(result.sheet.notes ?? []).filter((note) => note.id !== preview.value.id), preview.value] }
-    return renderSheet(sheet, result.projection, doc, doc.sheets?.findIndex((sheet) => sheet.id === id) ?? 0, doc.sheets?.length ?? 0, doc.modifiedDate ?? calendarDate())
-  }, [result, doc, id, preview])
+    return renderSheet(sheet, result.projection, doc, doc.sheets?.findIndex((sheet) => sheet.id === id) ?? 0, doc.sheets?.length ?? 0, doc.modifiedDate ?? calendarDate(), image)
+  }, [result, doc, id, preview, image])
   const markup = useMemo(() => ({ __html: svg }), [svg])
   useLayoutEffect(() => {
     for (const element of paper.current?.querySelectorAll<SVGElement>('[data-annotation-id]') ?? []) {
@@ -130,7 +144,7 @@ export function SheetView() {
     const raw = [(paperPoint[0] - originU) / factor, (originV - paperPoint[1]) / factor] as const
     const snapped = snap(...raw, projectionSnapContext(result.projection, 8 / (96 * view.scale * factor)))
     const target = event.target instanceof Element ? event.target.closest<SVGElement>('[data-annotation-id]') : null
-    return { paper: paperPoint, raw, point: [snapped.u, snapped.v], px: [event.clientX, event.clientY], shift: event.shiftKey, hit: target?.dataset.annotationId }
+    return { paper: paperPoint, raw, point: result.sheet.view === 'isometric' ? paperPoint : [snapped.u, snapped.v], px: [event.clientX, event.clientY], shift: event.shiftKey, hit: target?.dataset.annotationId }
   }
   const cancelPointer = () => {
     drag.current = null

@@ -21,6 +21,7 @@ export interface ViewHooks {
   /** Selects the feature just appended and its body, so the extrude's properties open. */
   selectLatest?: () => void
   openNewSketch?: () => void
+  openNewSheet?: () => void
   menu?: (action: string) => void
 }
 
@@ -75,7 +76,8 @@ const sheetToolCommand = (tool: SheetTool, label: string, key: string): Command 
   label,
   view: 'sheet',
   key,
-  when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId && state.sheetTool !== tool,
+  when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId && state.sheetTool !== tool
+    && (tool !== 'dimension' || state.doc.sheets?.find((sheet) => sheet.id === (state.mode.kind === 'sheet' ? state.mode.sheetId : undefined))?.view !== 'isometric'),
   run: ({ dispatch, hooks }) => {
     hooks.cancelTool?.()
     dispatch('setSheetTool', tool)
@@ -148,7 +150,7 @@ export const COMMANDS: readonly Command[] = [
   { id: 'view.fit', label: 'Fit', view: 'any', key: 'F', run: ({ hooks }) => hooks.fit?.() },
   { id: 'model.sheets', label: 'Sheets', view: 'model', run: ({ state, dispatch }) => dispatch('setMode', { kind: 'sheet', sheetId: state.doc.sheets?.[0]?.id }) },
   { id: 'sheet.model', label: 'Model', view: 'sheet', run: ({ dispatch }) => dispatch('setMode', { kind: 'model' }) },
-  { id: 'sheet.add', label: 'Add Sheet', view: 'sheet', run: ({ dispatch }) => dispatch('addSheet') },
+  { id: 'sheet.add', label: 'Add Sheet', view: 'sheet', run: ({ hooks }) => hooks.openNewSheet?.() },
   sheetToolCommand('select', 'Select', 'A'),
   sheetToolCommand('dimension', 'Dimension', 'D'),
   sheetToolCommand('note', 'Note', 'N'),

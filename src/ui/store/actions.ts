@@ -32,7 +32,9 @@ import { DEFAULT_VIEW, isExpr, newDocument, regionKey, sameRegion } from '../../
 import type { Sixteenths } from '../../core/units'
 import { type SheetResult, evaluateSheets } from '../../core/sheets/evaluate'
 import { defaultScale } from '../../core/sheets/layout'
+import { isometricProjection } from '../../core/sheets/isometric'
 import { type Sheet, type SheetDimension, type SheetNote, nextSheetNumber } from '../../core/sheets/types'
+import { validateSheets } from '../../core/sheets/validate'
 import { project } from '../../core/projection/project'
 import { calendarDate } from '../date'
 
@@ -737,7 +739,7 @@ export function setMode(s: State, mode: Mode): State {
   const tool: Tool = mode.kind === 'sketch' ? s.tool : 'select'
   const selection = mode.kind === 'sketch' ? { featureId: mode.sketchId, lineIds: [], regions: [] } : s.selection
   const sameSheet = mode.kind === 'sheet' && s.mode.kind === 'sheet' && mode.sheetId === s.mode.sheetId
-  return { ...s, mode, tool, selection, sheetSelection: sameSheet ? reconcileSheetSelection(s.sheetSelection, mode, s.doc) : undefined }
+  return { ...s, mode, tool, selection, sheetTool: mode.kind === 'sheet' && s.doc.sheets?.find((sheet) => sheet.id === mode.sheetId)?.view === 'isometric' && s.sheetTool === 'dimension' ? 'select' : s.sheetTool, sheetSelection: sameSheet ? reconcileSheetSelection(s.sheetSelection, mode, s.doc) : undefined }
 }
 
 export function setTool(s: State, tool: Tool): State {
@@ -793,25 +795,29 @@ export function dismissNotice(s: State, text: string): State {
 export { regionKey }
 export type { Slot }
 
-export function addSheet(s: State, id = newId('sheet')): State {
+export function addSheet(s: State, id = newId('sheet'), view: Sheet['view'] = 'front'): State {
   const sheets = s.doc.sheets ?? []
   if (sheets.some((sheet) => sheet.id === id)) return s
   const number = nextSheetNumber(sheets, s.doc.nextSheetNumber)
-  const projection = project([...s.eval.bodies.values()], 'front')
-  const sheet: Sheet = { id, name: `Sheet ${number}`, orientation: 'landscape', view: 'front', scale: defaultScale(projection.bounds, 'landscape') }
+  const projection = view === 'isometric' ? isometricProjection([...s.eval.bodies.values()], s.view.camera) : project([...s.eval.bodies.values()], view)
+  const sheet: Sheet = { id, name: `Sheet ${number}`, orientation: 'landscape', view, scale: defaultScale(projection.bounds, 'landscape'), ...(view === 'isometric' ? { camera: { azimuth: s.view.camera.azimuth, elevation: s.view.camera.elevation } } : {}) }
   const next = withDoc(s, { ...s.doc, sheets: [...sheets, sheet], nextSheetNumber: number + 1 })
-  return { ...next, mode: { kind: 'sheet', sheetId: id }, selection: EMPTY_SELECTION, sheetSelection: undefined }
+  return { ...next, mode: { kind: 'sheet', sheetId: id }, selection: EMPTY_SELECTION, sheetSelection: undefined, sheetTool: view === 'isometric' && s.sheetTool === 'dimension' ? 'select' : s.sheetTool }
 }
 
 export function updateSheet(s: State, id: string, patch: Partial<Omit<Sheet, 'id'>>): State {
-  if (!s.doc.sheets?.some((sheet) => sheet.id === id)) return s
+  const current = s.doc.sheets?.find((sheet) => sheet.id === id)
+  if (!current || !s.doc.sheets) return s
+  if (('view' in patch && patch.view !== current.view) || ('camera' in patch && (patch.camera?.azimuth !== current.camera?.azimuth || patch.camera?.elevation !== current.camera?.elevation))) return notify(s, 'A sheet’s view is fixed. Create another sheet for a different view.')
+  const errors = validateSheets([{ ...current, ...patch }], undefined, undefined)
+  if (errors.length) return notify(s, errors.map((error) => error.message).join('; '))
   return withDoc(s, { ...s.doc, sheets: s.doc.sheets.map((sheet) => sheet.id === id ? { ...sheet, ...patch } : sheet) })
 }
 
 export function deleteSheet(s: State, id: string): State {
   if (!s.doc.sheets?.some((sheet) => sheet.id === id)) return s
   const next = withDoc(s, { ...s.doc, sheets: s.doc.sheets.filter((sheet) => sheet.id !== id) })
-  return s.mode.kind === 'sheet' && s.mode.sheetId === id ? { ...next, mode: { kind: 'sheet', sheetId: next.doc.sheets?.[0]?.id } } : next
+  return s.mode.kind === 'sheet' && s.mode.sheetId === id ? setMode(next, { kind: 'sheet', sheetId: next.doc.sheets?.[0]?.id }) : next
 }
 
 export function moveSheet(s: State, id: string, direction: -1 | 1): State {
@@ -834,6 +840,8 @@ function reconcileSheetSelection(id: string | undefined, mode: Mode, doc: Docume
 }
 
 export function setSheetTool(s: State, sheetTool: SheetTool): State {
+  const id = s.mode.kind === 'sheet' ? s.mode.sheetId : undefined
+  if (sheetTool === 'dimension' && s.doc.sheets?.find((sheet) => sheet.id === id)?.view === 'isometric') return s
   return { ...s, sheetTool }
 }
 

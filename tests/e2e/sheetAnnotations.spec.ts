@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { choose, dbg, makeCube, menu, newSketch } from './helpers'
+import { addSheet, choose, dbg, makeCube, menu, newSketch } from './helpers'
 
 async function openSheet(page: Page) {
   await page.goto('/')
   await makeCube(page)
   await page.getByRole('button', { name: 'Sheets', exact: true }).click()
-  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
+  await addSheet(page)
   await expect(page.locator('.sheet-paper > svg')).toBeVisible()
 }
 

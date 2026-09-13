@@ -23,7 +23,8 @@ export interface Sheet {
   readonly id: string
   readonly name: string
   readonly orientation: Orientation
-  readonly view: ViewKind
+  readonly view: ViewKind | 'isometric'
+  readonly camera?: { readonly azimuth: number; readonly elevation: number }
   readonly targetBodyId?: string
   readonly scale: SheetScale
   readonly dimensions?: readonly SheetDimension[]

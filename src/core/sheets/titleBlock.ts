@@ -1,8 +1,7 @@
-import type { ViewKind } from '../projection/frame'
 import type { Sheet } from './types'
 import { pageLayout } from './layout'
 
-export const VIEW_NAMES: Readonly<Record<ViewKind, string>> = { front: 'Front', top: 'Top', left: 'Left', right: 'Right' }
+export const VIEW_NAMES: Readonly<Record<Sheet['view'], string>> = { front: 'Front', top: 'Top', left: 'Left', right: 'Right', isometric: 'Isometric' }
 export const escapeXml = (text: string) => text.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character]!)
 
 export function titleBlock(sheet: Sheet, title: string, index: number, total: number, date: string): string {

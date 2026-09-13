@@ -41,8 +41,8 @@ it('regenerates projections for model edits, reuses them for sheet renames, and 
   let state = actions.addSketch(actions.initialState(), DEFAULT_PLANE, 'sketch')
   state = actions.addRectangle(state, 'sketch', 0, 384, 0, 480)
   state = actions.addExtrude(state, 'sketch', [], 192, 'extrude')
-  state = actions.addSheet(state, 'sheet')
-  state = actions.updateSheet(state, 'sheet', { view: 'top', targetBodyId: 'extrude' })
+  state = actions.addSheet(state, 'sheet', 'top')
+  state = actions.updateSheet(state, 'sheet', { targetBodyId: 'extrude' })
   const before = state.sheets.get('sheet')!
   expect(before.projection.bounds).not.toBeNull()
   state = actions.updateSheet(state, 'sheet', { name: 'Top' })

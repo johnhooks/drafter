@@ -21,7 +21,13 @@ export function validateSheets(value: unknown, counter: unknown, date: unknown):
     }
     if (typeof sheet['name'] !== 'string') err(`${path}.name`, 'Sheet needs a name')
     if (sheet['orientation'] !== 'portrait' && sheet['orientation'] !== 'landscape') err(`${path}.orientation`, 'Must be portrait or landscape')
-    if (typeof sheet['view'] !== 'string' || !Object.hasOwn(VIEW_FRAMES, sheet['view'])) err(`${path}.view`, 'Must be front, top, left, or right')
+    const isometric = sheet['view'] === 'isometric'
+    if (typeof sheet['view'] !== 'string' || (!isometric && !Object.hasOwn(VIEW_FRAMES, sheet['view']))) err(`${path}.view`, 'Must be front, top, left, right, or isometric')
+    if (isometric) {
+      const camera = sheet['camera'] as Record<string, unknown> | null | undefined
+      if (!camera || typeof camera !== 'object' || Array.isArray(camera) || !['azimuth', 'elevation'].every((key) => typeof camera[key] === 'number' && Number.isFinite(camera[key]))) err(`${path}.camera`, 'Must contain finite camera azimuth and elevation')
+      if (Array.isArray(sheet['dimensions']) && sheet['dimensions'].length) err(`${path}.dimensions`, 'Projected dimensions are unavailable on isometric sheets')
+    }
     if (!SCALES.some((scale) => scale === sheet['scale'])) err(`${path}.scale`, 'Unsupported scale')
     if (sheet['targetBodyId'] !== undefined && (typeof sheet['targetBodyId'] !== 'string' || !sheet['targetBodyId'])) err(`${path}.targetBodyId`, 'Must be a body id')
     const annotationIds = new Set<string>()
@@ -54,7 +60,7 @@ export function validateSheets(value: unknown, counter: unknown, date: unknown):
         } else {
           if (typeof annotation['text'] !== 'string') err(`${annotationPath}.text`, 'Note needs text')
           point('position', false)
-          if (annotation['leader'] !== undefined) point('leader', true)
+          if (annotation['leader'] !== undefined) point('leader', !isometric)
         }
       })
     }

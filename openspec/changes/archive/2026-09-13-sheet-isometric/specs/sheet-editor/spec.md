@@ -1,10 +1,4 @@
-# sheet-editor Specification
-
-## Purpose
-
-Lets the user create sheets, set what each one shows, and move around the page.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Sheets mode
 The app SHALL have a Sheets mode beside the model view, entered from a Sheets action in the model view's toolbar and left with a Model action, showing a sheet list with add, rename, reorder, and delete, and the selected sheet drawn as it will print. Deleting a sheet SHALL require confirmation. Adding a sheet SHALL offer view selection before confirmation and SHALL be one undo step, as SHALL every other sheet edit. Cancelling creation SHALL NOT add a sheet or consume its default name. Isometric creation SHALL capture the current model camera orientation when confirmed.
@@ -45,20 +39,6 @@ The properties panel for a sheet SHALL edit its name, page orientation, target (
 - **THEN** projected spans halve on paper, the title block and list show 1:8, and note and leader paper positions are unchanged
 - **AND** undo restores 1:4 and save/load preserves whichever ratio is selected
 
-### Requirement: Navigation
-The sheet view SHALL zoom with the wheel and pan with the middle button or space held, and SHALL have a fit-to-page action bound to the fit command.
-
-#### Scenario: Fit to page
-- **WHEN** the user presses Fit
-- **THEN** the whole page is visible in the view
-
-### Requirement: Commands in sheets mode
-Commands whose view is all, and the fit command, SHALL apply in sheets mode; model and sketch commands SHALL NOT. Escape in sheets mode SHALL clear the selection.
-
-#### Scenario: Undo applies
-- **WHEN** the user renames a sheet and presses Cmd+Z in sheets mode
-- **THEN** the old name is back
-
 ### Requirement: Dimension tool
 With the dimension tool active, clicking a first snapped point, then a second, then a position for the dimension line SHALL create a dimension. Orientation SHALL be chosen by the third click: moving mostly perpendicular to the points' u span makes it horizontal, otherwise vertical, with a live preview. Escape SHALL cancel at any step. The tool SHALL be unavailable on an isometric sheet, and switching to an isometric sheet while it is active SHALL select the select tool.
 
@@ -95,23 +75,6 @@ With the note tool active, clicking a position SHALL open a text input at that p
 #### Scenario: Isometric leader placement
 - **WHEN** the user Shift-drags a note leader on an isometric sheet
 - **THEN** the leader ends at the paper position under the pointer, without snapping to raster geometry
-
-### Requirement: Select, move, edit, delete annotations
-With the select tool active, clicking an annotation SHALL select it; Delete SHALL remove it; dragging a dimension SHALL move its dimension line; dragging a note SHALL move its text; double-clicking a note SHALL edit its text. The properties panel SHALL show the selected annotation's fields for typed editing. Every edit SHALL be one undo step.
-
-Annotation hit targets SHALL follow their strokes and text, not the empty area enclosed by their bounds.
-
-#### Scenario: Pick an inner dimension
-- **WHEN** two dimensions share endpoints and the later dimension is farther from the geometry
-- **THEN** clicking or dragging the inner dimension's visible label selects or moves the inner dimension, not the outer one
-
-#### Scenario: Move a dimension line
-- **WHEN** the user drags a selected dimension's line further from the geometry
-- **THEN** the extension lines lengthen and the value is unchanged
-
-#### Scenario: Delete a note
-- **WHEN** the user selects a note and presses Delete
-- **THEN** the note is gone and Cmd+Z brings it back
 
 ### Requirement: Sheet tools switch by key
 The sheet tools SHALL be commands in the sheet view: Select A, Dimension D, Note N, following the command rules in `commands`. Dimension D SHALL be unavailable on isometric sheets.

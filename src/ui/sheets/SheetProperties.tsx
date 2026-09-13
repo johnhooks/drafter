@@ -1,5 +1,4 @@
 import { Hint, Select, SelectItem, TextField } from '@bitmachina/drafter-kit'
-import type { ViewKind } from '../../core/projection/frame'
 import { type Orientation, type SheetScale, SCALES } from '../../core/sheets/types'
 import { VIEW_NAMES } from '../../core/sheets/titleBlock'
 import { useStore } from '../store/store'
@@ -19,9 +18,7 @@ export function SheetProperties() {
     <Select label="Orientation" selectedKey={sheet.orientation} onSelectionChange={(key) => dispatch('updateSheet', sheet.id, { orientation: key as Orientation })}>
       <SelectItem id="landscape">Landscape</SelectItem><SelectItem id="portrait">Portrait</SelectItem>
     </Select>
-    <Select label="View" selectedKey={sheet.view} onSelectionChange={(key) => dispatch('updateSheet', sheet.id, { view: key as ViewKind })}>
-      {Object.entries(VIEW_NAMES).map(([key, name]) => <SelectItem id={key} key={key}>{name}</SelectItem>)}
-    </Select>
+    <TextField label="View" value={VIEW_NAMES[sheet.view]} isReadOnly onCommit={() => {}} />
     <Select label="Target" selectedKey={sheet.targetBodyId ?? '__all__'} onSelectionChange={(key) => dispatch('updateSheet', sheet.id, { targetBodyId: key === '__all__' ? undefined : String(key) })}>
       <SelectItem id="__all__">Whole model</SelectItem>
       {[...bodies.values()].map((body) => <SelectItem id={body.id} key={body.id}>{body.name}</SelectItem>)}

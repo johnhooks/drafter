@@ -53,7 +53,7 @@ export function App() {
   const theme = useStore((s) => s.theme)
   const errors = useStore((s) => s.eval.errors)
   const centre = useRef<HTMLDivElement>(null)
-  useEffect(() => listenForPrint(useStore.getState), [])
+  useEffect(() => listenForPrint(useStore.getState, (error) => useStore.getState().dispatch('notify', `Could not prepare sheets for printing: ${String(error)}`, 'danger')), [])
 
   // load once, then autosave on every document change
   const loaded = useRef(false)
@@ -208,9 +208,9 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
         return setKeysOpen(true)
       case 'print-sheet':
       case 'print-all':
-        return printSheets(useStore.getState(), key === 'print-all')
+        return printSheets(useStore.getState(), key === 'print-all').catch((error: unknown) => dispatch('notify', `Could not print sheets: ${String(error)}`, 'danger'))
       case 'export-sheet':
-        return exportSheet(useStore.getState())
+        return exportSheet(useStore.getState()).catch((error: unknown) => dispatch('notify', `Could not export sheet: ${String(error)}`, 'danger'))
       case 'delete-sheet':
         return setPendingSheet(mode.kind === 'sheet' ? mode.sheetId ?? null : null)
       case 'export-svg':
@@ -244,7 +244,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
         }}>
           {(['select', 'dimension', 'note'] as const).map((id) => (
             <TooltipTrigger key={id}>
-              <ToggleButton id={id}>{sheetTools[id].label}</ToggleButton>
+              <ToggleButton id={id} isDisabled={id !== sheetTool && !sheetTools[id].enabled}>{sheetTools[id].label}</ToggleButton>
               <Tooltip>{sheetTools[id].tooltip}</Tooltip>
             </TooltipTrigger>
           ))}

@@ -68,19 +68,29 @@ A file is JSON with a version, a `model`, a `view`, and optional drawing sheets.
 
 ## Drawing sheets
 
-The optional top-level `sheets` array holds sheets in order. Each has an opaque unique `id`, a `name`, an `orientation` of `portrait` or `landscape`, a `view` of `front`, `top`, `left`, or `right`, and a numeric `scale` denominator from 1, 2, 4, 8, 12, 16, or 24. Optional `targetBodyId` restricts the view to one body; absent means the whole model. A missing body is a warning rather than an invalid file.
+The optional top-level `sheets` array holds sheets in order. Each has an opaque unique `id`, a `name`, an `orientation` of `portrait` or `landscape`, a `view` of `front`, `top`, `left`, `right`, or `isometric`, and a numeric `scale` denominator from 1, 2, 4, 8, 12, 16, or 24. Every view applies its stored scale and shows that ratio in the title block. For isometric sheets, `scale: 4` maps 24" projected into the camera plane to 6" on paper; oblique edges remain foreshortened. Loading applies the stored ratio without refitting, including existing isometric sheets. Model, target, and page orientation edits preserve it; oversized projections warn and clip. Optional `targetBodyId` restricts the view to one body; absent means the whole model. A missing body is a warning rather than an invalid file.
 
-Each sheet can contain optional `dimensions` and `notes` arrays; absent means none. Annotation ids are unique within the sheet, across both arrays.
+An isometric sheet requires `camera: { "azimuth": -45, "elevation": 35.264 }`, with both angles finite numbers in degrees using the model camera's conventions. This captures the model camera orientation when creation is confirmed. It contains no pan, zoom, or rendered pixels. The sheet camera is document data preserved by save/load and undo/redo, independent of the top-level `view.camera`. Missing or malformed isometric camera data is rejected on load. Orthographic sheets need no camera data. All sheet views are read-only after creation; existing orthographic sheets retain their saved direction and annotations.
+
+Each sheet can contain optional `dimensions` and `notes` arrays; absent means none. Isometric sheets allow notes but reject nonempty dimensions arrays on load. Annotation ids are unique within the sheet, across both arrays.
 
 - A dimension has `id`, `first` and `second` coordinate pairs in whole sixteenths, `orientation` (`horizontal` or `vertical`), and `position`, the dimension line's coordinate in whole sixteenths. Position is v for horizontal dimensions and u for vertical dimensions. Points `[0, 0]` and `[384, 0]` measure 24" horizontally, regardless of scale.
-- A note has `id`, `text` (newlines allowed), `position` as an `[x, y]` pair in paper inches from the page's upper-left corner, and an optional `leader` endpoint in view sixteenths. Paper positions may be fractional numbers. Dimension points and leader endpoints are stored positions, not references to model edges.
+- A note has `id`, `text` (newlines allowed), `position` as an `[x, y]` pair in paper inches from the page's upper-left corner, and an optional `leader` coordinate pair. The containing `sheet.view` determines the leader's units: whole view sixteenths for orthographic sheets, or paper inches from the page's upper-left corner for `isometric`. The leader remains a two-number tuple in both cases, with no separate variant field. Paper positions and isometric leader coordinates may be fractional numbers. Dimension points and leader endpoints are stored positions, not references to model edges. Isometric leaders retain their paper coordinates through model edits and save/load.
 
-The optional top-level `nextSheetNumber` is a positive integer used for the next default sheet name. Creating a sheet advances it; deletion and renaming do not reduce it. When absent, it defaults to one past the highest numbered sheet name, or 1 with none. Optional `modifiedDate`, in local `YYYY-MM-DD` form, records the last document edit for title blocks. Older sheet files without a date use and save the opening date.
+The optional top-level `nextSheetNumber` is a positive integer used for the next default sheet name. Confirming sheet creation advances it; cancelling creation does not. Deletion and renaming do not reduce it. When absent, it defaults to one past the highest numbered sheet name, or 1 with none. Optional `modifiedDate`, in local `YYYY-MM-DD` form, records the last document edit for title blocks. Older sheet files without a date use and save the opening date.
 
 ```json
 {
-  "sheets": [{ "id": "sheet_a1", "name": "Sheet 1", "orientation": "landscape", "view": "front", "scale": 4 }],
-  "nextSheetNumber": 2,
+  "sheets": [
+    { "id": "sheet_a1", "name": "Sheet 1", "orientation": "landscape", "view": "front", "scale": 4 },
+    {
+      "id": "sheet_a2", "name": "Sheet 2", "orientation": "landscape",
+      "view": "isometric", "scale": 8,
+      "camera": { "azimuth": -45, "elevation": 35.264 },
+      "notes": [{ "id": "note_a1", "text": "Top face", "position": [1, 1], "leader": [4.5, 3.25] }]
+    }
+  ],
+  "nextSheetNumber": 3,
   "modifiedDate": "2026-09-12"
 }
 ```

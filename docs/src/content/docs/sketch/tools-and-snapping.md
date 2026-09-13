@@ -45,7 +45,7 @@ Every key is a command, and every command shows its key in its button's tooltip.
 | Key | Command | Where |
 | --- | --- | --- |
 | A, L, R, D | Select, Line, Rectangle, Link | sketch |
-| A, D, N | Select, Dimension, Note | sheets |
+| A, D, N | Select, Dimension (orthographic sheets only), Note | sheets |
 | X | toggle construction on the selected lines | sketch |
 | Delete, Backspace | delete the selection | sketch, sheets |
 | 1 to 6 | front, back, left, right, top, bottom | model view |

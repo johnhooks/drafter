@@ -20,6 +20,12 @@ export interface Debug {
 
 export const dbg = (page: Page) => page.evaluate(() => (window as any).__debug() as Debug)
 
+export async function addSheet(page: Page, view = 'Front') {
+  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
+  await choose(page, 'View', view)
+  await page.getByRole('dialog', { name: 'Add Sheet', exact: true }).getByRole('button', { name: 'Create', exact: true }).click()
+}
+
 /** Drag on the sketch svg between pixel offsets relative to its centre. */
 export async function dragSvg(page: Page, from: [number, number], to: [number, number]) {
   const box = (await page.locator('.sketch svg').boundingBox())!

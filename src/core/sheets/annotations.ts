@@ -61,7 +61,7 @@ export function renderAnnotations(sheet: Sheet, projection: Projection, options:
     const [textX, textY] = note.position
     let leader = ''
     if (note.leader) {
-      const [endX, endY] = paper(note.leader)
+      const [endX, endY] = sheet.view === 'isometric' ? note.leader : paper(note.leader)
       const distance = Math.hypot(textX - endX, textY - endY)
       const directionX = distance ? (textX - endX) / distance : 1
       const directionY = distance ? (textY - endY) / distance : 0

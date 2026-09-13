@@ -9,7 +9,8 @@ import type { ResolvedPlane } from '../../core/model/types'
 const IN = 1 / 16
 
 /** Base tone; the camera-fixed light in the view supplies the per-face shading. */
-const BASE = '#d9d9d6'
+export const BODY_BASE_COLOR = '#d9d9d6'
+export const BODY_EDGE_COLOR = '#333'
 const SELECTED = '#a9bfe0'
 const HOVER = '#7fb2ee'
 
@@ -89,17 +90,16 @@ export function BodyMesh({ body, selected, pickable, onFace, onBody }: Props) {
               else onBody()
             }}
           >
-            <meshLambertMaterial color={hover === i && pickable ? HOVER : selected ? SELECTED : BASE} side={DoubleSide} />
+            <meshLambertMaterial color={hover === i && pickable ? HOVER : selected ? SELECTED : BODY_BASE_COLOR} side={DoubleSide} />
           </mesh>
           <lineSegments>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[p.edges, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color={selected ? '#0b6bcb' : '#333'} />
+            <lineBasicMaterial color={selected ? '#0b6bcb' : BODY_EDGE_COLOR} />
           </lineSegments>
         </group>
       ))}
     </group>
   )
 }
-

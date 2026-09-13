@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { choose, confirmDialog, dbg, field, makeCube, menu } from './helpers'
+import { addSheet, choose, confirmDialog, dbg, field, makeCube, menu } from './helpers'
 
 test('sheets list, settings, navigation, persistence, and standalone export', async ({ page }) => {
   await page.goto('/')
   await makeCube(page)
   await page.getByRole('button', { name: 'Sheets', exact: true }).click()
-  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
+  await addSheet(page)
   const drawing = page.locator('.sheet-paper > svg')
   await expect(drawing).toContainText('Sheet 1 of 1')
   await expect(drawing).toContainText('Front')
@@ -22,11 +22,12 @@ test('sheets list, settings, navigation, persistence, and standalone export', as
   await expect(page.getByRole('listbox', { name: 'Sheets' }).getByRole('option')).toHaveCount(1)
   await field(page, 'Name').fill('Case Front')
   await field(page, 'Name').press('Enter')
-  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
+  await addSheet(page, 'Top')
   await page.getByRole('button', { name: 'Move up', exact: true }).click()
-  await expect(page.getByRole('listbox', { name: 'Sheets' }).getByRole('option')).toHaveText(['Sheet 2Front · 1:4', 'Case FrontFront · 1:4'])
+  await expect(page.getByRole('listbox', { name: 'Sheets' }).getByRole('option')).toHaveText(['Sheet 2Top · 1:4', 'Case FrontFront · 1:4'])
   await expect(drawing).toContainText('Sheet 1 of 2')
-  await choose(page, 'View', 'Top')
+  await expect(field(page, 'View')).toHaveValue('Top')
+  await expect(field(page, 'View')).toHaveAttribute('readonly', '')
   await expect(drawing.locator('[data-sheet-view]')).toHaveAttribute('data-sheet-view', 'top')
   await expect(drawing).toContainText('Top')
   const camera = (await dbg(page)).view.camera
@@ -82,10 +83,10 @@ test('prints current or ordered sheets with paper-sized pages', async ({ page })
   await page.goto('/')
   await makeCube(page)
   await page.getByRole('button', { name: 'Sheets', exact: true }).click()
-  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
-  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
+  await addSheet(page)
+  await addSheet(page)
   await choose(page, 'Orientation', 'Portrait')
-  await page.getByRole('button', { name: 'Add Sheet', exact: true }).click()
+  await addSheet(page)
   await page.evaluate(() => { window.print = () => {} })
   await page.getByRole('button', { name: 'Print All', exact: true }).click()
   const pages = page.locator('#sheet-print > section')
