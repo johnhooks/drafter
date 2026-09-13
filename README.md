@@ -8,6 +8,7 @@ pnpm dev          # the app
 pnpm test         # unit tests
 pnpm test:e2e     # browser tests
 pnpm docs:dev     # documentation site
+pnpm run deploy  # build and publish the app to Cloudflare
 ```
 
 The documentation site in `docs/` covers the concepts, the sketch editor, constraints and expressions, and the file format. Conventions for working on the code are in `AGENTS.md`.

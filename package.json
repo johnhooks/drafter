@@ -2,10 +2,12 @@
   "name": "@bitmachina/drafter",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.5.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "deploy": "pnpm build && wrangler deploy",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -35,6 +37,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.131.1"
   }
 }
