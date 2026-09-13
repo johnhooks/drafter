@@ -16,7 +16,7 @@ The system SHALL project a set of bodies along one of four view directions with 
 - **THEN** both outlines span v 0 to 30, right spans u -12 to 0 and left spans u 0 to 12
 
 ### Requirement: Edges are classified visible or hidden
-The projection SHALL output axis-aligned edge segments in view coordinates, each marked visible or hidden. An edge is hidden where a face of any body lies between it and the viewer. Segments SHALL be split where their visibility changes. Segments that coincide after projection SHALL be merged, with visible taking precedence over hidden.
+The projection SHALL output axis-aligned edge segments in view coordinates, each marked visible or hidden. An edge is hidden where a face of any body lies between it and the viewer. Segments SHALL be split where their visibility changes. Segments that coincide after projection SHALL be merged, with visible taking precedence over hidden. Collinear adjacent segments of the same visibility SHALL be merged into one.
 
 #### Scenario: Pocket hidden in front view
 - **WHEN** a body with a pocket in its top face is projected front
@@ -37,9 +37,9 @@ Edges between two faces on the same plane with the same direction SHALL NOT be o
 - **WHEN** two boxes of equal height joined side by side are projected front
 - **THEN** there is no vertical segment at the join
 
-### Requirement: Snap targets from a projection
-The projection SHALL also output its vertices (segment endpoints) and its segments as snap targets in view coordinates, whether visible or hidden.
+### Requirement: Vertices and segments are listed
+The projection SHALL also output its vertices (segment endpoints) and its segments in view coordinates, whether visible or hidden, so later features can snap to them.
 
-#### Scenario: Hidden corners are snappable
+#### Scenario: Hidden corners are listed
 - **WHEN** a pocket is hidden in the front view
 - **THEN** the pocket's corners are still in the vertex list
