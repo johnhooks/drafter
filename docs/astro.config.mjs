@@ -6,6 +6,12 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Drafter',
+      favicon: '/favicon.ico',
+      head: [
+        { tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg', sizes: 'any' } },
+        { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' } },
+        { tag: 'link', attrs: { rel: 'manifest', href: '/site.webmanifest' } },
+      ],
       description: 'A small parametric modeller: sketch rectangles, extrude them, sketch on what you built.',
       customCss: ['./src/styles/custom.css'],
       plugins: [starlightThemeNova()],
