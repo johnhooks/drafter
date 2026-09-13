@@ -105,15 +105,20 @@ The construction command, bound to X by default, or a checkbox in the line prope
 - **THEN** the line is dashed and the two regions merge into one
 
 ### Requirement: Typed line fields
-The properties panel for a selected line SHALL show its direction, its position, and its run min, max, and size with the derived one marked, a construction checkbox, and a delete action, with the same parsing and error rules as inline editing. When the line is a member of a rectangle, the rectangle's form per `sketch-rectangles` SHALL be shown above it with the member's side marked. When exactly four lines are selected that are not already a rectangle's members, a Make rectangle action SHALL be offered; four lines that are a rectangle's members SHALL show that rectangle's form instead, per `sketch-rectangles`.
+The Selection panel for a selected line SHALL show its direction, its position, and its run min, max, and size with the derived one marked, a construction checkbox, and a delete action, with the same parsing and error rules as inline editing. These primary fields SHALL be visible without an additional object disclosure when the panel is expanded. When the line belongs to a rectangle, the panel SHALL identify the parent and provide an action selecting its four member lines to show the rectangle form per `sketch-rectangles`, rather than automatically showing that form above the line. When exactly four lines are selected that are not already a rectangle's members, a Make rectangle action SHALL be offered; four lines that are a rectangle's members SHALL show that rectangle's form instead.
 
 #### Scenario: Move by typing position
 - **WHEN** the user sets a horizontal line's position to `12` in the panel
 - **THEN** the line moves to v 12" and its endpoints are unchanged
 
-#### Scenario: Member line shows the rectangle
+#### Scenario: Member line identifies its rectangle
 - **WHEN** the user selects the right line of `r1`
-- **THEN** the panel shows `r1`'s form with Right marked, then the line's own fields
+- **THEN** the panel immediately shows the line's own fields and a parent action for `r1`
+- **AND** the parent rectangle form is not automatically expanded above them
+
+#### Scenario: Member line shows the rectangle
+- **WHEN** the user selects a member line and activates its parent rectangle action
+- **THEN** the parent rectangle is selected and its form replaces the line fields
 
 #### Scenario: Four loose lines offer Make rectangle
 - **WHEN** four attached lines that form a closed outline but belong to no rectangle are selected
@@ -211,39 +216,53 @@ The sketch properties SHALL list the sketch's rectangles first, one entry per re
 - **THEN** the same region is selected in the region list
 
 ### Requirement: Selection pane
-While the properties column shows a sketch, it SHALL be three windows: the sketch's fields at the top, with a control in its title bar that minimizes it to the bar and restores it, the lists in the middle taking whatever height the other two leave, and a Selection pane at the bottom that is always present and scrolls on its own, separated from the lists by a divider. The lists, Rectangles, Regions, Lines, and Constraints, SHALL be an accordion with at most one open, Regions open to start; the open list SHALL take the remaining height of its window and scroll on its own. The pane SHALL show the form for the current selection: the rectangle form for four selected member lines or a region that fills a rectangle; the rectangle form above the line form for a single member line; the line form for any other single line; the Make rectangle action for four selected lines that are not a rectangle; a count of selected lines or regions for any other selection; and a hint saying nothing is selected otherwise. The pane's height SHALL NOT change with the length of the lists or the selection. Dragging the divider SHALL set the pane's height between a minimum that keeps the pane usable and a maximum that keeps the sketch region visible; the divider SHALL be focusable and the up and down arrow keys SHALL change the height in steps; double-clicking it SHALL restore the default height. The height SHALL be remembered across sessions. A scrolling list or pane SHALL show a fade at its top edge while content is scrolled past it and at its bottom edge while content extends below it.
+While editing a sketch, its fields, its entity lists, and Selection SHALL be independently manageable dock panels per `workspace-docks`; Selection SHALL NOT be fixed beneath the entity lists. Rectangles, Regions, Lines, and Constraints SHALL retain their list behavior and at-most-one-open accordion inside the entity-list panel, with Regions initially open. Object inspection SHALL NOT add another disclosure around the selected object's primary form.
+
+Selection SHALL show the rectangle form for four selected member lines or a region that fills a rectangle; the line form for a single line; the Make rectangle action for four selected lines that are not a rectangle; counts for other line or region selections; and a nothing-selected hint otherwise. A selected constraint SHALL take precedence over retained line or region selection, showing its target line and slot, editable expression, resolved value or error, removal action, and an action to inspect the target line. Existing expression validation and constraint removal behavior SHALL apply. Switching to line inspection SHALL clear the selected constraint. Changing selected content SHALL NOT change panel allocation or automatically open a folded panel or dock. Scrolling lists and selection content SHALL retain their overflow fades.
 
 #### Scenario: Nothing selected
-- **WHEN** a sketch is open and nothing is selected
-- **THEN** the Selection pane is shown with a hint and no fields
+- **WHEN** a sketch is open, Selection is expanded, and nothing is selected
+- **THEN** Selection shows a hint and no fields
 
 #### Scenario: A line is selected
-- **WHEN** the user clicks a line in the view
-- **THEN** the line's form appears in the Selection pane and the lists above do not move
+- **WHEN** the user clicks a line in the view while Selection is expanded
+- **THEN** its fields appear directly and the lists do not change size
 
 #### Scenario: A rectangle is chosen from the list
 - **WHEN** the user chooses `r1` in the rectangle list
-- **THEN** `r1`'s form appears in the Selection pane
+- **THEN** the expanded Selection panel shows `r1`'s form
 
-#### Scenario: Divider dragged and remembered
-- **WHEN** the user drags the divider up by 80 px and reloads
-- **THEN** the pane is 80 px taller than before, and still is after the reload
-
-#### Scenario: Divider by keyboard and reset
-- **WHEN** the user focuses the divider, presses the down arrow, then double-clicks it
-- **THEN** the pane first shrinks by one step and then returns to the default height
+#### Scenario: Independent placement and resize
+- **WHEN** the user moves Selection to the opposite dock and resizes it
+- **THEN** it inspects the same selection and follows the dock sizing and persistence rules
 
 #### Scenario: Scroll fade
 - **WHEN** the open list holds more rows than fit
 - **THEN** it fades at the bottom, and after scrolling to the end it fades at the top instead
 
 #### Scenario: Minimize the sketch window
-- **WHEN** the user presses the minimize control in the sketch window's title bar
-- **THEN** only the title bar remains, the lists grow by the freed height, and the restore control brings the fields back
+- **WHEN** the user folds the sketch settings panel
+- **THEN** only its header remains and other expanded panels in its dock gain the released space
 
 #### Scenario: One list at a time
-- **WHEN** the Regions list is open and the user opens Lines
+- **WHEN** Regions is open and the user opens Lines
 - **THEN** Lines is open and Regions is closed
+
+#### Scenario: Inspect a constraint with a retained line selection
+- **WHEN** a line is selected and the user chooses a constraint from the list
+- **THEN** Selection shows that constraint's target, expression, result or error, and removal action rather than the retained line form
+
+#### Scenario: Return from constraint to line
+- **WHEN** the user activates the constraint inspector's target-line action
+- **THEN** the target line is selected, the constraint selection is cleared, and the line fields appear
+
+#### Scenario: Divider dragged and remembered
+- **WHEN** the user grows Selection by 80 px within the available limits and reloads at the same viewport size
+- **THEN** its preferred allocation is restored and it remains 80 px taller than before
+
+#### Scenario: Divider by keyboard and reset
+- **WHEN** the user focuses a divider, uses an arrow key to change the allocation, then double-clicks it
+- **THEN** the neighboring expanded panels resize by one step and then the dock returns to its default allocation
 
 ### Requirement: Tools switch by key
 Each sketch tool SHALL be a command per `commands`, bound by default to A for Select, L for Line, R for Rectangle, and D for Link, and its toolbar button SHALL show the chord in its tooltip. Switching tools by key SHALL cancel any drag or chain in progress in the previous tool.

@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import { Hint } from '@bitmachina/drafter-kit'
 import { type PointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { pageLayout, sheetLayout } from '../../core/sheets/layout'
@@ -78,10 +79,7 @@ export function SheetView() {
   useLayoutEffect(() => {
     const element = viewport.current
     if (!element) return
-    const observer = new ResizeObserver(fit)
-    observer.observe(element)
     fit()
-    return () => observer.disconnect()
   }, [id, page.width, page.height])
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
@@ -171,7 +169,8 @@ export function SheetView() {
     if (start?.pointer === event.pointerId) setView((current) => ({ ...current, x: start.panX + event.clientX - start.x, y: start.panY + event.clientY - start.y }))
     else if (!start) {
       const pointer = pointerInfo(event)
-      if (pointer) tool.move(pointer)
+      // Flush preview markup before the next press can target its replaced SVG.
+      if (pointer) flushSync(() => tool.move(pointer))
     }
   }} onPointerUp={(event) => {
     if (activePointer.current === event.pointerId) {

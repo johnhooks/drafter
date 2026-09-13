@@ -30,11 +30,12 @@ test('a drawn rectangle is named, has a form, explodes, and can be grouped again
     await expect(page.getByRole('textbox', { name: 'Right (this line)' })).toHaveCount(0)
   })
 
-  await test.step('selecting the right line shows the form with that side marked, and Width moves it', async () => {
+  await test.step('selecting a member line offers parent navigation, and Width moves the right side', async () => {
     await clickInches(page, v1, 24, 8)
     d = await dbg(page)
     expect(d.selection.lineIds).toEqual([linesOf(d, 0)[2]!.id])
-    await expect(page.getByRole('textbox', { name: 'Right (this line)' })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Position (u)' })).toBeVisible()
+    await page.getByRole('button', { name: 'Inspect rectangle r1' }).click()
     await field(page, 'Width').fill('20')
     await field(page, 'Width').press('Enter')
     d = await dbg(page)

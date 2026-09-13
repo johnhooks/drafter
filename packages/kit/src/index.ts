@@ -27,3 +27,6 @@ export { Tooltip, TooltipTrigger } from './components/Tooltip/Tooltip'
 export { Disclosure } from './components/Disclosure/Disclosure'
 export { Field, Fields, Hint, Panel, Row } from './components/Layout/Layout'
 export { InlineEdit, type InlineEditProps } from './components/InlineEdit/InlineEdit'
+
+export * from './components/DockWorkspace/layout'
+export * from './components/DockWorkspace/DockWorkspace'

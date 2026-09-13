@@ -1,3 +1,4 @@
+import { parseDockLayout, type DockLayout } from '@bitmachina/drafter-kit'
 import { parseDocument, serializeDocument } from '../core/model/document'
 import type { DocumentFile } from '../core/model/types'
 import { DEFAULT_DISPLAY, type Display } from './store/actions'
@@ -98,23 +99,21 @@ export function saveDisplay(display: Display) {
   }
 }
 
-const LAYOUT_KEY = 'drafter.layout'
+const DOCK_LAYOUT_KEY = 'drafter.docks.v1'
 
-/** The selection pane height in pixels, or null for the default proportion; anything malformed is the default. */
-export function loadPaneHeight(): number | null {
+export function loadDockLayout(defaults: DockLayout) {
   try {
-    const raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '{}') as Record<string, unknown>
-    const h = raw['paneHeight']
-    return typeof h === 'number' && Number.isFinite(h) && h > 0 ? h : null
+    return parseDockLayout(JSON.parse(localStorage.getItem(DOCK_LAYOUT_KEY) ?? 'null'), defaults)
   } catch {
-    return null
+    return structuredClone(defaults)
   }
 }
 
-export function savePaneHeight(height: number | null) {
+export function saveDockLayout(layout: DockLayout) {
   try {
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(height === null ? {} : { paneHeight: height }))
+    const { columns, widths, hidden, folded, weights } = layout
+    localStorage.setItem(DOCK_LAYOUT_KEY, JSON.stringify({ version: 1, columns, widths, hidden, folded, weights }))
   } catch {
-    // storage may be unavailable; the height then lasts for the session
+    // Layout remains usable for this session when storage is unavailable.
   }
 }

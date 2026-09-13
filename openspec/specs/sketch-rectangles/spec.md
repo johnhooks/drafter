@@ -43,7 +43,7 @@ Deleting a member line SHALL rewrite references to the rectangle as exploding do
 - **THEN** no rectangle `r1` exists and its left, bottom, and top lines remain
 
 ### Requirement: Rectangle form
-Selecting a member line, selecting exactly the rectangle's four member lines, or selecting a single region that is exactly the rectangle's area, SHALL show the rectangle's form: Left, Right, Bottom, Top, Width, Height, and Explode. Four selected lines that are a rectangle's members SHALL show its form and not the Make rectangle action. Left, Right, Bottom, and Top SHALL show and write the member line's position, accepting a length or an expression. Width SHALL write the right line's position as the left line's position plus the value: as a number when the value is a number, or as `<left handle>.at + (expression)` when it is an expression; Height likewise for the top line. Width and Height SHALL be refused with a message naming the expression when the far line's position is an expression.
+Selecting exactly the rectangle's four member lines, selecting a single region that is exactly the rectangle's area, or explicitly navigating from a member line to its parent rectangle, SHALL show the rectangle's form: Left, Right, Bottom, Top, Width, Height, and Explode. Four selected lines that are a rectangle's members SHALL show its form and not the Make rectangle action. Left, Right, Bottom, and Top SHALL show and write the member line's position, accepting a length or an expression. Width SHALL write the right line's position as the left line's position plus the value: as a number when the value is a number, or as `<left handle>.at + (expression)` when it is an expression; Height likewise for the top line. Width and Height SHALL be refused with a message naming the expression when the far line's position is an expression.
 
 #### Scenario: Clicking inside the rectangle shows its form
 - **WHEN** the user clicks inside `r1` with the Select tool, or chooses its row in the rectangle list
@@ -72,3 +72,8 @@ Selecting a member line, selecting exactly the rectangle's four member lines, or
 #### Scenario: Width refused
 - **WHEN** the right line's position is `face.right - 2` and the user types a Width
 - **THEN** the edit is refused with a message naming `face.right - 2`
+
+#### Scenario: Inspect a member's parent
+- **WHEN** a single member line is selected and the user activates its parent rectangle action
+- **THEN** the rectangle's four member lines become selected and its form replaces the line fields
+- **AND** selecting the member alone does not automatically show the rectangle form

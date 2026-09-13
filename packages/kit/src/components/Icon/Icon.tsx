@@ -10,6 +10,8 @@ const MICRO: Record<string, string> = {
   close: 'M2.5 2.5 L9.5 9.5 M9.5 2.5 L2.5 9.5',
   plus: 'M6 2 V10 M2 6 H10',
   minus: 'M2 6 H10',
+  maximize: 'M4.5 2H2v2.5 M7.5 2H10v2.5 M10 7.5V10H7.5 M4.5 10H2V7.5',
+  restore: 'M2 4.5H4.5V2 M7.5 2V4.5H10 M10 7.5H7.5V10 M4.5 10V7.5H2',
   check: 'M2 6.2 L4.8 9 L10 3.2',
   'chevron-down': 'M2.5 4.5 L6 8 L9.5 4.5',
   'chevron-right': 'M4.5 2.5 L8 6 L4.5 9.5',

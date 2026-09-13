@@ -2,27 +2,17 @@
 html, body, #root { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
 body { background: var(--kit-surface-frame); color: var(--kit-text); font-family: var(--kit-font); font-size: var(--kit-text-sm); }
 * { box-sizing: border-box; }
-.app { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 240px 1fr 300px; height: 100%; }
-.topbar { grid-column: 1 / -1; }
-.side { min-height: 0; }
-/* the properties column of a sketch is three windows: its fields, which minimize to their title bar; the lists as an
-   accordion that takes what is left, only the open one scrolling; and the selection pane below a divider that sets its height */
-.props { display: flex; flex-direction: column; }
-.props-sketch { flex: 0 0 auto; }
-.props-sketch .handle { text-transform: none; }
-.props-sketch[data-minimized] .kit-panel-body { display: none; }
-/* the lists keep a floor and the pane may shrink, so a stored or stale pane height can never push the lists out */
-.props-lists { flex: 1 1 auto; min-height: 120px; }
-.props-lists .kit-panel-body { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.app { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); height: 100%; }
+.topbar { grid-column: 1 / -1; border-bottom: 0; }
+/* Entity lists own their scroll areas; the dock owns their allocated height. */
+.workspace-entities, .workspace-selection { padding: 0; overflow: hidden; }
+.props-lists, .props-selection { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.props-lists .kit-panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; padding: 0; }
 .props-lists .kit-disclosure { display: flex; flex-direction: column; flex: 0 0 auto; min-height: 0; }
 .props-lists .kit-disclosure[data-expanded] { flex: 1 1 auto; }
 .props-lists .kit-disclosure-panel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .props-lists .kit-disclosure-panel[hidden] { display: none; }
-.props-divider { flex: 0 0 var(--kit-line-w); position: relative; background: var(--kit-line); outline: none; touch-action: none; }
-.props-divider::after { content: ''; position: absolute; left: 0; right: 0; top: -3px; bottom: -3px; cursor: row-resize; }
-.props-divider:hover, .props-divider:focus-visible, .props-divider[data-dragging] { background: var(--kit-focus); }
-.props-selection { flex: 0 1 45%; min-height: 120px; }
-.props-selection .kit-panel-body { display: flex; flex-direction: column; overflow: hidden; }
+.props-selection .scroll-area-inner { padding: var(--kit-space-2); }
 /* fades over the edges of a scroll area say there is more in that direction; the attribute follows the scroll position */
 .scroll-area { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .scroll-area-inner { flex: 1 1 auto; min-height: 0; overflow: auto; }

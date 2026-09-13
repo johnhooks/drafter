@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
-import { Button, Checkbox, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Panel, Row, Select, SelectItem, TextField } from '@bitmachina/drafter-kit'
+import type { ReactNode } from 'react'
+import { Button, Checkbox, Disclosure, Field, Fields, Hint, IconButton, ListBox, ListBoxItem, Row, Select, SelectItem, TextField } from '@bitmachina/drafter-kit'
 import { FRAMES } from '../core/model/planes'
 import type { ExtrudeFeature, Len, LineDir, LineSlot, SketchFeature, SketchLine, SketchRect, Slot } from '../core/model/types'
 import { isExpr, regionKey, sameRegion } from '../core/model/types'
@@ -195,8 +195,7 @@ export function SketchLists({ sketch, open, onOpen }: { sketch: SketchFeature; o
   )
 }
 
-/** The fixed pane under the sketch properties: the form for whatever is selected, so it never moves with the lists. */
-export function SelectionPanel({ style }: { style?: CSSProperties }) {
+export function SelectionPanel() {
   const doc = useStore((s) => s.doc)
   const selection = useStore((s) => s.selection)
   const ev = useStore((s) => s.eval)
@@ -217,10 +216,21 @@ export function SelectionPanel({ style }: { style?: CSSProperties }) {
   const lines = selection.lineIds.length
   const regionCount = selection.regions.length
   let body: ReactNode
-  if (single) {
+  if (selection.constraint) {
+    const constraint = selection.constraint
+    const entry = constraint.sketchId === sketch.id ? constraintEntries(sketch, r?.kind === 'sketch' ? r : undefined).find(e => e.line.id === constraint.lineId && e.slot === constraint.slot) : undefined
+    body = entry ? <Fields>
+      <strong>Constraint {entry.line.handle}.{SLOT_NAME[entry.line.dir][entry.slot]}</strong>
+      <Field label="Target">{entry.line.handle} · {SLOT_NAME[entry.line.dir][entry.slot]}</Field>
+      <LenField label="Expression" value={entry.expr} resolved={entry.value} error={entry.error} onCommit={value => dispatch('setLineSlot', sketch.id, entry.line.id, entry.slot, value)} />
+      {entry.value !== undefined && <Field label="Evaluated value">{formatLength(entry.value as Sixteenths)}</Field>}
+      <Button tone="danger" onPress={() => dispatch('removeConstraint', constraint)}>Remove constraint</Button>
+      <Button onPress={() => dispatch('selectLines', sketch.id, [entry.line.id])}>Inspect line {entry.line.handle}</Button>
+    </Fields> : <Hint>Nothing selected. This constraint is no longer available.</Hint>
+  } else if (single) {
     body = (
       <>
-        <RectangleProperties sketch={sketch} line={single} />
+        {sketch.rects.filter(rect => rect.lines.includes(single.id)).map(rect => <Field key={rect.id} label="Belongs to"><Button onPress={() => dispatch('selectLines', sketch.id, rect.lines)}>Inspect rectangle {rect.handle}</Button></Field>)}
         <LineProperties sketch={sketch} line={single} />
       </>
     )
@@ -237,9 +247,9 @@ export function SelectionPanel({ style }: { style?: CSSProperties }) {
   else if (regionCount > 0) body = <Hint>{regionCount === 1 ? '1 region' : `${regionCount} regions`} selected</Hint>
   else body = <Hint>Nothing selected. Click a line or region in the view, or choose one from the lists.</Hint>
   return (
-    <Panel edge="left" title="Selection" className="props-selection" style={style}>
+    <div className="props-selection">
       <ScrollArea>{body}</ScrollArea>
-    </Panel>
+    </div>
   )
 }
 
@@ -251,17 +261,13 @@ function featureName(id: string): string {
 const SIDE_NAME = ['Left', 'Bottom', 'Right', 'Top'] as const
 const SIDE_SLOT: readonly RectSlot[] = ['left', 'bottom', 'right', 'top']
 
-/** The form of a rectangle, reached from a selected member line or from its selected region; every field writes to a member line. */
-function RectangleProperties({ sketch, line, rect: given }: { sketch: SketchFeature; line?: SketchLine; rect?: SketchRect }) {
+function RectangleProperties({ sketch, rect }: { sketch: SketchFeature; rect: SketchRect }) {
   const ev = useStore((s) => s.eval)
   const dispatch = useStore((s) => s.dispatch)
-  const rect = given ?? sketch.rects.find((r) => line !== undefined && r.lines.includes(line.id))
-  if (!rect) return null
   const r = ev.results.get(sketch.id)
   const resolved = r?.kind === 'sketch' ? r.lines : undefined
   const members = rect.lines.map((id) => sketch.lines.find((l) => l.id === id))
   const at = (i: number) => resolved?.get(rect.lines[i]!)?.at
-  const side = line ? rect.lines.indexOf(line.id) : -1
   const sideField = (i: number) => {
     const m = members[i]
     if (!m) return null
@@ -269,7 +275,7 @@ function RectangleProperties({ sketch, line, rect: given }: { sketch: SketchFeat
     return (
       <LenField
         key={SIDE_SLOT[i]}
-        label={i === side ? `${SIDE_NAME[i]} (this line)` : SIDE_NAME[i]!}
+        label={SIDE_NAME[i]!}
         value={m.at}
         resolved={isExpr(m.at) ? at(i) : undefined}
         error={isExpr(m.at) && err ? err : undefined}
@@ -280,7 +286,7 @@ function RectangleProperties({ sketch, line, rect: given }: { sketch: SketchFeat
   const width = at(2) !== undefined && at(0) !== undefined ? ((at(2)! - at(0)!) as Sixteenths) : (0 as Sixteenths)
   const height = at(3) !== undefined && at(1) !== undefined ? ((at(3)! - at(1)!) as Sixteenths) : (0 as Sixteenths)
   return (
-    <Disclosure title={`Rectangle ${rect.handle}`}>
+    <div><h3 className="section-title">Rectangle {rect.handle}</h3>
       <Fields>
         <Hint>Sides move that line. Width and Height move the right and top lines; both accept expressions.</Hint>
         <Row>
@@ -297,7 +303,7 @@ function RectangleProperties({ sketch, line, rect: given }: { sketch: SketchFeat
           <Button onPress={() => dispatch('explodeRectangle', sketch.id, rect.id)}>Explode</Button>
         </div>
       </Fields>
-    </Disclosure>
+    </div>
   )
 }
 
@@ -335,7 +341,7 @@ function LineProperties({ sketch, line }: { sketch: SketchFeature; line: SketchL
     )
   })
   return (
-    <Disclosure title={`Line ${line.handle}`}>
+    <div><h3 className="section-title">Line {line.handle}</h3>
       <Fields>
         {err && <Field error={err}>{null}</Field>}
         <Field label="Direction">{line.dir === 'h' ? 'Horizontal' : 'Vertical'}</Field>
@@ -357,7 +363,7 @@ function LineProperties({ sketch, line }: { sketch: SketchFeature; line: SketchL
           </Button>
         </div>
       </Fields>
-    </Disclosure>
+    </div>
   )
 }
 

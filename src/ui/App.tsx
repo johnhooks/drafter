@@ -9,7 +9,6 @@ import {
   MenuSection,
   MenuSeparator,
   MenuTrigger,
-  Panel,
   Select,
   SelectItem,
   TextField,
@@ -34,13 +33,12 @@ import { downloadText, downloadUrl, readFile, safeName } from './exportFile'
 import { parseLen } from './LenField'
 import { ModelView } from './model/ModelView'
 import { loadDisplay, loadKeys, loadSaved, loadTheme, save, saveDisplay, saveKeys, saveTheme } from './persist'
-import { PropertiesColumn } from './PropertiesColumn'
+import { Workspace } from './Workspace'
 import { SketchEditor, sketchSvgForExport } from './sketch/SketchEditor'
 import { type Tool, type SheetTool, fileOf } from './store/actions'
 import { useCommand, useKeyHandler, useViewHooks } from './useCommands'
 import { useStore } from './store/store'
-import { Timeline } from './Timeline'
-import { SheetCommand, SheetList } from './sheets/SheetList'
+import { SheetCommand } from './sheets/SheetList'
 import { SheetView } from './sheets/SheetView'
 import { exportSheet } from './sheets/output'
 import { listenForPrint, printSheets } from './print'
@@ -128,22 +126,20 @@ export function App() {
   return (
     <div className="app">
       <AppToolbar centre={centre} sketch={sketch} />
-      <Panel edge="right" className="side">
-        {mode.kind === 'sheet' ? <SheetList /> : <Timeline />}
-      </Panel>
-      <div className="centre" ref={centre}>
-        {mode.kind === 'sheet' ? <SheetView /> : sketch ? <SketchEditor key={sketch.id} sketch={sketch} /> : <ModelView />}
-        {errors.length > 0 && (
-          <div className="errors">
-            {errors.map((e) => (
-              <div className="error" key={`${e.featureId}:${e.message}`}>
-                {doc.features.find((f) => f.id === e.featureId)?.name ?? e.featureId}: {e.message}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <PropertiesColumn />
+      <Workspace>
+        <div className="centre" ref={centre}>
+          {mode.kind === 'sheet' ? <SheetView /> : sketch ? <SketchEditor key={sketch.id} sketch={sketch} /> : <ModelView />}
+          {errors.length > 0 && (
+            <div className="errors">
+              {errors.map((e) => (
+                <div className="error" key={`${e.featureId}:${e.message}`}>
+                  {doc.features.find((f) => f.id === e.featureId)?.name ?? e.featureId}: {e.message}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Workspace>
       <ToastRegion />
     </div>
   )

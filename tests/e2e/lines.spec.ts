@@ -223,7 +223,7 @@ test('the selection pane keeps its place: a hint when empty, then the form for a
   const before = await regionList.boundingBox()
   await tool(page, 'Select')
   await clickInches(page, v1, 24, 8)
-  await expect(pane.getByRole('textbox', { name: 'Right (this line)' })).toBeVisible()
+  await expect(pane.getByRole('button', { name: 'Inspect rectangle r1' })).toBeVisible()
   await expect(pane.getByRole('textbox', { name: 'Position (u)' })).toBeVisible()
   expect((await regionList.boundingBox())?.y).toBe(before?.y)
   await clickInches(page, v1, 12, 30)
@@ -239,7 +239,7 @@ test('the divider resizes the selection pane, the height survives a reload, and 
   await page.setViewportSize({ width: 1280, height: 700 })
   await newSketch(page)
   const pane = page.locator('.props-selection')
-  const divider = page.getByRole('separator', { name: 'Resize the selection pane' })
+  const divider = page.getByRole('separator', { name: 'Resize Sketch and Selection' })
   const before = (await pane.boundingBox())!.height
   const box = (await divider.boundingBox())!
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
@@ -261,18 +261,19 @@ test('the divider resizes the selection pane, the height survives a reload, and 
   await tool(page, 'Rectangle')
   await drawInches(page, v1, [0, 0], [24, 16])
   for (const u of [4, 8, 12, 16, 20]) await lineInches(page, v1, [[u, 0], [u, 16]])
+  const listDivider = page.getByRole('separator', { name: 'Resize Model and Sketch entities' })
+  await listDivider.focus()
+  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowDown')
   const area = page.locator('.props-lists .kit-disclosure[data-expanded] .scroll-area')
   await expect(area).toHaveAttribute('data-more', 'bottom')
   await area.locator('.scroll-area-inner').evaluate((el) => el.scrollTo(0, el.scrollHeight))
   await expect(area).toHaveAttribute('data-more', 'top')
 
-  // the sketch window minimizes to its title bar and the lists take the space
-  const lists = page.locator('.props-lists')
-  const listsBefore = (await lists.boundingBox())!.height
-  await page.getByRole('button', { name: 'Minimize sketch properties' }).click()
+  const selectionBefore = (await pane.boundingBox())!.height
+  await page.getByRole('button', { name: 'Collapse Sketch', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Name' })).toBeHidden()
-  expect((await lists.boundingBox())!.height).toBeGreaterThan(listsBefore + 60)
-  await page.getByRole('button', { name: 'Restore sketch properties' }).click()
+  expect((await pane.boundingBox())!.height).toBeGreaterThan(selectionBefore + 60)
+  await page.getByRole('button', { name: 'Expand Sketch', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
 
   // one list open at a time
@@ -286,14 +287,14 @@ test('a stored pane height is clamped to the column on load and on resize', asyn
   await newSketch(page)
   const pane = page.locator('.props-selection')
   const lists = page.locator('.props-lists')
-  const column = page.locator('.props')
+  const column = page.getByRole('complementary', { name: 'right dock' })
   const check = async () => {
     const c = (await column.boundingBox())!
     const p = (await pane.boundingBox())!
     const l = (await lists.boundingBox())!
     expect(p.height).toBeGreaterThanOrEqual(120)
     expect(l.height).toBeGreaterThanOrEqual(120)
-    expect(p.y + p.height).toBeLessThanOrEqual(c.y + c.height + 1)
+    await expect.poll(async () => { const bounds = (await pane.boundingBox())!; return bounds.y + bounds.height }).toBeLessThanOrEqual(c.y + c.height + 1)
   }
   for (const stored of [5000, 5]) {
     await page.evaluate((h) => localStorage.setItem('drafter.layout', JSON.stringify({ paneHeight: h })), stored)

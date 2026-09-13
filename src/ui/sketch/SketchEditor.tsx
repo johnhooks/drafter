@@ -86,8 +86,7 @@ export function SketchEditor({ sketch }: Props) {
     return () => ro.disconnect()
   }, [])
 
-  // on open, frame the reference geometry and existing lines; empty sketches centre on 1 foot square
-  useEffect(() => {
+  const fit = () => {
     const el = svgRef.current
     if (!el) return
     const rects: Rect2[] = [...(sr?.coplanarFaces.flatMap((f) => f.rects) ?? []), ...(sr?.outlines ?? []), ...drawn.map((d) => shapeRect(d.shape))]
@@ -100,9 +99,9 @@ export function SketchEditor({ sketch }: Props) {
     const h = Math.max(v1 - v0, 1)
     const scale = Math.min(400, Math.max(1, Math.min((el.clientWidth * 0.7) / w, (el.clientHeight * 0.7) / h)))
     setView({ cu: (u0 + u1) / 2, cv: (v0 + v1) / 2, scale })
-    // only on first open of this sketch
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sketch.id])
+  }
+  // Opening a sketch frames it once; layout changes retain the user's view.
+  useEffect(fit, [sketch.id])
 
   // every constraint is computed so automatic stacking is stable; whether one is drawn is decided below
   const dims = useMemo(() => (sr ? dimensionsOf(sketch, sr, { pxPerSx, overrides }) : { dims: [] as DimSpec[], tags: [] as TagSpec[], ticks: [] as TickSpec[] }), [sketch, sr, pxPerSx, overrides])
@@ -220,7 +219,7 @@ export function SketchEditor({ sketch }: Props) {
   // the app's key handler asks the tool about Escape and Enter first; cancelTool serves tool switches and the cancel command
   const toolRef = useRef(tool)
   toolRef.current = tool
-  useViewHooks({ cancelTool: () => toolRef.current.cancel(), toolConsumes: (key) => toolRef.current.key(key) })
+  useViewHooks({ fit, cancelTool: () => toolRef.current.cancel(), toolConsumes: (key) => toolRef.current.key(key) })
 
   // Space is a drag modifier, not a chord
   useEffect(() => {
