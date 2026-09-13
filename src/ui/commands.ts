@@ -169,6 +169,7 @@ export const COMMANDS: readonly Command[] = [
   { id: 'file.download', label: 'Download JSON', view: 'any', run: ({ hooks }) => hooks.menu?.('download') },
   { id: 'file.open', label: 'Open JSON', view: 'any', run: ({ hooks }) => hooks.menu?.('open') },
   { id: 'file.new', label: 'New document', view: 'any', run: ({ hooks }) => hooks.menu?.('new') },
+  { id: 'help.keys', label: 'Keyboard shortcuts', view: 'any', key: 'Mod+/', run: ({ hooks }) => hooks.menu?.('keys') },
 ]
 
 export const commandById = (id: string): Command | undefined => COMMANDS.find((c) => c.id === id)

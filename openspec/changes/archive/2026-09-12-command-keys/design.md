@@ -41,6 +41,8 @@ interface Command {
 
 ## Risks / Trade-offs
 
+**In-place key editing.** Each chord is a value button that becomes a same-sized input on click, Enter, or Space. The shared kit `InlineEdit` manages focus, commit, cancellation, and validation; the application supplies chord rules. The command list has a fixed-height scroll area so opening an editor does not shift the dialog. Storybook includes the component's normal, empty, and validation states and the application's default and customized shortcut dialogs.
+
 - [A letter key steals a keystroke meant for a field that does not report as text] → The text check covers inputs, text areas, and contentEditable, the same rule the existing handlers use; the kit's fields are all inputs.
 - [Rebinding Escape or Mod+Z to something odd] → Allowed; Reset restores. Escape's cancel is also reachable by clicking away.
 - [The view cube has no command, so its faces cannot be rebound] → Cube clicks stay clicks; the view commands cover the keyboard.

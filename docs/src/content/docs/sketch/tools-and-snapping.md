@@ -52,10 +52,11 @@ Every key is a command, and every command shows its key in its button's tooltip.
 | F | fit the model or sheet page | model view, sheets |
 | Cmd+Z, Cmd+Shift+Z | undo, redo (Ctrl elsewhere) | everywhere |
 | Escape | cancel what is in progress, then clear | everywhere |
+| Cmd+/ (Ctrl elsewhere) | keyboard shortcuts | everywhere |
 
 Keys do nothing while a text field has focus, so typing `a` into a length field types it. Model and sketch commands do not fire in [Sheets mode](/drawings/sheets/). There, wheel zoom and middle-button or Space-drag pan navigate the page; Escape clears the sheet selection.
 
-To change them, open the document properties (click the document row in the timeline) and the **Keys** section. Select a command and type its key, `V` or `Mod+Shift+Z`, where Mod is Cmd on a Mac and Ctrl elsewhere. A key already used by another command that can be active at the same time is refused with that command's name; an empty field unbinds. **Reset keys** restores the defaults. Keys are remembered in the browser, not in the file.
+To view or change keys, choose **More → Keyboard shortcuts** or press **Cmd+/** (**Ctrl+/** elsewhere). The dialog is available in the model, sketches, and sheets. Click a key value, or focus it and press Enter or Space, to edit it in place. Type `V` or `Mod+Shift+Z`, where Mod is Cmd on a Mac and Ctrl elsewhere. Enter saves; Escape cancels and returns focus to the value; Tab saves a valid edit and moves onward. A key already used by another command that can be active at the same time is refused with that command's name; an empty field unbinds. **Reset keys** restores the defaults. Keys are remembered in the browser, not in the file.
 
 ## Display toggles
 

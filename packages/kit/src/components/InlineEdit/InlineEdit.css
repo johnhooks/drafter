@@ -1,0 +1,4 @@
+.kit-inline-edit { min-width: 0; }
+.kit-inline-edit .kit-button, .kit-inline-edit .kit-input { width: 100%; height: var(--kit-control-h); text-align: left; justify-content: flex-start; font-size: var(--kit-text-md); }
+.kit-inline-edit[data-monospace] .kit-button, .kit-inline-edit[data-monospace] .kit-input { font-family: var(--kit-font-mono); }
+.kit-inline-edit [data-invalid] .kit-input { border-color: var(--kit-danger); }

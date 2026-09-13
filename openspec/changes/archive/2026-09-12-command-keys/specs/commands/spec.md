@@ -30,6 +30,10 @@ A single handler SHALL match each key press against the bindings of commands tha
 - **WHEN** the sketch view is open and the user presses 1
 - **THEN** nothing happens; 1 is a model view command
 
+#### Scenario: Dialog keeps keyboard focus
+- **WHEN** a modal dialog is open and the user presses a model or sketch command key
+- **THEN** the underlying view is unchanged; the dialog handles its own keys
+
 ### Requirement: Default bindings
 The default bindings SHALL be: Select A, Line L, Rectangle R, Link D; construction X; delete selection Delete and Backspace; undo Mod+Z, redo Mod+Shift+Z; front, back, left, right, top, bottom 1 to 6; default isometric Home; fit F; cancel and clear Escape; keyboard shortcuts Mod+/. Tool and sketch commands apply to the sketch view; view commands to the model view; undo, redo, Escape, and keyboard shortcuts to both.
 
@@ -43,6 +47,12 @@ A Keyboard shortcuts dialog SHALL list every command with its chord and the view
 #### Scenario: Open from a sketch
 - **WHEN** a sketch is open and the user presses Mod+/
 - **THEN** the Keyboard shortcuts dialog opens listing Select with A
+
+#### Scenario: Edit a value in place
+- **WHEN** the user clicks a key value or focuses it and presses Enter or Space
+- **THEN** it becomes a focused input in the same-sized cell without moving the dialog
+- **AND** Enter saves and Escape cancels, restoring focus to the value; Tab saves a valid change and continues to the next control
+- **AND** invalid input remains editable with an associated error message
 
 #### Scenario: Rebind
 - **WHEN** the user sets Select to V and reloads

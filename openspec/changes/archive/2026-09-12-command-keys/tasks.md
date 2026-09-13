@@ -16,6 +16,6 @@
 
 ## 4. Keyboard shortcuts dialog
 
-- [ ] 4.1 Move the Keys section out of the document properties into a Keyboard shortcuts dialog opened by a `help.keys` command from the More menu and Mod+/ in both views; verify e2e that Mod+/ in a sketch opens the dialog listing Select with A, and that the rebind, conflict, and Reset steps pass through the dialog
-- [ ] 4.2 Update tools-and-snapping and the timeline page's undo note to point at the dialog; verify `pnpm docs:build`
-- [ ] 4.3 Verify `pnpm test`, `pnpm test:e2e`, `pnpm typecheck`, `pnpm build`, `pnpm docs:build` pass and update the notes file
+- [x] 4.1 Move the Keys section out of the document properties into a Keyboard shortcuts dialog opened by a `help.keys` command from the More menu and Mod+/ in both views; verify e2e that Mod+/ in a sketch opens the dialog listing Select with A, and that the rebind, conflict, and Reset steps pass through the dialog
+- [x] 4.2 Update tools-and-snapping and the timeline page's undo note to point at the dialog; verify `pnpm docs:build`
+- [x] 4.3 Verify `pnpm test`, `pnpm test:e2e`, `pnpm typecheck`, `pnpm build`, `pnpm docs:build` pass and update the notes file

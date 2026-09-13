@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { type View, clickInches, dbg, drawInches, field, linesOf, newSketch, tool } from './helpers'
+import { type View, clickInches, dbg, drawInches, field, linesOf, menu, newSketch, tool } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -73,10 +73,10 @@ test('tool keys switch tools, are scoped to the sketch, and stay out of text fie
 test('keys can be rebound, conflicts are refused, and reset restores the defaults', async ({ page }) => {
   await newSketch(page)
   await page.getByRole('button', { name: 'Finish' }).click()
-  await page.getByRole('option', { name: /^Untitled/ }).click()
-  await page.getByRole('button', { name: /^Keys/ }).click()
+  await menu(page, 'Keyboard shortcuts')
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
   const pick = async (label: string) => {
-    await page.getByRole('listbox', { name: 'Keys' }).getByRole('option', { name: label, exact: true }).click()
+    await page.getByRole('button', { name: new RegExp(`^Edit ${label} key,`) }).click()
     return field(page, `${label} key`)
   }
 
@@ -85,8 +85,8 @@ test('keys can be rebound, conflicts are refused, and reset restores the default
     await f.fill('v')
     await f.press('Enter')
     expect((await dbg(page)).keys).toEqual({ 'tool.select': 'V' })
-    await expect(f).toHaveValue('V')
-    await expect(page.getByRole('option', { name: 'Select', exact: true })).toContainText('V, sketch')
+    await expect(page.getByRole('button', { name: 'Edit Select key, currently V' })).toBeFocused()
+    await expect(page.getByRole('row', { name: /^Select sketch/ })).toBeVisible()
   })
 
   await test.step('a conflict is refused naming the other command', async () => {
@@ -126,11 +126,57 @@ test('keys can be rebound, conflicts are refused, and reset restores the default
   })
 
   await test.step('reset', async () => {
-    await page.getByRole('button', { name: 'Finish' }).click()
-    await page.getByRole('option', { name: /^Untitled/ }).click()
-    await page.getByRole('button', { name: /^Keys/ }).click()
+    await page.keyboard.press('Meta+/')
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+    const lineKey = await pick('Line')
+    await lineKey.fill('')
+    await lineKey.press('Enter')
+    expect((await dbg(page)).keys['tool.line']).toBeNull()
+    await expect(page.getByRole('button', { name: 'Edit Line key, currently Unbound' })).toBeVisible()
+    const invalidKey = await pick('Line')
+    await invalidKey.fill('V')
+    await invalidKey.press('Enter')
+    await expect(invalidKey).toHaveAttribute('aria-invalid', 'true')
     await page.getByRole('button', { name: 'Reset keys' }).click()
     expect((await dbg(page)).keys).toEqual({})
-    await expect(page.getByRole('listbox', { name: 'Keys' }).getByRole('option', { name: 'Select', exact: true })).toContainText('A, sketch')
+    await expect(page.getByRole('button', { name: 'Edit Line key, currently L' })).toBeVisible()
+    await expect(invalidKey).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Edit Select key, currently A' })).toBeVisible()
   })
+})
+
+test('keyboard shortcuts opens in every view without triggering canvas keys', async ({ page }) => {
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' })
+  await page.keyboard.press('Meta+/')
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await newSketch(page)
+  await tool(page, 'Rectangle')
+  await page.keyboard.press('Meta+/')
+  await expect(dialog).toBeVisible()
+  const bounds = (await dialog.boundingBox())!
+  expect(bounds.y).toBeGreaterThanOrEqual(0)
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+  const value = page.getByRole('button', { name: 'Edit Select key, currently A' })
+  await expect(value).toBeVisible()
+  const before = await dialog.boundingBox()
+  const valueBounds = await value.boundingBox()
+  await value.focus()
+  await page.keyboard.press('Enter')
+  await expect(field(page, 'Select key')).toBeFocused()
+  expect(await field(page, 'Select key').boundingBox()).toEqual(valueBounds)
+  expect(await dialog.boundingBox()).toEqual(before)
+  await field(page, 'Select key').fill('V')
+  await page.keyboard.press('Escape')
+  await expect(value).toBeFocused()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close', exact: true }).focus()
+  await page.keyboard.press('a')
+  expect((await dbg(page)).tool).toBe('rect')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await page.getByRole('button', { name: 'Finish' }).click()
+  await page.getByRole('button', { name: 'Sheets', exact: true }).click()
+  await page.keyboard.press('Meta+/')
+  await expect(dialog).toBeVisible()
 })

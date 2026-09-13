@@ -1,5 +1,12 @@
 # Notes
 
+## Keyboard shortcuts dialog
+
+- The More menu and Mod+/ open the dialog from model, sketch, and sheet views. Values edit in place with click, Enter, or Space; Enter commits, Escape cancels and restores focus, and Tab commits valid changes without trapping focus.
+- `InlineEdit` is a shared kit component with keyboard, focus, and accessible validation tests. Its value button and input have matching dimensions. Reset keys remounts the editors to discard pending drafts and errors.
+- Storybook includes InlineEdit default, empty, and validation examples, plus Application/Keyboard shortcuts default and customized dialogs. Both application stories were exercised in Chromium.
+- Verification: 301 application unit tests, 32 kit tests, and 34 browser tests passed. After the Reset correction, all three key browser tests passed again. Application typecheck, production build, docs build, and Storybook build passed. Existing bundle-size and optional documentation configuration warnings remain.
+
 ## Verification
 
 - `pnpm typecheck`, `pnpm build`, `pnpm docs:build`: clean.

@@ -44,6 +44,7 @@ import { SheetCommand, SheetList } from './sheets/SheetList'
 import { SheetView } from './sheets/SheetView'
 import { exportSheet } from './sheets/output'
 import { listenForPrint, printSheets } from './print'
+import { KeyBindings } from './KeyBindings'
 
 export function App() {
   const dispatch = useStore((s) => s.dispatch)
@@ -163,10 +164,12 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   const finish = useCommand('sketch.finish')
   const newSketch = useCommand('model.newSketch')
   const pickFace = useCommand('model.pickFace')
+  const shortcuts = useCommand('help.keys')
   const fileInput = useRef<HTMLInputElement>(null)
   const [newSketchOpen, setNewSketchOpen] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
   const [pendingSheet, setPendingSheet] = useState<string | null>(null)
+  const [keysOpen, setKeysOpen] = useState(false)
 
   const exportSvg = () => {
     if (!centre.current || !sketch) return
@@ -199,6 +202,8 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   })
   const onMenu = (key: React.Key) => {
     switch (key) {
+      case 'keys':
+        return setKeysOpen(true)
       case 'print-sheet':
       case 'print-all':
         return printSheets(useStore.getState(), key === 'print-all')
@@ -271,6 +276,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
           <MenuSeparator />
           <MenuItem id="open">Open JSON</MenuItem>
           <MenuItem id="new">New document</MenuItem>
+          <MenuItem id="help.keys" shortcut={shortcuts.chord ?? undefined} isDisabled={!shortcuts.enabled} onAction={shortcuts.run}>{shortcuts.label}</MenuItem>
           <MenuSeparator />
           <MenuSection title="Theme">
             <MenuItem id="theme-light">{theme === 'light' ? 'Light (current)' : 'Light'}</MenuItem>
@@ -290,6 +296,9 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
         }}
       />
       <NewSketchDialog isOpen={newSketchOpen} onClose={() => setNewSketchOpen(false)} />
+      <Dialog title={shortcuts.label} isOpen={keysOpen} onOpenChange={setKeysOpen}>
+        <KeyBindings />
+      </Dialog>
       <ConfirmDialog title="Delete sheet?" isOpen={pendingSheet !== null} confirmLabel="Delete" tone="danger" onConfirm={() => {
         if (pendingSheet) dispatch('deleteSheet', pendingSheet)
         setPendingSheet(null)

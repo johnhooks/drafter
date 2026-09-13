@@ -1,18 +1,17 @@
-import { Button, Disclosure, Hint, ListBox, ListBoxItem, Row, TextField } from '@bitmachina/drafter-kit'
+import { Button, Hint, InlineEdit } from '@bitmachina/drafter-kit'
 import { useState } from 'react'
 import { bindingOf, conflictFor } from './bindings'
-import { COMMANDS, type Command, type CommandView, commandById } from './commands'
+import { COMMANDS, type Command, type CommandView } from './commands'
 import { displayChord, formatChord, parseChord } from './keys'
 import { useStore } from './store/store'
+import './KeyBindings.css'
 
 const VIEW_LABEL: Record<CommandView, string> = { sketch: 'sketch', model: 'model view', sheet: 'sheets', any: 'everywhere' }
 
-/** Every command with its chord; select one to retype its key. Bindings are a browser preference. */
 export function KeyBindings() {
   const keys = useStore((s) => s.keys)
   const dispatch = useStore((s) => s.dispatch)
-  const [selected, setSelected] = useState<string | null>(null)
-  const current = selected ? commandById(selected) : undefined
+  const [resetVersion, setResetVersion] = useState(0)
   const bound = (cmd: Command) => bindingOf(cmd, keys)
   const shown = (cmd: Command) => {
     const b = bound(cmd)
@@ -32,32 +31,25 @@ export function KeyBindings() {
   }
   const overridden = Object.keys(keys).length > 0
   return (
-    <Disclosure title="Keys" trailing={overridden ? 'custom' : undefined} defaultExpanded={false}>
-      <Hint>Select a command and type its key, such as V or Mod+Shift+Z. Leave it empty to unbind. Keys are remembered in this browser.</Hint>
-      <ListBox aria-label="Keys" dense selectionMode="single" selectedKeys={selected ? [selected] : []} onSelectionChange={(k) => setSelected(k === 'all' ? null : (([...k][0] as string) ?? null))}>
-        {COMMANDS.map((cmd) => (
-          <ListBoxItem key={cmd.id} id={cmd.id} textValue={cmd.label} detail={`${shown(cmd) || 'unbound'}, ${VIEW_LABEL[cmd.view]}`}>
-            {cmd.label}
-          </ListBoxItem>
-        ))}
-      </ListBox>
-      {current && (
-        <Row>
-          <TextField
-            key={current.id}
-            label={`${current.label} key`}
-            value={shown(current)}
-            monospace
-            validate={validate(current)}
-            onCommit={(v) => commit(current, v)}
-          />
-        </Row>
-      )}
+    <div className="key-bindings">
+      <Hint>Click a key, or focus it and press Enter, to edit. Type V or Mod+Shift+Z; leave it empty to unbind. Keys are remembered in this browser.</Hint>
+      <div className="key-bindings-list">
+        <table aria-label="Keyboard shortcuts">
+          <thead><tr><th scope="col">Command</th><th scope="col">View</th><th scope="col">Key</th></tr></thead>
+          <tbody key={resetVersion}>{COMMANDS.map((cmd) => (
+            <tr key={cmd.id}>
+              <th scope="row">{cmd.label}</th>
+              <td>{VIEW_LABEL[cmd.view]}</td>
+              <td><InlineEdit label={`${cmd.label} key`} value={shown(cmd)} emptyLabel="Unbound" monospace validate={validate(cmd)} onCommit={(value) => commit(cmd, value)} /></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
       <div>
-        <Button isDisabled={!overridden} onPress={() => dispatch('resetKeys')}>
+        <Button isDisabled={!overridden} onPress={() => { dispatch('resetKeys'); setResetVersion((version) => version + 1) }}>
           Reset keys
         </Button>
       </div>
-    </Disclosure>
+    </div>
   )
 }

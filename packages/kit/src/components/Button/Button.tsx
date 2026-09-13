@@ -1,10 +1,12 @@
 import { Button as AriaButton, type ButtonProps as AriaButtonProps } from 'react-aria-components'
+import type { Ref } from 'react'
 import './Button.css'
 
 export type ButtonVariant = 'default' | 'primary' | 'quiet'
 export type ButtonTone = 'neutral' | 'danger'
 
 export interface ButtonProps extends AriaButtonProps {
+  readonly ref?: Ref<HTMLButtonElement>
   readonly variant?: ButtonVariant
   readonly tone?: ButtonTone
 }

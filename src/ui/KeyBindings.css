@@ -1,0 +1,7 @@
+.key-bindings { display: flex; flex-direction: column; gap: var(--kit-space-2); }
+.key-bindings-list { height: 40vh; overflow-y: auto; }
+.key-bindings table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.key-bindings th, .key-bindings td { padding: var(--kit-space) var(--kit-space-2); text-align: left; vertical-align: top; }
+.key-bindings tbody th { font-weight: normal; }
+.key-bindings th:nth-child(2), .key-bindings td:nth-child(2) { width: 20%; color: var(--kit-text-muted); }
+.key-bindings th:last-child, .key-bindings td:last-child { width: 38%; }

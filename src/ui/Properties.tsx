@@ -8,7 +8,6 @@ import { isAttachment } from './sketch/Dimensions'
 import { type Sixteenths, formatLength } from '../core/units'
 import { LenField } from './LenField'
 import { ScrollArea } from './ScrollArea'
-import { KeyBindings } from './KeyBindings'
 import { Parameters } from './Parameters'
 import type { SketchResult } from '../core/eval/evaluate'
 import type { RectSlot } from './store/actions'
@@ -32,7 +31,6 @@ function DocumentProperties() {
         <TextField label="Title" value={title} onCommit={(_v, t) => dispatch('setTitle', t)} />
       </Fields>
       <Parameters />
-      <KeyBindings />
       <Hint>Select a feature in the timeline or a body in the view to edit it.</Hint>
     </div>
   )

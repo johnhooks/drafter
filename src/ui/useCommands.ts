@@ -42,7 +42,7 @@ const isText = (t: EventTarget | null) => t instanceof HTMLInputElement || t ins
 export function useKeyHandler() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isText(e.target)) return
+      if (isText(e.target) || (e.target instanceof HTMLElement && e.target.closest('[role="dialog"], [role="alertdialog"]'))) return
       const s = useStore.getState()
       if (s.mode.kind === 'sketch' && (e.key === 'Escape' || e.key === 'Enter') && hooks.toolConsumes?.(e.key)) {
         e.preventDefault()

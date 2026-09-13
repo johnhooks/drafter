@@ -29,3 +29,7 @@ A single handler SHALL match each key press against the bindings of commands tha
 #### Scenario: Model key in sheets mode
 - **WHEN** sheets mode is open and the user presses 1
 - **THEN** nothing happens; 1 is a model view command
+
+#### Scenario: Dialog keeps keyboard focus
+- **WHEN** a modal dialog is open and the user presses a model or sketch command key
+- **THEN** the underlying view is unchanged; the dialog handles its own keys

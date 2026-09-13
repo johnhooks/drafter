@@ -32,7 +32,7 @@ Each of the following SHALL be a single undo entry: drawing a rectangle, committ
 - **THEN** the name is what it was before typing began
 
 ### Requirement: Keyboard and toolbar access
-Cmd+Z on macOS or Ctrl+Z elsewhere SHALL undo; with Shift added SHALL redo. The keys SHALL be ignored while a text input has focus, where the browser's own text undo applies. The toolbar SHALL show Undo and Redo buttons, disabled when their stack is empty, with tooltips naming the keys.
+Undo and redo SHALL be commands per `commands`, bound by default to Mod+Z and Mod+Shift+Z, where Mod is Cmd on macOS and Ctrl elsewhere. The keys SHALL be ignored while a text input has focus, where the browser's own text undo applies. The toolbar SHALL show Undo and Redo buttons, disabled when their stack is empty, with tooltips naming the bound chords.
 
 #### Scenario: Keys ignored in a text field
 - **WHEN** focus is in the distance field and the user presses Cmd+Z

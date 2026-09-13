@@ -41,6 +41,7 @@ Icons come from Lucide, rendered at 14 px with a 1.5 px stroke in `currentColor`
 | `Button`, `ToggleButton`, `ToggleButtonGroup`, `Toolbar` | Toolbars and tool switchers |
 | `TextField` | Names and lengths. Commits on Enter or blur, reverts on Escape, takes a `validate` function so the application's own parser decides what is valid |
 | `NumberField` | Plain numbers with steppers |
+| `InlineEdit` | A value button that becomes a same-size text input. Click, Enter, or Space edits; Enter saves, Escape cancels, and Tab saves valid changes without trapping focus |
 | `Select`, `Checkbox` | Options and flags |
 | `ListBox` | Selectable rows with a detail slot and trailing actions: timeline, lines, regions, constraints |
 | `Menu` | Popup actions |

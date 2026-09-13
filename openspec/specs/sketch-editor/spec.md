@@ -39,7 +39,7 @@ Pointer positions SHALL snap to the nearest 1/16" in u and v. When within 6 px o
 - **THEN** the snapped u is 10"
 
 ### Requirement: Selection and deletion
-With the select tool active, clicking a line SHALL select it; clicking inside a region and not on a line SHALL select the region; shift-click SHALL add to or remove from the selection; clicking empty space SHALL clear it. Lines and regions MAY be selected together. Delete or Backspace SHALL remove selected lines per `sketch` and, when only regions are selected, the lines that bound only those regions. Selected lines and regions SHALL be highlighted, and the line or region under the pointer SHALL be highlighted lightly.
+With the select tool active, clicking a line SHALL select it; clicking inside a region and not on a line SHALL select the region; shift-click SHALL add to or remove from the selection; clicking empty space SHALL clear it. Lines and regions MAY be selected together. The delete command, bound to Delete and Backspace by default, SHALL remove selected lines per `sketch` and, when only regions are selected, the lines that bound only those regions. Selected lines and regions SHALL be highlighted, and the line or region under the pointer SHALL be highlighted lightly.
 
 #### Scenario: Shift-click adds
 - **WHEN** region A is selected and the user shift-clicks region B
@@ -98,7 +98,7 @@ With the Line tool active, a click SHALL set the start of a line and the next cl
 - **THEN** a horizontal line at v 0 from u 0 to u 20 is added and the next line starts at (20, 0)
 
 ### Requirement: Construction toggle
-Pressing X with the Select tool, or a checkbox in the line properties, SHALL toggle construction on the selected lines. Construction lines SHALL be drawn dashed and lighter.
+The construction command, bound to X by default, or a checkbox in the line properties, SHALL toggle construction on the selected lines. Construction lines SHALL be drawn dashed and lighter.
 
 #### Scenario: Toggle with the key
 - **WHEN** a line that splits a region is selected and the user presses X
@@ -244,3 +244,10 @@ While the properties column shows a sketch, it SHALL be three windows: the sketc
 #### Scenario: One list at a time
 - **WHEN** the Regions list is open and the user opens Lines
 - **THEN** Lines is open and Regions is closed
+
+### Requirement: Tools switch by key
+Each sketch tool SHALL be a command per `commands`, bound by default to A for Select, L for Line, R for Rectangle, and D for Link, and its toolbar button SHALL show the chord in its tooltip. Switching tools by key SHALL cancel any drag or chain in progress in the previous tool.
+
+#### Scenario: Switch mid-chain
+- **WHEN** the user has started a line chain and presses A
+- **THEN** the chain ends without adding a line and the Select tool is active
