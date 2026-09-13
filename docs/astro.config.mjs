@@ -36,6 +36,10 @@ export default defineConfig({
           items: [{ slug: 'files/saving-and-export' }, { slug: 'files/format' }],
         },
         {
+          label: 'Drawings',
+          items: [{ slug: 'drawings/sheets' }],
+        },
+        {
           label: 'Development',
           items: [{ slug: 'develop/architecture' }, { slug: 'develop/testing' }, { slug: 'develop/ui-kit' }],
         },

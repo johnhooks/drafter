@@ -48,11 +48,12 @@ Every key is a command, and every command shows its key in its button's tooltip.
 | X | toggle construction on the selected lines | sketch |
 | Delete, Backspace | delete the selection | sketch |
 | 1 to 6 | front, back, left, right, top, bottom | model view |
-| Home, F | default isometric, fit | model view |
+| Home | default isometric | model view |
+| F | fit the model or sheet page | model view, sheets |
 | Cmd+Z, Cmd+Shift+Z | undo, redo (Ctrl elsewhere) | everywhere |
 | Escape | cancel what is in progress, then clear | everywhere |
 
-Keys do nothing while a text field has focus, so typing `a` into a length field types it. A key bound in the sketch does not fire in the model view and the reverse.
+Keys do nothing while a text field has focus, so typing `a` into a length field types it. Model and sketch commands do not fire in [Sheets mode](/drawings/sheets/). There, wheel zoom and middle-button or Space-drag pan navigate the page; Escape clears the sheet selection.
 
 To change them, open the document properties (click the document row in the timeline) and the **Keys** section. Select a command and type its key, `V` or `Mod+Shift+Z`, where Mod is Cmd on a Mac and Ctrl elsewhere. A key already used by another command that can be active at the same time is refused with that command's name; an empty field unbinds. **Reset keys** restores the defaults. Keys are remembered in the browser, not in the file.
 

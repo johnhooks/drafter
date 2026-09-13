@@ -252,7 +252,7 @@ describe('defaults, names, dependencies', () => {
 describe('document format', () => {
   it('round trips', () => {
     const doc = cubeWithPocket()
-    const parsed = parseDocument(serializeDocument({ version: 5, model: doc, view: DEFAULT_VIEW }))
+    const parsed = parseDocument(serializeDocument({ version: 6, model: doc, view: DEFAULT_VIEW }))
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
       expect(parsed.file.model).toEqual(doc)

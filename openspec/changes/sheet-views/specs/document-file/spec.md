@@ -1,11 +1,15 @@
 ## MODIFIED Requirements
 
 ### Requirement: A file holds a model and a view
-A saved file SHALL contain a version, a `model` with the title, parameters, and features, an optional `sheets` list of drawing sheets in order, and a `view` with display state. A file without `sheets` SHALL load with no sheets. The `view` SHALL hold the camera as orbit azimuth and elevation in degrees, an orthographic zoom, and a centre point in sixteenths, and MAY hold the id of the sketch open for editing. The view SHALL NOT affect evaluation.
+A saved file SHALL contain a version, a `model` with the title, parameters, and features, an optional `sheets` list of drawing sheets in order, an optional positive integer `nextSheetNumber` counter, and a `view` with display state. A file without `sheets` SHALL load with no sheets. An absent counter SHALL default to one past the highest numbered sheet name, or 1 when none exist. The `view` SHALL hold the camera as orbit azimuth and elevation in degrees, an orthographic zoom, and a centre point in sixteenths, and MAY hold the id of the sketch open for editing. The view SHALL NOT affect evaluation.
 
 #### Scenario: Sheets saved in order
 - **WHEN** a document with two sheets is downloaded
 - **THEN** the file's `sheets` holds both in order and loads them back in that order
+
+#### Scenario: Last-change date survives reload
+- **WHEN** a sheet document is edited and saved with a `modifiedDate` in local `YYYY-MM-DD` form, then reopened on a later day
+- **THEN** the title block retains the saved date until the document is edited again; files without a date use the opening date
 
 #### Scenario: Both parts saved
 - **WHEN** the user rotates the view, then adds a rectangle, then downloads the file

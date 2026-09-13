@@ -1,0 +1,13 @@
+#sheet-print { display: none; }
+@page sheet-landscape { size: letter landscape; margin: 0; }
+@page sheet-portrait { size: letter portrait; margin: 0; }
+@media print {
+  html:has(#sheet-print), body:has(> #sheet-print) { height: auto !important; overflow: visible !important; margin: 0; padding: 0; background: white; }
+  body:has(> #sheet-print) > :not(#sheet-print) { display: none !important; }
+  #sheet-print { display: block; }
+  #sheet-print > section { break-after: page; break-inside: avoid; margin: 0; padding: 0; }
+  #sheet-print > section:last-child { break-after: auto; }
+  #sheet-print .print-landscape { page: sheet-landscape; width: 11in; height: 8.5in; }
+  #sheet-print .print-portrait { page: sheet-portrait; width: 8.5in; height: 11in; }
+  #sheet-print svg { display: block; }
+}

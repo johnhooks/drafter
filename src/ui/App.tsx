@@ -40,6 +40,10 @@ import { type Tool, fileOf } from './store/actions'
 import { useCommand, useKeyHandler, useViewHooks } from './useCommands'
 import { useStore } from './store/store'
 import { Timeline } from './Timeline'
+import { SheetCommand, SheetList } from './sheets/SheetList'
+import { SheetView } from './sheets/SheetView'
+import { exportSheet } from './sheets/output'
+import { listenForPrint, printSheets } from './print'
 
 export function App() {
   const dispatch = useStore((s) => s.dispatch)
@@ -48,6 +52,7 @@ export function App() {
   const theme = useStore((s) => s.theme)
   const errors = useStore((s) => s.eval.errors)
   const centre = useRef<HTMLDivElement>(null)
+  useEffect(() => listenForPrint(useStore.getState), [])
 
   // load once, then autosave on every document change
   const loaded = useRef(false)
@@ -123,10 +128,10 @@ export function App() {
     <div className="app">
       <AppToolbar centre={centre} sketch={sketch} />
       <Panel edge="right" className="side">
-        <Timeline />
+        {mode.kind === 'sheet' ? <SheetList /> : <Timeline />}
       </Panel>
       <div className="centre" ref={centre}>
-        {sketch ? <SketchEditor key={sketch.id} sketch={sketch} /> : <ModelView />}
+        {mode.kind === 'sheet' ? <SheetView /> : sketch ? <SketchEditor key={sketch.id} sketch={sketch} /> : <ModelView />}
         {errors.length > 0 && (
           <div className="errors">
             {errors.map((e) => (
@@ -161,6 +166,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   const fileInput = useRef<HTMLInputElement>(null)
   const [newSketchOpen, setNewSketchOpen] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
+  const [pendingSheet, setPendingSheet] = useState<string | null>(null)
 
   const exportSvg = () => {
     if (!centre.current || !sketch) return
@@ -193,6 +199,13 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
   })
   const onMenu = (key: React.Key) => {
     switch (key) {
+      case 'print-sheet':
+      case 'print-all':
+        return printSheets(useStore.getState(), key === 'print-all')
+      case 'export-sheet':
+        return exportSheet(useStore.getState())
+      case 'delete-sheet':
+        return setPendingSheet(mode.kind === 'sheet' ? mode.sheetId ?? null : null)
       case 'export-svg':
         return exportSvg()
       case 'export-png':
@@ -216,7 +229,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
       <IconButton icon="undo" aria-label={undo.tooltip} isDisabled={!undo.enabled} onPress={undo.run} />
       <IconButton icon="redo" aria-label={redo.tooltip} isDisabled={!redo.enabled} onPress={redo.run} />
       <ToolbarSeparator />
-      {sketch ? (
+      {mode.kind === 'sheet' ? <><SheetCommand id="sheet.model" /><SheetCommand id="view.fit" /><SheetCommand id="sheet.print" /><SheetCommand id="sheet.printAll" /></> : sketch ? (
         <>
           <ToggleButtonGroup aria-label="Tool" selectedKeys={[tool]} onSelectionChange={(keys) => tools[[...keys][0] as Tool].run()}>
             {(['select', 'line', 'rect', 'link'] as const).map((id) => (
@@ -241,6 +254,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
       ) : (
         <>
           <Button onPress={newSketch.run}>{newSketch.label}</Button>
+          <SheetCommand id="model.sheets" />
           <ToggleButton isSelected={mode.kind === 'pickFace'} onChange={pickFace.run}>
             {pickFace.label}
           </ToggleButton>
@@ -251,7 +265,7 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
         <IconButton icon="ellipsis" aria-label="More" tooltip={false} />
         <Menu aria-label="More" placement="bottom end" onAction={onMenu}>
           <MenuSection title="Export">
-            {sketch ? <MenuItem id="export-svg">Export sketch as SVG</MenuItem> : <MenuItem id="export-png">Export view as PNG</MenuItem>}
+            {mode.kind === 'sheet' ? <MenuItem id="export-sheet" isDisabled={!mode.sheetId}>Export sheet as SVG</MenuItem> : sketch ? <MenuItem id="export-svg">Export sketch as SVG</MenuItem> : <MenuItem id="export-png">Export view as PNG</MenuItem>}
             <MenuItem id="download">Download JSON</MenuItem>
           </MenuSection>
           <MenuSeparator />
@@ -276,6 +290,10 @@ function AppToolbar({ centre, sketch }: { centre: React.RefObject<HTMLDivElement
         }}
       />
       <NewSketchDialog isOpen={newSketchOpen} onClose={() => setNewSketchOpen(false)} />
+      <ConfirmDialog title="Delete sheet?" isOpen={pendingSheet !== null} confirmLabel="Delete" tone="danger" onConfirm={() => {
+        if (pendingSheet) dispatch('deleteSheet', pendingSheet)
+        setPendingSheet(null)
+      }} onCancel={() => setPendingSheet(null)}>Delete {doc.sheets?.find((sheet) => sheet.id === pendingSheet)?.name}? This can be undone.</ConfirmDialog>
       <ConfirmDialog
         title="Start a new document?"
         isOpen={confirmNew}

@@ -7,6 +7,7 @@ A model is worth little if it cannot leave the screen as a drawing someone can r
 - Drawing sheets in the document. A sheet is one letter page, portrait or landscape, holding one view, front, top, left, or right, of the whole model or one body, at a scale from 1:1, 1:2, 1:4, 1:8, 1:12, 1:16, 1:24. A document may have any number of sheets, kept in order and saved with the file, which moves to format version 6.
 - Exact orthographic projection of bodies to 2D with visible and hidden edge segments. Hidden edges draw dashed. Coplanar neighbours draw as one outline. The projection also lists its vertices and segments, which the annotation change will use as snap targets.
 - A title block on every sheet: document title, sheet name, view, scale, the date the document last changed, and sheet number of total.
+- A persisted next-sheet-number counter keeps default names from being reused after deletion or reload.
 - A Sheets mode beside the model and sketch views: a sheet list with add, rename, reorder, and delete with confirmation, a properties panel for the sheet's name, orientation, view, target, and scale with its warnings, and a page view with zoom, pan, and fit. The command table gains a sheet view so model and sketch keys do not fire there.
 - Printing one sheet per page at true scale through the browser's print dialog, the current sheet or all of them, and SVG export of the current sheet.
 

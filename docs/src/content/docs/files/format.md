@@ -5,11 +5,11 @@ sidebar:
   order: 2
 ---
 
-A file is JSON with a version and two parts. `model` is what you built: a title, parameters, and an ordered list of features. `view` is how you were looking at it: the camera and the sketch that was open, if any. Undo covers the model only; the view is saved but never undone. Every length is a whole number of sixteenths, or a string holding an expression.
+A file is JSON with a version, a `model`, a `view`, and optional drawing sheets. `model` is what you built: a title, parameters, and an ordered list of features. `view` is how you were looking at it: the camera and the sketch that was open, if any. Undo covers model and sheet edits; the view is saved but never undone. Model lengths are whole numbers of sixteenths, or strings holding expressions.
 
 ```json title="document.json"
 {
-  "version": 5,
+  "version": 6,
   "model": {
     "title": "Block",
     "params": [{ "name": "ply", "value": "3/4" }],
@@ -66,4 +66,20 @@ A file is JSON with a version and two parts. `model` is what you built: a title,
 - Ids are opaque and unique; handles are the short names expressions use.
 - **view.camera** is the orbit azimuth and elevation in degrees, the orthographic zoom in pixels per inch, and the centre the camera looks at in sixteenths. **view.sketchId** names the sketch that was open, so the file reopens there.
 
-Earlier versions open and are rewritten as version 5 on save. Version 1 stored rectangles as two corners, version 2 added parameters and per-axis slots, version 3 added the view, and version 4 replaced rectangles with lines. A version 3 rectangle becomes four attached lines and a rectangle record with its original handle, so expressions that named it keep working; an extrude of a rectangle becomes an extrude of the region at that rectangle's lower-left corner. A rectangle that other rectangles subdivided keeps only its corner region; add the other parts to the extrude by hand. A version 4 file loads with no rectangle records; group four lines to make one.
+## Drawing sheets
+
+The optional top-level `sheets` array holds sheets in order. Each has an opaque unique `id`, a `name`, an `orientation` of `portrait` or `landscape`, a `view` of `front`, `top`, `left`, or `right`, and a numeric `scale` denominator from 1, 2, 4, 8, 12, 16, or 24. Optional `targetBodyId` restricts the view to one body; absent means the whole model. A missing body is a warning rather than an invalid file.
+
+The optional top-level `nextSheetNumber` is a positive integer used for the next default sheet name. Creating a sheet advances it; deletion and renaming do not reduce it. When absent, it defaults to one past the highest numbered sheet name, or 1 with none. Optional `modifiedDate`, in local `YYYY-MM-DD` form, records the last document edit for title blocks. Older sheet files without a date use and save the opening date.
+
+```json
+{
+  "sheets": [{ "id": "sheet_a1", "name": "Sheet 1", "orientation": "landscape", "view": "front", "scale": 4 }],
+  "nextSheetNumber": 2,
+  "modifiedDate": "2026-09-12"
+}
+```
+
+## Earlier versions
+
+Earlier versions open and are rewritten as version 6 on save. Version 1 stored rectangles as two corners, version 2 added parameters and per-axis slots, version 3 added the view, and version 4 replaced rectangles with lines. A version 3 rectangle becomes four attached lines and a rectangle record with its original handle, so expressions that named it keep working; an extrude of a rectangle becomes an extrude of the region at that rectangle's lower-left corner. A rectangle that other rectangles subdivided keeps only its corner region; add the other parts to the extrude by hand. A version 4 file loads with no rectangle records; group four lines to make one. Version 5 models load unchanged, with no sheets.

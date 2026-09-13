@@ -5,7 +5,7 @@ import { COMMANDS, type Command, type CommandView, commandById } from './command
 import { displayChord, formatChord, parseChord } from './keys'
 import { useStore } from './store/store'
 
-const VIEW_LABEL: Record<CommandView, string> = { sketch: 'sketch', model: 'model view', any: 'everywhere' }
+const VIEW_LABEL: Record<CommandView, string> = { sketch: 'sketch', model: 'model view', sheet: 'sheets', any: 'everywhere' }
 
 /** Every command with its chord; select one to retype its key. Bindings are a browser preference. */
 export function KeyBindings() {

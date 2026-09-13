@@ -99,16 +99,16 @@ test('keys can be rebound, conflicts are refused, and reset restores the default
   })
 
   await test.step('the same key in another view is allowed', async () => {
-    const f = await pick('Fit')
+    const f = await pick('Front view')
     await f.fill('v')
     await f.press('Enter')
-    expect((await dbg(page)).keys).toEqual({ 'tool.select': 'V', 'view.fit': 'V' })
+    expect((await dbg(page)).keys).toEqual({ 'tool.select': 'V', 'view.front': 'V' })
   })
 
   await test.step('the rebinding survives a reload and works', async () => {
     await page.reload()
     await page.waitForSelector('.timeline')
-    expect((await dbg(page)).keys).toEqual({ 'tool.select': 'V', 'view.fit': 'V' })
+    expect((await dbg(page)).keys).toEqual({ 'tool.select': 'V', 'view.front': 'V' })
     await page.getByRole('option', { name: /^Sketch 1/ }).hover()
     await page.getByRole('option', { name: /^Sketch 1/ }).getByRole('button', { name: 'Edit' }).click()
     const box = (await page.locator('.sketch svg').boundingBox())!

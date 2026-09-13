@@ -92,7 +92,8 @@ describe('bindings', () => {
     const a = keys.parseChord('A')
     if (!a.ok) throw new Error()
     expect(conflictFor(line, a.chord, {})?.id).toBe('tool.select')
-    expect(conflictFor(fit, a.chord, {})).toBeUndefined()
+    expect(conflictFor(commandById('view.front')!, a.chord, {})).toBeUndefined()
+    expect(conflictFor(fit, a.chord, {})?.id).toBe('tool.select')
     // an override moves the conflict with it
     expect(conflictFor(line, a.chord, { 'tool.select': 'V' })).toBeUndefined()
     const z = keys.parseChord('Mod+Z')

@@ -15,6 +15,11 @@ Printing SHALL output each sheet as one US letter page in the sheet's orientatio
 - **WHEN** the user chooses Print Sheet on Sheet 2
 - **THEN** the print preview shows only Sheet 2
 
+#### Scenario: Browser print
+- **WHEN** the user invokes the browser's Print command with Sheet 2 selected
+- **THEN** the print preview shows only Sheet 2 at its paper size
+- **AND** without a selected sheet, browser printing does not hide the editor
+
 ### Requirement: SVG export per sheet
 The user SHALL be able to download the current sheet as a standalone SVG sized 8 1/2" by 11" (or rotated for landscape) with embedded styles, including the view and the title block, with no dependency on app styles.
 

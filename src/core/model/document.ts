@@ -8,7 +8,7 @@ export function serializeDocument(file: DocumentFile): string {
 
 export type ParseDocumentResult = { ok: true; file: DocumentFile } | { ok: false; errors: ValidationError[] }
 
-/** Accepts versions 1 to 5; earlier versions are migrated on read and always saved as 5. */
+/** Earlier versions are migrated on read so downstream code only handles the current format. */
 export function parseDocument(text: string): ParseDocumentResult {
   let raw: unknown
   try {
@@ -22,6 +22,7 @@ export function parseDocument(text: string): ParseDocumentResult {
     else if (r['version'] === 2) raw = migrateV3(migrateV2(r))
     else if (r['version'] === 3) raw = migrateV3(r)
     else if (r['version'] === 4) raw = migrateV4(r)
+    if ((raw as Record<string, unknown>)['version'] === 5) raw = { ...(raw as Record<string, unknown>), version: 6 }
   }
   const errors = validateFile(raw)
   if (errors.length) return { ok: false, errors }
@@ -30,5 +31,5 @@ export function parseDocument(text: string): ParseDocumentResult {
 
 /** The model alone, for tests and tools that do not care about the view. */
 export function modelOf(file: DocumentFile): Document {
-  return file.model
+  return { ...file.model, ...(file.sheets !== undefined ? { sheets: file.sheets } : {}), ...(file.nextSheetNumber !== undefined ? { nextSheetNumber: file.nextSheetNumber } : {}), ...(file.modifiedDate !== undefined ? { modifiedDate: file.modifiedDate } : {}) }
 }

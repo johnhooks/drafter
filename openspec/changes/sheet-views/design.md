@@ -24,9 +24,11 @@ Bodies are unions of disjoint axis-aligned boxes with `faces(body)` derived from
 
 **Sheets mode is a store mode.** `Mode` gains `{ kind: 'sheet'; sheetId?: string }`; the sheet list and every sheet edit are pure actions on `doc.sheets`, so undo covers them like features. `CommandView` gains `sheet`; `commandsFor` maps the sheet mode to it; the fit command becomes view `any` with a hook the sheets view registers like the model view does. The properties panel shows the sheet panel when the mode is sheet, the way it shows a sketch's.
 
-**Document format.** `sheets?: Sheet[]` on the file's model at version 6. A version 5 file migrates by version bump alone. Validation extends the existing validator; a sheet's target body id is checked for shape, not existence, since existence is a warning at evaluation.
+**Document format.** `sheets?: Sheet[]` and `nextSheetNumber?: number` on the version 6 file, carried on the in-memory document for undo. The positive integer counter advances when a sheet is created and survives deletion, renaming, saving, and reload. When absent, derive it from the highest numbered sheet name. A version 5 file migrates by version bump alone. Validation extends the existing validator; a sheet's target body id is checked for shape, not existence, since existence is a warning at evaluation.
 
 **Evaluation.** Projection runs after evaluation as a derived value keyed by sheet and model version, memoised in the store's evaluation result rather than stored, matching how regions are derived and never stored.
+
+**Last-change date.** The optional top-level `modifiedDate` file field stores the local calendar date in `YYYY-MM-DD` form. Document edits update it; view changes and reload do not. A sheet file without a date uses its opening date. The in-memory document carries this metadata and the sheet fields for undo, while `fileOf` keeps them outside the serialized `model`.
 
 **Print uses a hidden container.** Printing renders the chosen sheets into a container of page-sized SVGs with a `@page { size: letter portrait | landscape }` rule per sheet through a wrapper class; everything else is `display: none` under `@media print`. Browsers honour per-page orientation unevenly; the fallback is all pages in the first sheet's orientation, noted in the docs. Print scale relies on the SVG being sized in inches and the browser's 100% setting, with the title block's 1" bar as the check.
 

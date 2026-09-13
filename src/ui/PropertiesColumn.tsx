@@ -4,6 +4,7 @@ import type { SketchFeature } from '../core/model/types'
 import { loadPaneHeight, savePaneHeight } from './persist'
 import { Properties, SelectionPanel, SketchFields, type SketchList, SketchLists } from './Properties'
 import { useStore } from './store/store'
+import { SheetProperties } from './sheets/SheetProperties'
 
 /** Floors for the pane and the lists, matching the stylesheet, so a drag stops where the layout would anyway. */
 export const PANE_MIN = 120
@@ -13,6 +14,8 @@ const KEY_STEP = 16
 /** The left column: one panel for the document or an extrude, or the three stacked windows of a sketch. */
 export function PropertiesColumn() {
   const feature = useStore((s) => s.doc.features.find((f) => f.id === s.selection.featureId))
+  const mode = useStore((state) => state.mode)
+  if (mode.kind === 'sheet') return <Panel edge="left" className="side"><SheetProperties /></Panel>
   if (feature?.kind !== 'sketch') {
     return (
       <Panel edge="left" className="side">

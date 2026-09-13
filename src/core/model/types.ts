@@ -1,4 +1,5 @@
 import type { Sixteenths } from '../units'
+import type { Sheet } from '../sheets/types'
 
 export type PlaneKind = 'XZ' | 'XY' | 'YZ'
 
@@ -138,6 +139,9 @@ export interface Model {
   readonly title: string
   readonly params: readonly Param[]
   readonly features: readonly Feature[]
+  readonly sheets?: readonly Sheet[]
+  readonly nextSheetNumber?: number
+  readonly modifiedDate?: string
 }
 
 /** Kept as the name the core uses; the file wraps it as `model`. */
@@ -162,9 +166,12 @@ export interface ViewState {
 }
 
 export interface DocumentFile {
-  readonly version: 5
+  readonly version: 6
   readonly model: Model
   readonly view: ViewState
+  readonly sheets?: readonly Sheet[]
+  readonly nextSheetNumber?: number
+  readonly modifiedDate?: string
 }
 
 export const DEFAULT_PLANE: PrincipalPlane = { kind: 'principal', plane: 'XZ', offset: 0 as Sixteenths, normal: -1 }
@@ -178,7 +185,7 @@ export function newDocument(title = 'Untitled'): Model {
 }
 
 export function newFile(title = 'Untitled'): DocumentFile {
-  return { version: 5, model: newDocument(title), view: DEFAULT_VIEW }
+  return { version: 6, model: newDocument(title), view: DEFAULT_VIEW }
 }
 
 export function isExpr(v: Len): v is string {

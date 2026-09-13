@@ -18,6 +18,7 @@ if (import.meta.env.DEV) {
       tool: s.tool,
       selection: s.selection,
       features: s.doc.features,
+      sheets: s.doc.sheets ?? [],
       regions: Object.fromEntries(
         [...s.eval.results.entries()].flatMap(([id, r]) => (r.kind === 'sketch' ? [[id, r.regions.map((x) => ({ ref: x.ref, bounds: x.bounds, area: x.area }))]] : [])),
       ),

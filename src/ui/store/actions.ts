@@ -3,6 +3,7 @@ import type { ResolvedLine } from '../../core/eval/resolveSketch'
 import { parse, references, simpleLink } from '../../core/expr/parser'
 import { type SketchRegion, regionByRef } from '../../core/geom/regions'
 import { dependentsOf } from '../../core/model/deps'
+import { modelOf } from '../../core/model/document'
 import { defaultOp } from '../../core/model/extrude'
 import { newId, nextHandle, nextName } from '../../core/model/names'
 import { renameParam as renameParamInDoc, usesOf, validateParamName } from '../../core/model/params'
@@ -29,8 +30,13 @@ import type {
 } from '../../core/model/types'
 import { DEFAULT_VIEW, isExpr, newDocument, regionKey, sameRegion } from '../../core/model/types'
 import type { Sixteenths } from '../../core/units'
+import { type SheetResult, evaluateSheets } from '../../core/sheets/evaluate'
+import { defaultScale } from '../../core/sheets/layout'
+import { type Sheet, nextSheetNumber } from '../../core/sheets/types'
+import { project } from '../../core/projection/project'
+import { calendarDate } from '../date'
 
-export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' } | { kind: 'pickBody'; extrudeId: string }
+export type Mode = { kind: 'model' } | { kind: 'sketch'; sketchId: string } | { kind: 'pickFace' } | { kind: 'pickBody'; extrudeId: string } | { kind: 'sheet'; sheetId?: string }
 export type Tool = 'select' | 'line' | 'rect' | 'link'
 
 export interface ConstraintRef {
@@ -71,6 +77,7 @@ export interface State {
   /** Display state saved beside the model: camera and open sketch. Never on the undo stack. */
   readonly view: ViewState
   readonly eval: EvalResult
+  readonly sheets: ReadonlyMap<string, SheetResult>
   readonly mode: Mode
   readonly tool: Tool
   readonly selection: Selection
@@ -104,11 +111,13 @@ export const HISTORY_LIMIT = 200
 export const COALESCE_MS = 2000
 
 export function initialState(doc: Document = newDocument(), view: ViewState = DEFAULT_VIEW): State {
+  if (doc.sheets?.length) doc = { ...doc, nextSheetNumber: nextSheetNumber(doc.sheets, doc.nextSheetNumber), modifiedDate: doc.modifiedDate ?? calendarDate() }
   const ev = evaluate(doc)
   return {
     doc,
     view,
     eval: ev,
+    sheets: evaluateSheets(doc.sheets ?? [], ev),
     mode: { kind: 'model' },
     tool: 'select',
     selection: EMPTY_SELECTION,
@@ -133,7 +142,8 @@ export function setCamera(s: State, camera: Partial<CameraState>): State {
 
 export function fileOf(s: State): DocumentFile {
   const sketchId = s.mode.kind === 'sketch' ? s.mode.sketchId : undefined
-  return { version: 5, model: s.doc, view: sketchId ? { ...s.view, sketchId } : { camera: s.view.camera } }
+  const { sheets, nextSheetNumber: counter, modifiedDate, ...model } = s.doc
+  return { version: 6, model, ...(sheets !== undefined ? { sheets } : {}), ...(counter !== undefined ? { nextSheetNumber: counter } : {}), ...(modifiedDate !== undefined ? { modifiedDate } : {}), view: sketchId ? { ...s.view, sketchId } : { camera: s.view.camera } }
 }
 
 function goodLines(ev: EvalResult, prev: ReadonlyMap<string, LineShape>): Map<string, LineShape> {
@@ -188,15 +198,16 @@ function reconcileSelection(sel: Selection, doc: Document, ev: EvalResult): Sele
 /** The one place a changed document enters state: evaluates it and records the previous one for undo. */
 function withDoc(s: State, doc: Document, opts: PushOptions = {}): State {
   if (doc === s.doc) return s
-  const ev = evaluate(doc)
+  const ev = doc.features === s.doc.features && doc.params === s.doc.params ? s.eval : evaluate(doc)
   const pruned = pruneRegionLabels(doc, ev)
   const now = opts.now ?? Date.now()
   const coalesce = opts.key !== undefined && opts.key === s.history.lastKey && s.history.lastAt !== undefined && now - s.history.lastAt < COALESCE_MS
   const past = coalesce ? s.history.past : [...s.history.past, s.doc].slice(-HISTORY_LIMIT)
   return {
     ...s,
-    doc: pruned,
+    doc: { ...pruned, modifiedDate: calendarDate(now) },
     eval: ev,
+    sheets: evaluateSheets(pruned.sheets ?? [], ev, ev === s.eval ? s.sheets : undefined),
     lastGood: goodLines(ev, s.lastGood),
     selection: reconcileSelection(s.selection, pruned, ev),
     history: { past, future: [], lastKey: opts.key, lastAt: opts.key !== undefined ? now : undefined },
@@ -207,8 +218,12 @@ function withDoc(s: State, doc: Document, opts: PushOptions = {}): State {
 function reconcile(s: State, doc: Document): State {
   const ev = evaluate(doc)
   const sketchIds = new Set(doc.features.filter((f) => f.kind === 'sketch').map((f) => f.id))
-  const mode: Mode = s.mode.kind === 'sketch' && !sketchIds.has(s.mode.sketchId) ? { kind: 'model' } : s.mode
-  return { ...s, doc, eval: ev, lastGood: goodLines(ev, s.lastGood), mode, selection: reconcileSelection(s.selection, doc, ev) }
+  let mode: Mode = s.mode.kind === 'sketch' && !sketchIds.has(s.mode.sketchId) ? { kind: 'model' } : s.mode
+  if (mode.kind === 'sheet') {
+    const id = mode.sheetId
+    if (!doc.sheets?.some((sheet) => sheet.id === id)) mode = { kind: 'sheet' }
+  }
+  return { ...s, doc, eval: ev, sheets: evaluateSheets(doc.sheets ?? [], ev), lastGood: goodLines(ev, s.lastGood), mode, selection: reconcileSelection(s.selection, doc, ev) }
 }
 
 export function undo(s: State): State {
@@ -753,7 +768,7 @@ export function loadDocument(s: State, doc: Document): State {
 
 /** Loads a whole file, restoring the camera and reopening the stored sketch if it still exists. */
 export function loadFile(s: State, file: DocumentFile): State {
-  const next = { ...initialState(file.model, { camera: file.view.camera }), notices: s.notices, theme: s.theme, display: s.display, keys: s.keys }
+  const next = { ...initialState(modelOf(file), { camera: file.view.camera }), notices: s.notices, theme: s.theme, display: s.display, keys: s.keys }
   const id = file.view.sketchId
   if (id && file.model.features.some((f) => f.kind === 'sketch' && f.id === id)) return setMode(next, { kind: 'sketch', sketchId: id })
   return next
@@ -771,3 +786,34 @@ export function dismissNotice(s: State, text: string): State {
 
 export { regionKey }
 export type { Slot }
+
+export function addSheet(s: State, id = newId('sheet')): State {
+  const sheets = s.doc.sheets ?? []
+  if (sheets.some((sheet) => sheet.id === id)) return s
+  const number = nextSheetNumber(sheets, s.doc.nextSheetNumber)
+  const projection = project([...s.eval.bodies.values()], 'front')
+  const sheet: Sheet = { id, name: `Sheet ${number}`, orientation: 'landscape', view: 'front', scale: defaultScale(projection.bounds, 'landscape') }
+  const next = withDoc(s, { ...s.doc, sheets: [...sheets, sheet], nextSheetNumber: number + 1 })
+  return { ...next, mode: { kind: 'sheet', sheetId: id }, selection: EMPTY_SELECTION }
+}
+
+export function updateSheet(s: State, id: string, patch: Partial<Omit<Sheet, 'id'>>): State {
+  if (!s.doc.sheets?.some((sheet) => sheet.id === id)) return s
+  return withDoc(s, { ...s.doc, sheets: s.doc.sheets.map((sheet) => sheet.id === id ? { ...sheet, ...patch } : sheet) })
+}
+
+export function deleteSheet(s: State, id: string): State {
+  if (!s.doc.sheets?.some((sheet) => sheet.id === id)) return s
+  const next = withDoc(s, { ...s.doc, sheets: s.doc.sheets.filter((sheet) => sheet.id !== id) })
+  return s.mode.kind === 'sheet' && s.mode.sheetId === id ? { ...next, mode: { kind: 'sheet', sheetId: next.doc.sheets?.[0]?.id } } : next
+}
+
+export function moveSheet(s: State, id: string, direction: -1 | 1): State {
+  const sheets = [...(s.doc.sheets ?? [])]
+  const index = sheets.findIndex((sheet) => sheet.id === id)
+  const target = index + direction
+  if (index < 0 || target < 0 || target >= sheets.length) return s
+  const sheet = sheets.splice(index, 1)[0]!
+  sheets.splice(target, 0, sheet)
+  return withDoc(s, { ...s.doc, sheets })
+}

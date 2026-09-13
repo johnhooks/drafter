@@ -5,7 +5,7 @@ import type { Store } from './store/store'
 /** The distance a new extrude starts with: 1". */
 export const DEFAULT_EXTRUDE = 16
 
-export type CommandView = 'model' | 'sketch' | 'any'
+export type CommandView = 'model' | 'sketch' | 'sheet' | 'any'
 
 /**
  * Callbacks the views own and the store does not: camera moves ease through frames in ModelView,
@@ -133,7 +133,23 @@ export const COMMANDS: readonly Command[] = [
   viewCommand('top', 'Top view', '5'),
   viewCommand('bottom', 'Bottom view', '6'),
   viewCommand('iso-fl', 'Default view', 'Home'),
-  { id: 'view.fit', label: 'Fit', view: 'model', key: 'F', run: ({ hooks }) => hooks.fit?.() },
+  { id: 'view.fit', label: 'Fit', view: 'any', key: 'F', run: ({ hooks }) => hooks.fit?.() },
+  { id: 'model.sheets', label: 'Sheets', view: 'model', run: ({ state, dispatch }) => dispatch('setMode', { kind: 'sheet', sheetId: state.doc.sheets?.[0]?.id }) },
+  { id: 'sheet.model', label: 'Model', view: 'sheet', run: ({ dispatch }) => dispatch('setMode', { kind: 'model' }) },
+  { id: 'sheet.add', label: 'Add Sheet', view: 'sheet', run: ({ dispatch }) => dispatch('addSheet') },
+  { id: 'sheet.delete', label: 'Delete Sheet', view: 'sheet', when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId, run: ({ hooks }) => hooks.menu?.('delete-sheet') },
+  ...([-1, 1] as const).map((direction): Command => ({
+    id: direction === -1 ? 'sheet.up' : 'sheet.down', label: direction === -1 ? 'Move up' : 'Move down', view: 'sheet',
+    when: (state) => {
+      const id = state.mode.kind === 'sheet' ? state.mode.sheetId : undefined
+      const index = state.doc.sheets?.findIndex((sheet) => sheet.id === id) ?? -1
+      return index >= 0 && index + direction >= 0 && index + direction < (state.doc.sheets?.length ?? 0)
+    },
+    run: ({ state, dispatch }) => { if (state.mode.kind === 'sheet' && state.mode.sheetId) dispatch('moveSheet', state.mode.sheetId, direction) },
+  })),
+  { id: 'sheet.print', label: 'Print Sheet', view: 'sheet', when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId, run: ({ hooks }) => hooks.menu?.('print-sheet') },
+  { id: 'sheet.printAll', label: 'Print All', view: 'sheet', when: (state) => !!state.doc.sheets?.length, run: ({ hooks }) => hooks.menu?.('print-all') },
+  { id: 'sheet.export', label: 'Export sheet as SVG', view: 'sheet', when: (state) => state.mode.kind === 'sheet' && !!state.mode.sheetId, run: ({ hooks }) => hooks.menu?.('export-sheet') },
   { id: 'edit.undo', label: 'Undo', view: 'any', key: 'Mod+Z', when: canUndo, run: ({ dispatch }) => dispatch('undo') },
   { id: 'edit.redo', label: 'Redo', view: 'any', key: 'Mod+Shift+Z', when: canRedo, run: ({ dispatch }) => dispatch('redo') },
   {
@@ -144,6 +160,7 @@ export const COMMANDS: readonly Command[] = [
     run: ({ state, dispatch, hooks }) => {
       if (state.mode.kind === 'pickFace' || state.mode.kind === 'pickBody') return dispatch('setMode', { kind: 'model' })
       hooks.cancelTool?.()
+      if (state.mode.kind === 'sheet') dispatch('setMode', { kind: 'sheet' })
       dispatch('select', state.mode.kind === 'sketch' ? { featureId: state.mode.sketchId } : {})
     },
   },
@@ -158,7 +175,7 @@ export const commandById = (id: string): Command | undefined => COMMANDS.find((c
 
 /** Commands that apply in the current mode: sketch commands in a sketch, model commands elsewhere, `any` always. */
 export function commandsFor(mode: State['mode']): readonly Command[] {
-  const view: CommandView = mode.kind === 'sketch' ? 'sketch' : 'model'
+  const view: CommandView = mode.kind === 'sketch' ? 'sketch' : mode.kind === 'sheet' ? 'sheet' : 'model'
   return COMMANDS.filter((c) => c.view === 'any' || c.view === view)
 }
 

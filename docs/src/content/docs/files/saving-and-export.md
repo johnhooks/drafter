@@ -15,8 +15,10 @@ The file, model and view, is saved to the browser's local storage after every ch
 
 **Download JSON** in the toolbar menu saves the document as a file named after its title. **Open JSON** replaces the current document with a file. A file that fails validation is refused with the reasons listed, and the current document is left as it was. Files from earlier versions of the format are converted on open.
 
-The file holds the model and the view. Bodies are recomputed when the file opens; the camera and the open sketch are restored, so a file opens where its author left it. A file saved without a view opens at the default view.
+The file holds the model, the view, and any drawing sheets. Bodies and sheet projections are recomputed when the file opens; the camera and the open sketch are restored. Sheet settings and order are preserved, but the active sheet and its page zoom are not saved. A file saved without a view opens at the default view.
 
 ## SVG and PNG
 
 While editing a sketch, **Export SVG** downloads the sketch view as a standalone file with its lines, regions, constraints, and reference faces, drawn in the colours of the current theme over a background in the canvas colour, so it reads as it did on screen. In the model view, **Export PNG** downloads the current 3D rendering at screen size.
+
+In Sheets mode, **Export sheet as SVG** downloads the selected drawing page in black on white, sized in inches and including its title block. **Print Sheet** and **Print All** open the browser print dialog. See [Drawing sheets](/drawings/sheets/) for scale and page-orientation settings.

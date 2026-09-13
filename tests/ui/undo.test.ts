@@ -165,8 +165,9 @@ describe('file: model and view', () => {
   it('fileOf carries the model, camera, and open sketch', () => {
     let s = A.setMode(A.setCamera(cube(), { zoom: 9 }), { kind: 'model' })
     const file = A.fileOf(s)
-    expect(file.version).toBe(5)
-    expect(file.model).toBe(s.doc)
+    expect(file.version).toBe(6)
+    expect(file.model).toEqual({ title: s.doc.title, params: s.doc.params, features: s.doc.features })
+    expect(file.modifiedDate).toBe(s.doc.modifiedDate)
     expect(file.view.camera.zoom).toBe(9)
     expect(file.view.sketchId).toBeUndefined()
     s = A.setMode(s, { kind: 'sketch', sketchId: 's1' })

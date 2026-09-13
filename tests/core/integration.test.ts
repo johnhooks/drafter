@@ -82,7 +82,7 @@ describe('integration: parametric base cabinet', () => {
 
   it('round trips through the file format', () => {
     const doc = carcass('30', '3/4')
-    const parsed = parseDocument(serializeDocument({ version: 5, model: doc, view: DEFAULT_VIEW }))
+    const parsed = parseDocument(serializeDocument({ version: 6, model: doc, view: DEFAULT_VIEW }))
     expect(parsed.ok && parsed.file.model).toEqual(doc)
   })
 })

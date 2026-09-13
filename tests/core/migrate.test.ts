@@ -46,11 +46,11 @@ const v3 = {
 }
 
 describe('migration', () => {
-  it('version 1 loads as version 5 with attached lines, a rectangle record, a default view, and identical geometry', () => {
+  it('version 1 loads as version 6 with attached lines, a rectangle record, a default view, and identical geometry', () => {
     const r = parseDocument(JSON.stringify(v1))
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.file.version).toBe(5)
+    expect(r.file.version).toBe(6)
     expect(r.file.view).toEqual(DEFAULT_VIEW)
     expect(r.file.model.params).toEqual([])
     const s1 = r.file.model.features[0] as SketchFeature
@@ -122,12 +122,12 @@ describe('migration', () => {
       { u0: 176, u1: 256, v0: 0, v1: 64 },
     ])
   })
-  it('version 2 loads as version 5 with a default view', () => {
+  it('version 2 loads as version 6 with a default view', () => {
     const v2 = { version: 2, title: 'two', params: [{ name: 'ply', value: 12 }], features: [] }
     const r = parseDocument(JSON.stringify(v2))
-    expect(r.ok && r.file).toEqual({ version: 5, model: { title: 'two', params: [{ name: 'ply', value: 12 }], features: [] }, view: DEFAULT_VIEW })
+    expect(r.ok && r.file).toEqual({ version: 6, model: { title: 'two', params: [{ name: 'ply', value: 12 }], features: [] }, view: DEFAULT_VIEW })
   })
-  it('version 4 bumps to 5 with empty rectangle lists and its expressions unchanged', () => {
+  it('version 4 bumps to 6 with empty rectangle lists and its expressions unchanged', () => {
     const v4 = {
       version: 4,
       model: {
@@ -149,7 +149,7 @@ describe('migration', () => {
     const r = parseDocument(JSON.stringify(v4))
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.file.version).toBe(5)
+    expect(r.file.version).toBe(6)
     const s = r.file.model.features[0] as SketchFeature
     expect(s.rects).toEqual([])
     expect(s.lines[0]!.at).toBe('l2.at + 4')

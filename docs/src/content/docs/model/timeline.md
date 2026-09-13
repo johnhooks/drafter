@@ -5,7 +5,11 @@ sidebar:
   order: 3
 ---
 
-The timeline on the left lists every feature in the order it was added: sketches and extrudes. It is the whole document. Bodies are not stored; they are the result of running the timeline from the top.
+The timeline on the left lists every modelling feature in the order it was added: sketches and extrudes. Bodies are not stored; they are the result of running the timeline from the top. Drawing sheets are kept separately and show the finished bodies.
+
+## Views and sheets
+
+The model view shows the finished geometry. Editing a sketch opens its plane head on; **Finish** returns to the model. **Sheets** opens the drawing sheet list and page view, and **Model** returns to the timeline. See [Drawing sheets](/drawings/sheets/) for page settings, printing, and export.
 
 ## Evaluation
 

@@ -1,6 +1,7 @@
 import { parse } from '../expr/parser'
 import { IDENT_RE, RESERVED } from './params'
 import type { Feature } from './types'
+import { validateSheets } from '../sheets/validate'
 
 export interface ValidationError {
   readonly path: string
@@ -39,13 +40,14 @@ function checkLayout(d: unknown, path: string, err: Err) {
   if (l['label'] !== undefined && (typeof l['label'] !== 'number' || l['label'] < -0.5 || l['label'] > 1.5)) err(`${path}.label`, 'Label must be a fraction between -0.5 and 1.5')
 }
 
-/** Structural validation of a version 5 file: a model and a view. */
+/** Structural validation keeps untrusted file content out of the evaluator. */
 export function validateFile(file: unknown): ValidationError[] {
   if (typeof file !== 'object' || file === null) return [{ path: '', message: 'File must be an object' }]
   const f = file as Record<string, unknown>
   const errors: ValidationError[] = []
   const err: Err = (path, message) => errors.push({ path, message })
-  if (f['version'] !== 5) err('version', 'Unsupported file version')
+  if (f['version'] !== 6) err('version', 'Unsupported file version')
+  errors.push(...validateSheets(f['sheets'], f['nextSheetNumber'], f['modifiedDate']))
   errors.push(...validateDocument(f['model']).map((e) => ({ ...e, path: `model.${e.path}`.replace(/\.$/, '') })))
   const v = f['view'] as Record<string, unknown> | undefined
   if (typeof v !== 'object' || v === null) err('view', 'View must be an object')
@@ -69,6 +71,7 @@ export function validateDocument(doc: unknown): ValidationError[] {
   const err: Err = (path, message) => errors.push({ path, message })
   if (typeof doc !== 'object' || doc === null) return [{ path: '', message: 'Model must be an object' }]
   const d = doc as Record<string, unknown>
+  errors.push(...validateSheets(d['sheets'], d['nextSheetNumber'], d['modifiedDate']))
   if (typeof d['title'] !== 'string') err('title', 'Title must be a string')
   if (!Array.isArray(d['params'])) err('params', 'Params must be a list')
   else {
